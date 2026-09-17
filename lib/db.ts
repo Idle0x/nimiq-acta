@@ -1,139 +1,175 @@
 import { neon } from "@neondatabase/serverless";
-import { SEED_LISTINGS, type Escrow, type Listing } from "@/lib/escrow";
+import type { Escrow, Listing, UserProfile } from "./escrow";
 
-type SqlFn = ReturnType<typeof neon>;
-
-let client: SqlFn | null = null;
-
-export function getSql(): SqlFn | null {
+export function getSql() {
   const url = process.env.DATABASE_URL;
   if (!url) return null;
-  if (!client) client = neon(url);
-  return client;
+  return neon(url);
 }
 
 export function hasDb() {
-  return Boolean(process.env.DATABASE_URL);
+  return !!process.env.DATABASE_URL;
 }
 
-type ListingRow = {
-  id: string;
-  title: string;
-  owner: string;
-  collateral_nim: number;
-  distance_km: number;
-  kind: "borrow" | "bounty";
-  description?: string | null;
-  category?: string | null;
-  created_by?: string | null;
-};
+export async function initDbSchema() {
+  const sql = getSql();
+  if (!sql) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      address TEXT PRIMARY KEY,
+      trust_score INTEGER DEFAULT 0,
+      total_volume_nim INTEGER DEFAULT 0,
+      items_completed INTEGER DEFAULT 0,
+      joined_at BIGINT
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS listings (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      owner TEXT NOT NULL,
+      collateral_nim INTEGER NOT NULL,
+      yield_nim INTEGER DEFAULT 0,
+      duration_days INTEGER DEFAULT 1,
+      kind TEXT NOT NULL,
+      category TEXT NOT NULL,
+      description TEXT,
+      created_at BIGINT,
+      is_active BOOLEAN DEFAULT TRUE
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS escrows (
+      id TEXT PRIMARY KEY,
+      listing_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      borrower TEXT NOT NULL,
+      amount_nim INTEGER NOT NULL,
+      fee_nim INTEGER NOT NULL,
+      yield_nim INTEGER DEFAULT 0,
+      state TEXT NOT NULL,
+      tx_hash TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      expires_at BIGINT,
+      resolved_at BIGINT,
+      lender_pubkey TEXT,
+      description TEXT
+    );
+  `;
+}
 
-type EscrowRow = {
-  id: string;
-  listing_id: string;
-  title: string;
-  borrower: string;
-  amount_nim: number;
-  fee_nim: number;
-  state: "locked" | "released";
-  tx_hash: string;
-  created_at: number;
-  lender_pubkey: string | null;
-  expires_at?: number | null;
-  description?: string | null;
-};
+// -- Users --
+export async function ensureUser(address: string): Promise<UserProfile> {
+  const sql = getSql();
+  if (!sql) return { address, trustScore: 0, totalVolumeNIM: 0, itemsCompleted: 0, joinedAt: Date.now() };
+  
+  const res = await sql`SELECT * FROM users WHERE address = ${address}`;
+  if (res.length > 0) {
+    const row = res[0] as any;
+    return {
+      address: row.address,
+      trustScore: row.trust_score,
+      totalVolumeNIM: row.total_volume_nim,
+      itemsCompleted: row.items_completed,
+      joinedAt: row.joined_at
+    };
+  }
+  
+  const joined = Date.now();
+  await sql`INSERT INTO users (address, joined_at) VALUES (${address}, ${joined})`;
+  return { address, trustScore: 0, totalVolumeNIM: 0, itemsCompleted: 0, joinedAt: joined };
+}
 
-function toListing(r: ListingRow): Listing {
-  return {
+export async function addTrustScore(address: string, volume: number) {
+  const sql = getSql();
+  if (!sql) return;
+  // +5 trust points per completed escrow, cap at 100
+  await sql`
+    UPDATE users 
+    SET 
+      items_completed = items_completed + 1,
+      total_volume_nim = total_volume_nim + ${volume},
+      trust_score = LEAST(100, trust_score + 5)
+    WHERE address = ${address}
+  `;
+}
+
+// -- Listings --
+export async function fetchListings(): Promise<Listing[]> {
+  const sql = getSql();
+  if (!sql) return [];
+  const rows = await sql`SELECT * FROM listings WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 50`;
+  return rows.map((r: any) => ({
     id: r.id,
     title: r.title,
     owner: r.owner,
     collateralNIM: r.collateral_nim,
-    distanceKm: r.distance_km,
+    yieldNIM: r.yield_nim,
+    durationDays: r.duration_days,
     kind: r.kind,
-    description: r.description ?? undefined,
-    category: r.category as Listing["category"] ?? undefined,
-    createdBy: r.created_by ?? undefined,
-  };
+    category: r.category,
+    description: r.description,
+    createdAt: r.created_at,
+    isActive: r.is_active
+  }));
 }
 
-function toEscrow(r: EscrowRow): Escrow {
-  return {
+export async function insertListing(l: Listing) {
+  const sql = getSql();
+  if (!sql) return;
+  await sql`
+    INSERT INTO listings (
+      id, title, owner, collateral_nim, yield_nim, duration_days, kind, category, description, created_at, is_active
+    ) VALUES (
+      ${l.id}, ${l.title}, ${l.owner}, ${l.collateralNIM}, ${l.yieldNIM || 0}, ${l.durationDays || 1}, ${l.kind}, ${l.category}, ${l.description}, ${l.createdAt}, ${l.isActive}
+    )
+  `;
+}
+
+// -- Escrows --
+export async function fetchEscrows(): Promise<Escrow[]> {
+  const sql = getSql();
+  if (!sql) return [];
+  const rows = await sql`SELECT * FROM escrows ORDER BY created_at DESC LIMIT 100`;
+  return rows.map((r: any) => ({
     id: r.id,
     listingId: r.listing_id,
     title: r.title,
     borrower: r.borrower,
     amountNIM: r.amount_nim,
     feeNIM: r.fee_nim,
+    yieldNIM: r.yield_nim,
     state: r.state,
     txHash: r.tx_hash,
-    createdAt: Number(r.created_at),
-    lenderPubkey: r.lender_pubkey ?? undefined,
-    expiresAt: r.expires_at ? Number(r.expires_at) : undefined,
-    description: r.description ?? undefined,
-  };
+    createdAt: parseInt(r.created_at, 10),
+    expiresAt: r.expires_at ? parseInt(r.expires_at, 10) : undefined,
+    resolvedAt: r.resolved_at ? parseInt(r.resolved_at, 10) : undefined,
+    lenderPubkey: r.lender_pubkey || undefined,
+    description: r.description || undefined,
+  }));
 }
 
-export async function fetchListings(): Promise<Listing[]> {
-  const sql = getSql();
-  if (!sql) return SEED_LISTINGS;
-  try {
-    const rows = (await sql`select * from listings order by distance_km asc`) as ListingRow[];
-    if (rows.length === 0) return SEED_LISTINGS;
-    return rows.map(toListing);
-  } catch {
-    return SEED_LISTINGS;
-  }
-}
-
-export async function fetchEscrows(): Promise<Escrow[]> {
-  const sql = getSql();
-  if (!sql) return [];
-  try {
-    const rows =
-      (await sql`select * from escrows order by created_at desc limit 100`) as EscrowRow[];
-    return rows.map(toEscrow);
-  } catch {
-    return [];
-  }
-}
-
-export async function insertEscrow(e: Escrow): Promise<void> {
+export async function insertEscrow(e: Escrow) {
   const sql = getSql();
   if (!sql) return;
   await sql`
-    insert into escrows (
-      id, listing_id, title, borrower, amount_nim, fee_nim, state, tx_hash, created_at, lender_pubkey, expires_at, description
+    INSERT INTO escrows (
+      id, listing_id, title, borrower, amount_nim, fee_nim, yield_nim, state, tx_hash, created_at, expires_at, description
+    ) VALUES (
+      ${e.id}, ${e.listingId}, ${e.title}, ${e.borrower}, ${e.amountNIM}, ${e.feeNIM}, ${e.yieldNIM || 0}, ${e.state}, ${e.txHash}, ${e.createdAt}, ${e.expiresAt || null}, ${e.description || null}
     )
-    values (
-      ${e.id}, ${e.listingId}, ${e.title}, ${e.borrower}, ${e.amountNIM}, ${e.feeNIM}, ${e.state}, ${e.txHash}, ${e.createdAt}, ${e.lenderPubkey ?? null}, ${e.expiresAt ?? null}, ${e.description ?? null}
-    )
-    on conflict (id) do nothing
   `;
 }
 
-export async function insertListing(l: Listing): Promise<void> {
+export async function updateEscrowLenderKey(id: string, pubkey: string) {
   const sql = getSql();
   if (!sql) return;
-  await sql`
-    insert into listings (
-      id, title, owner, collateral_nim, distance_km, kind, description, category, created_by
-    )
-    values (
-      ${l.id}, ${l.title}, ${l.owner}, ${l.collateralNIM}, ${l.distanceKm}, ${l.kind}, ${l.description ?? null}, ${l.category ?? null}, ${l.createdBy ?? null}
-    )
-    on conflict (id) do nothing
-  `;
+  await sql`UPDATE escrows SET lender_pubkey = ${pubkey} WHERE id = ${id}`;
 }
 
-export async function setEscrowReleased(id: string): Promise<void> {
+export async function resolveEscrow(id: string) {
   const sql = getSql();
   if (!sql) return;
-  await sql`update escrows set state = 'released' where id = ${id}`;
-}
-
-export async function setEscrowLenderKey(id: string, pubkey: string): Promise<void> {
-  const sql = getSql();
-  if (!sql) return;
-  await sql`update escrows set lender_pubkey = ${pubkey} where id = ${id}`;
+  const now = Date.now();
+  await sql`UPDATE escrows SET state = 'released', resolved_at = ${now} WHERE id = ${id}`;
 }
