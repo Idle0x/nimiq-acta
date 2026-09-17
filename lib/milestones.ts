@@ -3,13 +3,13 @@ import { executeVaultPayout } from "./backend-nimiq";
 import { newId } from "./escrow";
 import { insertAct } from "./db";
 
-// Normalized rewards as requested by user (scaled down x100)
+
 export const MILESTONES = {
   FIRST_CONNECTION: { id: "ms_first_conn", rewardNIM: 10 },
-  FIRST_LOCKED: { id: "ms_first_lock", rewardNIM: 0.15 },
-  FIRST_SETTLED: { id: "ms_first_settle", rewardNIM: 0.25 },
-  FIRST_BOUNTY: { id: "ms_first_bounty", rewardNIM: 0.25 },
-  FIRST_LISTING: { id: "ms_first_listing", rewardNIM: 0.2 },
+  FIRST_LOCKED: { id: "ms_first_lock", rewardNIM: 15 },
+  FIRST_SETTLED: { id: "ms_first_settle", rewardNIM: 25 },
+  FIRST_BOUNTY: { id: "ms_first_bounty", rewardNIM: 25 },
+  FIRST_LISTING: { id: "ms_first_listing", rewardNIM: 20 },
 };
 
 export async function checkAndAwardMilestone(address: string, milestoneKey: keyof typeof MILESTONES) {

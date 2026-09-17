@@ -16,8 +16,11 @@ export async function POST(req: Request) {
     if (!token) return NextResponse.json({ error: "Missing token" }, { status: 400 });
 
     const parts = token.split('.');
-    if (parts.length !== 3) return NextResponse.json({ error: "Invalid token format" }, { status: 400 });
-    const payloadStr = Buffer.from(parts[1], 'base64').toString('utf8');
+    if (parts.length !== 2) return NextResponse.json({ error: "Invalid token format" }, { status: 400 });
+    
+    // Convert base64url to base64
+    const b64 = parts[0].replace(/-/g, "+").replace(/_/g, "/");
+    const payloadStr = Buffer.from(b64, 'base64').toString('utf8');
     const payload = JSON.parse(payloadStr);
     
     const listingId = payload.escrowId; // we reused escrowId field for listingId

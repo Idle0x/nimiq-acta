@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchEscrows, fetchListings, hasDb, insertEscrow, insertListing, initDbSchema, atomicReleaseEscrow, fetchEscrow, consumeNonce, insertAct } from "@/lib/db";
+import { fetchEscrows, fetchListings, hasDb, insertEscrow, insertListing, initDbSchema, atomicReleaseEscrow, fetchEscrow, consumeNonce, insertAct, getSql } from "@/lib/db";
 import type { Escrow, Listing, Act } from "@/lib/escrow";
 import { getSessionAddress } from "@/lib/session";
 import { executeVaultPayout } from "@/lib/backend-nimiq";
@@ -43,7 +43,23 @@ export async function POST(req: Request) {
   }
 
   if (data.type === "listing") {
-    await insertListing(data.payload as Listing);
+    const listing = data.payload as Listing;
+    await insertListing(listing);
+    
+    if (listing.kind.startsWith("bounty") && data.txHash) {
+      await insertAct({
+        id: newId("act"),
+        actorAddress: address,
+        type: "creator",
+        oracle: "system",
+        listingId: listing.id,
+        amountNIM: listing.collateralNIM,
+        feeNIM: 0,
+        txHashIn: data.txHash,
+        createdAt: Date.now()
+      });
+    }
+
     checkAndAwardMilestone(address, "FIRST_LISTING").catch(() => {});
     return NextResponse.json({ ok: true });
   }

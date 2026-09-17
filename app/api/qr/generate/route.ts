@@ -32,8 +32,8 @@ export async function POST(req: Request) {
   if (!address) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!hasDb()) return NextResponse.json({ error: "No DB" }, { status: 500 });
   
-  const { escrowId } = await req.json();
-  if (!escrowId) return NextResponse.json({ error: "escrowId required" }, { status: 400 });
+  const { escrowId, amount, chain } = await req.json();
+  if (!escrowId || !amount || !chain) return NextResponse.json({ error: "escrowId, amount, chain required" }, { status: 400 });
 
   let key = await getLenderKey(address);
   let privKeyHex = "";
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     privKeyHex = decrypt(key.privateKeyHexEncrypted);
   }
   
-  const payload = createReturnPayload(escrowId);
+  const payload = createReturnPayload(escrowId, amount, chain);
   const token = await signReturn(payload, privKeyHex);
   
   return NextResponse.json({ token, publicKeyHex: key.publicKeyHex });

@@ -9,6 +9,8 @@ ed.hashes.sha512 = sha512;
 export type ReturnPayload = {
   escrowId: string;
   lender: string;
+  amount: number;
+  chain: string;
   nonce: string;
   exp: number;
 };
@@ -36,12 +38,14 @@ export async function generateLenderKeypair() {
   };
 }
 
-export function createReturnPayload(escrowId: string): ReturnPayload {
+export function createReturnPayload(escrowId: string, amount: number, chain: string): ReturnPayload {
   const nonce = Array.from(crypto.getRandomValues(new Uint8Array(12)))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
   return {
     escrowId,
+    amount,
+    chain,
     lender: "lender-device",
     nonce,
     exp: Date.now() + 1000 * 60 * 10,

@@ -34,6 +34,7 @@ import {
 import { useNimiq } from "@/lib/nimiq";
 import {
   ESCROW_VAULT,
+  MIN_NETWORK_FEE_NIM,
   MICRO_FEE_NIM,
   discountedCollateral,
   newId,
@@ -74,7 +75,7 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("radar");
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
-  const [dashboard, setDashboard] = useState<{price: number, stats: any, feed?: any[], leaderboard?: any[]} | null>(null);
+  const [dashboard, setDashboard] = useState<{price: number, stats: any, user?: any, feed?: any[], leaderboard?: any[]} | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [wizard, setWizard] = useState<Listing | null>(null);
@@ -84,9 +85,10 @@ export default function Home() {
   const [showScanner, setShowScanner] = useState(false);
   const [showCreateListing, setShowCreateListing] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   const borrower = accounts[0] ?? "Anonymous";
-  const isConnected = status === "connected";
+  const isConnected = status === "connected" || isDemoMode;
 
   // Real Trust Score (0-100) from the server
   const trustScore = dashboard?.user?.trustScore || 0;
@@ -218,7 +220,7 @@ export default function Home() {
       const res = await fetch("/api/qr/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ escrowId: escrow.id })
+        body: JSON.stringify({ escrowId: escrow.id, amount: escrow.amountNIM, chain: "nimiq-testnet" })
       });
       if (!res.ok) throw new Error("Failed to generate QR");
       const { token, publicKeyHex } = await res.json();
@@ -298,7 +300,7 @@ export default function Home() {
       }
 
       // 3. Try ScanQuest (Creator placed QR, Completer scans it)
-      if (!matched && t.split('.').length === 3) {
+      if (!matched && t.split('.').length === 2) {
         setShowScanner(false);
         const res = await fetch("/api/bounty/scanquest", {
           method: "POST",
@@ -330,12 +332,13 @@ export default function Home() {
       return;
     }
 
+    let txHash: string | undefined;
     if (data.kind.startsWith("bounty")) {
       try {
-        await sendLock({
+        txHash = await sendLock({
           recipient: ESCROW_VAULT,
           value: Math.round(data.collateralNIM * 100_000),
-          fee: 10,
+          fee: Math.max(10, MIN_NETWORK_FEE_NIM * 100_000), // network minimum fee
         });
       } catch (err) {
         toast("Failed to fund bounty: " + (err instanceof Error ? err.message : "unknown"), "error");
@@ -361,7 +364,7 @@ export default function Home() {
       const res = await fetch("/api/escrows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "listing", payload: listing }),
+        body: JSON.stringify({ type: "listing", payload: listing, txHash }),
       });
       if (!res.ok) throw new Error("Failed to save listing");
       
@@ -402,23 +405,10 @@ export default function Home() {
         >
           Retry Connection
         </button>
-        <button 
-          onClick={async () => {
-            try {
-              const hub = new HubApi("https://hub.nimiq-testnet.com");
-              const res = await hub.chooseAddress({ appName: "Acta Protocol" });
-              if(res) window.location.reload(); 
-            } catch(e) {
-              console.error(e);
-            }
-          }}
-          className="border border-white/20 text-white font-semibold py-3 px-8 rounded-full w-full max-w-[260px] btn-press transition-colors hover:bg-white/5"
-        >
-          Connect via Hub (Web)
-        </button>
+
         
         <button 
-          onClick={() => setStatus("connected")}
+          onClick={() => setIsDemoMode(true)}
           className="mt-6 text-slate-500 text-xs underline decoration-slate-700 hover:text-slate-300 transition-colors"
         >
           Continue in Read-Only Demo Mode
@@ -436,7 +426,7 @@ export default function Home() {
               <span className="bg-gradient-to-br from-amber-300 to-amber-600 bg-clip-text text-transparent">Acta</span>
             </h1>
             <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mt-1">
-              Zero-Trust Protocol
+              ACTION ECONOMY {isDemoMode && <span className="bg-rose-500 text-white ml-2 px-1 rounded">READ-ONLY DEMO</span>}
             </p>
           </div>
           <button
@@ -502,7 +492,7 @@ export default function Home() {
                             const res = await fetch("/api/qr/generate", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ type: "scan_quest", escrowId: l.id }),
+                              body: JSON.stringify({ type: "scan_quest", escrowId: l.id, amount: l.collateralNIM, chain: "nimiq-testnet" }),
                             });
                             const data = await res.json();
                             if (res.ok) setQrToken({ token: data.token, escrow: { title: l.title, amountNIM: l.collateralNIM } as any });
@@ -645,7 +635,7 @@ export default function Home() {
                           if (kind === "bounty") {
                             return <BountyVerify task={e.title} listingId={e.listingId} />;
                           } else if (kind === "bounty_geo") {
-                            return <CheckInVerify title={e.title} listingId={e.listingId} />;
+                            return <CheckInVerify listingId={e.listingId} />;
                           } else if (kind === "bounty_manual") {
                             return <ManualVerify listingId={e.listingId} />;
                           } else if (kind === "bounty_qr") {

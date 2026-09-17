@@ -36,11 +36,12 @@ export async function GET() {
       }
     }
 
-    const [tvlRes, vol30dRes, esc7dRes, esc30dRes, leaderboardRes, feedRes] = await Promise.all([
+    const [tvlEscrowRes, tvlListingRes, vol30dRes, esc7dRes, esc30dRes, leaderboardRes, feedRes] = await Promise.all([
       sql`SELECT COALESCE(SUM(amount_nim), 0) as tvl FROM escrows WHERE state = 'locked'`,
-      sql`SELECT COALESCE(SUM(amount_nim), 0) as vol FROM escrows WHERE created_at > (extract(epoch from now()) * 1000 - 2592000000)`,
-      sql`SELECT COUNT(*) as count FROM escrows WHERE created_at > (extract(epoch from now()) * 1000 - 604800000)`,
-      sql`SELECT COUNT(*) as count FROM escrows WHERE created_at > (extract(epoch from now()) * 1000 - 2592000000)`,
+      sql`SELECT COALESCE(SUM(collateral_nim), 0) as tvl FROM listings WHERE is_active = TRUE AND kind LIKE 'bounty%'`,
+      sql`SELECT COALESCE(SUM(amount_nim), 0) as vol FROM acts WHERE settled_at IS NOT NULL AND settled_at > (extract(epoch from now()) * 1000 - 2592000000)`,
+      sql`SELECT COUNT(*) as count FROM acts WHERE created_at > (extract(epoch from now()) * 1000 - 604800000)`,
+      sql`SELECT COUNT(*) as count FROM acts WHERE created_at > (extract(epoch from now()) * 1000 - 2592000000)`,
       sql`SELECT address, trust_score, items_completed FROM users ORDER BY trust_score DESC, items_completed DESC LIMIT 10`,
       sql`SELECT id, actor_address, type, oracle, amount_nim, created_at, tx_hash_out, proof_json FROM acts ORDER BY created_at DESC LIMIT 20`
     ]);
@@ -49,7 +50,7 @@ export async function GET() {
       price,
       user: userStats,
       stats: {
-        tvl_nim: Number((tvlRes as any[])[0].tvl),
+        tvl_nim: Number((tvlEscrowRes as any[])[0].tvl) + Number((tvlListingRes as any[])[0].tvl),
         volume_30d: Number((vol30dRes as any[])[0].vol),
         escrows_7d: Number((esc7dRes as any[])[0].count),
         escrows_30d: Number((esc30dRes as any[])[0].count)

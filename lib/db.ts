@@ -183,7 +183,7 @@ export async function fetchListings(): Promise<Listing[]> {
     kind: r.kind,
     category: r.category,
     description: r.description,
-    createdAt: parseInt(r.created_at, 10),
+    createdAt: r.created_at && r.created_at !== 'null' ? parseInt(r.created_at, 10) : 0,
     isActive: r.is_active
   }));
 }
@@ -215,11 +215,11 @@ export async function fetchEscrows(): Promise<Escrow[]> {
     yieldNIM: r.yield_nim,
     state: r.state,
     txHash: r.tx_hash,
-    createdAt: parseInt(r.created_at, 10),
-    lenderPubkey: r.lender_pubkey || undefined,
-    expiresAt: r.expires_at ? parseInt(r.expires_at, 10) : undefined,
-    resolvedAt: r.resolved_at ? parseInt(r.resolved_at, 10) : undefined,
-    description: r.description || undefined,
+    createdAt: r.created_at && r.created_at !== 'null' ? parseInt(r.created_at, 10) : 0,
+    lenderPubkey: r.lender_pubkey && r.lender_pubkey !== 'null' ? r.lender_pubkey : undefined,
+    expiresAt: r.expires_at && r.expires_at !== 'null' ? parseInt(r.expires_at, 10) : undefined,
+    resolvedAt: r.resolved_at && r.resolved_at !== 'null' ? parseInt(r.resolved_at, 10) : undefined,
+    description: r.description && r.description !== 'null' ? r.description : undefined,
   }));
 }
 
@@ -251,11 +251,11 @@ export async function fetchEscrow(id: string): Promise<Escrow | null> {
     yieldNIM: r.yield_nim,
     state: r.state,
     txHash: r.tx_hash,
-    createdAt: parseInt(r.created_at, 10),
-    lenderPubkey: r.lender_pubkey || undefined,
-    expiresAt: r.expires_at ? parseInt(r.expires_at, 10) : undefined,
-    resolvedAt: r.resolved_at ? parseInt(r.resolved_at, 10) : undefined,
-    description: r.description || undefined,
+    createdAt: r.created_at && r.created_at !== 'null' ? parseInt(r.created_at, 10) : 0,
+    lenderPubkey: r.lender_pubkey && r.lender_pubkey !== 'null' ? r.lender_pubkey : undefined,
+    expiresAt: r.expires_at && r.expires_at !== 'null' ? parseInt(r.expires_at, 10) : undefined,
+    resolvedAt: r.resolved_at && r.resolved_at !== 'null' ? parseInt(r.resolved_at, 10) : undefined,
+    description: r.description && r.description !== 'null' ? r.description : undefined,
   };
 }
 
@@ -288,7 +288,7 @@ export async function fetchListing(id: string): Promise<Listing | null> {
     kind: r.kind,
     category: r.category,
     description: r.description,
-    createdAt: parseInt(r.created_at, 10),
+    createdAt: r.created_at && r.created_at !== 'null' ? parseInt(r.created_at, 10) : 0,
     isActive: r.is_active
   };
 }
