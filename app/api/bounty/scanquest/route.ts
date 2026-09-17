@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSessionAddress } from "@/lib/session";
-import { fetchListing, atomicReleaseListing, insertAct, hasDb, getLenderKey, consumeNonce } from "@/lib/db";
-import { executeVaultPayout } from "@/lib/backend-nimiq";
-import { newId } from "@/lib/escrow";
+import { fetchListing, hasDb, getLenderKey, consumeNonce } from "@/lib/db";
+import { claimListing, finalizeListing, unclaimListing, settleAct } from "@/lib/settle";
+import { newId, MIN_NETWORK_FEE_NIM } from "@/lib/escrow";
 import { verifyReturn } from "@/lib/qr";
 import { checkAndAwardMilestone } from "@/lib/milestones";
 
@@ -15,15 +15,13 @@ export async function POST(req: Request) {
     const { token } = await req.json();
     if (!token) return NextResponse.json({ error: "Missing token" }, { status: 400 });
 
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length !== 2) return NextResponse.json({ error: "Invalid token format" }, { status: 400 });
-    
-    // Convert base64url to base64
+
     const b64 = parts[0].replace(/-/g, "+").replace(/_/g, "/");
-    const payloadStr = Buffer.from(b64, 'base64').toString('utf8');
-    const payload = JSON.parse(payloadStr);
-    
-    const listingId = payload.escrowId; // we reused escrowId field for listingId
+    const payload = JSON.parse(Buffer.from(b64, "base64").toString("utf8"));
+    const listingId: string = payload.escrowId; // field reused as subject id
+
     const listing = await fetchListing(listingId);
     if (!listing || listing.kind !== "bounty_qr") {
       return NextResponse.json({ error: "Invalid listing" }, { status: 404 });
@@ -34,38 +32,34 @@ export async function POST(req: Request) {
 
     const verified = await verifyReturn(token, creatorKey.publicKeyHex);
     if (!verified) return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    if (verified.escrowId !== listingId) {
+      return NextResponse.json({ error: "Token does not match this quest" }, { status: 400 });
+    }
 
     const fresh = await consumeNonce(verified.nonce);
     if (!fresh) return NextResponse.json({ error: "QR code already used" }, { status: 400 });
 
-    const released = await atomicReleaseListing(listing.id);
-    if (!released) return NextResponse.json({ error: "Bounty already completed" }, { status: 400 });
-
-    let txHashOut = "0x" + Date.now().toString(16);
-    try {
-      txHashOut = await executeVaultPayout(address, listing.collateralNIM, 0.0001);
-    } catch (e) {
-      console.error("ScanQuest payout failed:", e);
-      return NextResponse.json({ error: "Failed to broadcast bounty reward" }, { status: 500 });
-    }
-
-    await insertAct({
-      id: newId("act"),
-      actorAddress: address,
-      type: "scanquest",
-      oracle: "qr_sig",
-      listingId: listing.id,
-      amountNIM: listing.collateralNIM,
-      feeNIM: 0.0001,
-      proofJson: { nonce: verified.nonce },
-      txHashOut,
-      createdAt: listing.createdAt,
-      settledAt: Date.now()
-    });
+    const result = await settleAct(
+      {
+        id: newId("act"),
+        actorAddress: address,
+        type: "scanquest",
+        oracle: "qr_sig",
+        listingId: listing.id,
+        amountNIM: listing.collateralNIM,
+        feeNIM: MIN_NETWORK_FEE_NIM,
+        proofJson: { nonce: verified.nonce },
+        createdAt: listing.createdAt,
+      },
+      { to: address, amountNIM: listing.collateralNIM, feeNIM: MIN_NETWORK_FEE_NIM },
+      () => claimListing(listingId),
+      () => finalizeListing(listingId),
+      () => unclaimListing(listingId)
+    );
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
     checkAndAwardMilestone(address, "FIRST_BOUNTY").catch(() => {});
-
-    return NextResponse.json({ ok: true, txHashOut });
+    return NextResponse.json({ ok: true, txHashOut: result.txHashOut });
   } catch (err) {
     console.error("ScanQuest error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

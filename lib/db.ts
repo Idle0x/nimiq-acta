@@ -12,8 +12,10 @@ export function hasDb() {
 }
 
 export async function initDbSchema() {
-  const sql = getSql();
-  if (!sql) return;
+  const url = process.env.DATABASE_URL;
+  if (!url) return;
+  const sql = neon(url);
+
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       address TEXT PRIMARY KEY,
@@ -35,7 +37,12 @@ export async function initDbSchema() {
       category TEXT NOT NULL,
       description TEXT,
       created_at BIGINT,
-      is_active BOOLEAN DEFAULT TRUE
+      is_active BOOLEAN DEFAULT TRUE,
+      idem_key TEXT UNIQUE,
+      tx_hash TEXT,
+      state TEXT NOT NULL DEFAULT 'open',
+      target_lat DOUBLE PRECISION,
+      target_lng DOUBLE PRECISION
     );
   `;
   await sql`
@@ -53,7 +60,8 @@ export async function initDbSchema() {
       lender_pubkey TEXT,
       expires_at BIGINT,
       resolved_at BIGINT,
-      description TEXT
+      description TEXT,
+      idem_key TEXT UNIQUE
     );
   `;
   await sql`
@@ -75,10 +83,7 @@ export async function initDbSchema() {
     );
   `;
   await sql`
-    CREATE TABLE IF NOT EXISTS consumed_nonces (
-      nonce TEXT PRIMARY KEY,
-      consumed_at BIGINT NOT NULL
-    );
+    CREATE TABLE IF NOT EXISTS consumed_nonces (nonce TEXT PRIMARY KEY, consumed_at BIGINT NOT NULL);
   `;
   await sql`
     CREATE TABLE IF NOT EXISTS lender_keys (
@@ -87,28 +92,49 @@ export async function initDbSchema() {
       private_key_hex_encrypted TEXT NOT NULL
     );
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS auth_nonces (nonce TEXT PRIMARY KEY, created_at BIGINT NOT NULL);
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS venture_submissions (
+      id TEXT PRIMARY KEY,
+      listing_id TEXT NOT NULL,
+      completer TEXT NOT NULL,
+      proof TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      UNIQUE (listing_id, completer, status)
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS idempotent_actions (
+      key TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      payload JSONB NOT NULL,
+      created_at BIGINT NOT NULL
+    );
+  `;
 }
 
-// -- Users --
 export async function ensureUser(address: string): Promise<UserProfile> {
   const sql = getSql();
-  if (!sql) return { address, trustScore: 0, totalVolumeNIM: 0, itemsCompleted: 0, joinedAt: Date.now() };
-  
-  const res = await sql`SELECT * FROM users WHERE address = ${address}`;
-  if (res.length > 0) {
-    const row = res[0] as any;
-    return {
-      address: row.address,
-      trustScore: row.trust_score,
-      totalVolumeNIM: row.total_volume_nim,
-      itemsCompleted: row.items_completed,
-      joinedAt: row.joined_at
-    };
+  if (!sql) {
+    return { address, trustScore: 0, totalVolumeNIM: 0, itemsCompleted: 0, joinedAt: Date.now() };
   }
-  
-  const joined = Date.now();
-  await sql`INSERT INTO users (address, joined_at) VALUES (${address}, ${joined})`;
-  return { address, trustScore: 0, totalVolumeNIM: 0, itemsCompleted: 0, joinedAt: joined };
+  await sql`
+    INSERT INTO users (address, joined_at)
+    VALUES (${address}, ${Date.now()})
+    ON CONFLICT (address) DO NOTHING
+  `;
+  const res = await sql`SELECT * FROM users WHERE address = ${address}`;
+  const row = res[0] as any;
+  return {
+    address: row.address,
+    trustScore: row.trust_score ?? 0,
+    totalVolumeNIM: row.total_volume_nim ?? 0,
+    itemsCompleted: row.items_completed ?? 0,
+    joinedAt: row.joined_at ?? Date.now(),
+  };
 }
 
 // -- Lender Keys --
@@ -184,7 +210,11 @@ export async function fetchListings(): Promise<Listing[]> {
     category: r.category,
     description: r.description,
     createdAt: r.created_at && r.created_at !== 'null' ? parseInt(r.created_at, 10) : 0,
-    isActive: r.is_active
+    isActive: r.is_active,
+    state: r.state,
+    txHash: r.tx_hash,
+    targetLat: r.target_lat,
+    targetLng: r.target_lng
   }));
 }
 
@@ -193,9 +223,9 @@ export async function insertListing(l: Listing) {
   if (!sql) return;
   await sql`
     INSERT INTO listings (
-      id, title, owner, collateral_nim, yield_nim, duration_days, kind, category, description, created_at, is_active
+      id, title, owner, collateral_nim, yield_nim, duration_days, kind, category, description, created_at, is_active, tx_hash, state, target_lat, target_lng
     ) VALUES (
-      ${l.id}, ${l.title}, ${l.owner}, ${l.collateralNIM}, ${l.yieldNIM || 0}, ${l.durationDays || 1}, ${l.kind}, ${l.category}, ${l.description}, ${l.createdAt}, ${l.isActive}
+      ${l.id}, ${l.title}, ${l.owner}, ${l.collateralNIM}, ${l.yieldNIM || 0}, ${l.durationDays || 1}, ${l.kind}, ${l.category}, ${l.description}, ${l.createdAt}, ${l.isActive}, ${l.txHash || null}, ${l.state || 'open'}, ${l.targetLat || null}, ${l.targetLng || null}
     )
   `;
 }
@@ -289,7 +319,11 @@ export async function fetchListing(id: string): Promise<Listing | null> {
     category: r.category,
     description: r.description,
     createdAt: r.created_at && r.created_at !== 'null' ? parseInt(r.created_at, 10) : 0,
-    isActive: r.is_active
+    isActive: r.is_active,
+    state: r.state,
+    txHash: r.tx_hash,
+    targetLat: r.target_lat,
+    targetLng: r.target_lng
   };
 }
 

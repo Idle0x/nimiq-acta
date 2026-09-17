@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { MapPin, Check, AlertTriangle, Loader2 } from "lucide-react";
 
-export default function CheckInVerify({ listingId }: { listingId: string }) {
+export default function CheckInVerify({ listingId, onSuccess }: { listingId: string; onSuccess?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   
@@ -32,6 +32,7 @@ export default function CheckInVerify({ listingId }: { listingId: string }) {
             setResult(`Oracle error: ${data.error || res.statusText}`);
           } else if (data.pass) {
             setResult(`PASS · ${data.reason}`);
+        onSuccess?.();
           } else {
             setResult(`FAIL · ${data.reason}`);
           }

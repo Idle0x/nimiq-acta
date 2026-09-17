@@ -6,36 +6,29 @@
 
 Acta turns Nimiq Pay into a zero-trust neighborhood economy. Borrow a drill from your neighbor by locking NIM as collateral. When you return it, they scan a cryptographic QR code on your phone to instantly release your locked funds back to you. 
 
-Beyond borrowing, Acta scales into community micro-work with **Bounties**. Creators can fund challenges that pay out automatically when solvers prove reality:
-- **ScanQuest:** Discover and scan a cryptographically signed QR token hidden in the physical world.
+Beyond borrowing, Acta scales into community micro-work with **Bounties**. Creators can fund challenges that pay out automatically when solvers prove reality through our **Four Oracles**:
+- **ScanQuest (QR):** Discover and scan a cryptographically signed QR token hidden in the physical world.
 - **CheckIn (Geo):** Physically visit a GPS coordinate to unlock funds.
-- **PhotoProof:** Snap a picture and let advanced AI (Qwen3.6 Vision) verify it.
-- **CreatorVerified:** Perform custom labor and get a manual sign-off via QR scan.
+- **PhotoProof (Vision):** Snap a picture and let advanced AI (Qwen3.6 Vision) verify it.
+- **CreatorVerified:** Perform custom labor and get a manual sign-off via QR scan (or through the Creator Inbox).
 
-Every verified action builds your transparent on-chain **Trust Score**, which persistently reduces your future collateral requirements, and drips real rewards from the community treasury.
+Every verified action builds your transparent on-chain **Trust Score v2**, which persistently reduces your future collateral requirements.
 
-### The 25-Second Demo Script
-1. Open Acta in Nimiq Pay. Admire the live **Treasury TVL** and global Activity Feed.
-2. Tap the **Map Toggle** stub to see how geospatial bounding will work.
-3. Tap **New** -> **ScanQuest**. Fund the bounty with NIM directly via `sendBasicTransaction()`.
-4. As the creator, tap **Show Quest QR** to generate a cryptographic signature.
-5. As a solver, tap the **QR Scanner** on your dashboard and scan the screen. 
-6. Watch the backend verify the signature and instantly pay out the reward!
+### Treasury Mechanics
+A small network fee (e.g., 0.1 NIM) is levied on every successful action. These fees accumulate in the global **Treasury Vault**. Over time, the protocol distributes these collected funds to highly trusted participants, creating a cyclic token economy.
 
 ## How It Uses Nimiq
 
 Acta is a native Nimiq Pay Mini App, leveraging the `window.nimiq` provider:
 - `sendBasicTransaction()` — Locks collateral or funds bounties.
-- `sendBasicTransactionWithData()` — Embeds protocol metadata.
 - `sign()` — Provides cryptographic proof for zero-trust state changes.
-- `requestDeviceIdentifier()` — Powers anti-sybil trust scoring.
 
 ## Disclosed Limitations (Hackathon Build)
 
 1. **GPS Spoofing:** Uses HTML5 geolocation. Production requires a hardened anti-spoofing SDK.
 2. **AI Hallucinations:** Vision oracle could be tricked by screens. Production requires live-camera-only pipelines.
 3. **Asset Volatility:** Uses native NIM. While we investigated Nimiq Pay's OASIS/Polygon bridge for USDT stablecoin collateral, the Mini-App SDK currently only supports native NIM transaction triggers.
-4. **Escrow Vault:** Backend-managed payout wallet, pending true HTLC smart contracts.
+4. **Hot-Wallet Escrow:** Escrow payouts are currently managed by a backend hot-wallet. This requires trusting the Acta backend to disburse funds correctly upon oracle verification, pending true HTLC/Smart Contract support on Nimiq for multi-sig programmatic release.
 
 ## Submission Checklist
 - [x] MIT LICENSE file

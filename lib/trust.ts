@@ -1,11 +1,14 @@
 import { getSql } from "./db";
 
+// NOTE: also replace `ensureUser` in lib/db.ts with the upsert version at
+// the bottom of this file — first-time users currently never get a row,
+// so their trust score never persists.
+
 export async function computeAndUpdateTrustScore(address: string): Promise<number> {
   const sql = getSql();
   if (!sql) return 0;
 
   try {
-    // 1. Completion (settled acts / total acts entered, weighted)
     const actStats = await sql`
       SELECT 
         COUNT(*) as total_acts,
@@ -17,7 +20,7 @@ export async function computeAndUpdateTrustScore(address: string): Promise<numbe
       WHERE actor_address = ${address}
     `;
 
-    if (!actStats || actStats.length === 0 || actStats[0].total_acts == 0) {
+    if (!actStats || actStats.length === 0 || Number(actStats[0].total_acts) === 0) {
       return 0;
     }
 
@@ -28,23 +31,12 @@ export async function computeAndUpdateTrustScore(address: string): Promise<numbe
     const distinctOracles = Number(stats.distinct_oracles);
     const firstActTime = Number(stats.first_act_time);
 
-    // Completion score: up to 35 points
-    const completionRatio = totalActs > 0 ? settledActs / totalActs : 0;
-    const completionPoints = completionRatio * 35;
-
-    // Volume score: log-scaled NIM settled, capped at 25 points. Let's say log10(100,000 NIM) = 5. So (log10(volume + 1) / 5) * 25
-    const volumeLog = Math.log10(volumeNim + 1);
-    const volumePoints = Math.min(25, (volumeLog / 5) * 25);
-
-    // Tenure score: days since first act, capped at 90 days. 20 points max.
+    const completionPoints = (settledActs / totalActs) * 35;
+    const volumePoints = Math.min(25, (Math.log10(volumeNim + 1) / 5) * 25);
     const daysSinceFirstAct = (Date.now() - firstActTime) / (1000 * 60 * 60 * 24);
     const tenurePoints = Math.min(20, (daysSinceFirstAct / 90) * 20);
-
-    // Diversity score: distinct oracle types used, 5 max. 10 points max.
     const diversityPoints = Math.min(10, (distinctOracles / 5) * 10);
 
-    // Community score: created listings that settled (we skip referrals since not fully implemented yet)
-    // For now, we'll check how many listings created by this user resulted in an escrow that was released.
     const communityStats = await sql`
       SELECT COUNT(DISTINCT e.id) as community_acts
       FROM escrows e
@@ -54,14 +46,22 @@ export async function computeAndUpdateTrustScore(address: string): Promise<numbe
     const communityActs = Number((communityStats[0] as any).community_acts || 0);
     const communityPoints = Math.min(10, (communityActs / 10) * 10);
 
-    const totalScore = Math.round(completionPoints + volumePoints + tenurePoints + diversityPoints + communityPoints);
-    const finalScore = Math.max(0, Math.min(100, totalScore));
+    const finalScore = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(completionPoints + volumePoints + tenurePoints + diversityPoints + communityPoints)
+      )
+    );
 
-    // Update the database
+    // Upsert, not bare UPDATE — the row may not exist yet.
     await sql`
-      UPDATE users 
-      SET trust_score = ${finalScore}, total_volume_nim = ${volumeNim}, items_completed = ${settledActs}
-      WHERE address = ${address}
+      INSERT INTO users (address, trust_score, total_volume_nim, items_completed, joined_at)
+      VALUES (${address}, ${finalScore}, ${volumeNim}, ${settledActs}, ${Date.now()})
+      ON CONFLICT (address) DO UPDATE SET
+        trust_score = EXCLUDED.trust_score,
+        total_volume_nim = EXCLUDED.total_volume_nim,
+        items_completed = EXCLUDED.items_completed
     `;
 
     return finalScore;

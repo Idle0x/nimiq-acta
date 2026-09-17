@@ -1,7 +1,5 @@
 export type ListingCategory = "tools" | "transport" | "electronics" | "sports" | "household" | "other" | "photo" | "delivery" | "survey" | "cleanup";
-export type ListingKind = "borrow" | "bounty" | "bounty_venture" | "bounty_qr" | "bounty_manual";
-export type EscrowState = "locked" | "released" | "cancelled" | "disputed" | "expired";
-export type ActType = "borrow_lock" | "borrow_return" | "bounty" | "checkin" | "scanquest" | "creator" | "milestone" | "referral";
+export type ListingKind = "borrow" | "bounty" | "bounty_venture" | "bounty_qr" | "bounty_manual" | "bounty_geo";
 export type OracleType = "qr_sig" | "vision" | "geo" | "creator" | "system";
 
 export type Act = {
@@ -27,10 +25,16 @@ export type LenderKey = {
   privateKeyHexEncrypted: string;
 };
 
+export type EscrowState = "locked" | "settling" | "released" | "cancelled" | "disputed" | "expired";
+export type ListingState = "open" | "settling" | "complete" | "cancelled";
+export type ActType =
+  | "borrow_lock" | "borrow_return" | "bounty" | "checkin" | "scanquest"
+  | "creator" | "milestone" | "referral";
+
 export type Listing = {
   id: string;
   title: string;
-  owner: string; // the creator/lender Nimiq address
+  owner: string;
   collateralNIM: number;
   yieldNIM?: number;
   durationDays?: number;
@@ -39,6 +43,10 @@ export type Listing = {
   description: string;
   createdAt: number;
   isActive: boolean;
+  state?: ListingState;
+  txHash?: string;
+  targetLat?: number;
+  targetLng?: number;
 };
 
 export type Escrow = {

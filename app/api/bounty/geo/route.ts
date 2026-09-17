@@ -1,18 +1,30 @@
 import { NextResponse } from "next/server";
 import { getSessionAddress } from "@/lib/session";
-import { fetchListing, atomicReleaseListing, insertAct, hasDb } from "@/lib/db";
-import { executeVaultPayout } from "@/lib/backend-nimiq";
+import { fetchListing, hasDb } from "@/lib/db";
+import { claimListing, finalizeListing, unclaimListing, settleAct } from "@/lib/settle";
 import { newId, MIN_NETWORK_FEE_NIM } from "@/lib/escrow";
+import { verifyReturn } from "@/lib/qr";
+import { getLenderKey, consumeNonce } from "@/lib/db";
 import { checkAndAwardMilestone } from "@/lib/milestones";
+
+function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
 
 export async function POST(req: Request) {
   const address = await getSessionAddress();
   if (!address) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!hasDb()) return NextResponse.json({ error: "Database not available" }, { status: 500 });
-  
+
   try {
     const body = await req.json();
-    if (!body.listingId || !body.lat || !body.lng || typeof body.accuracy !== 'number') {
+    if (!body.listingId || typeof body.lat !== "number" || typeof body.lng !== "number" || typeof body.accuracy !== "number") {
       return NextResponse.json({ error: "Missing location parameters" }, { status: 400 });
     }
 
@@ -21,43 +33,41 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid listing or not a Geo bounty" }, { status: 404 });
     }
 
-    // Since we don't have the target coordinates stored in the DB (the user didn't enter them in CreateListing),
-    // we'll just verify accuracy < 50m to simulate a successful check-in for the MVP.
-    // In a full version, we'd add `targetLat`/`targetLng` to the listing and use haversine formula.
-    
     if (body.accuracy > 50) {
       return NextResponse.json({ pass: false, reason: "Location too inaccurate (>50m)" });
     }
 
-    const released = await atomicReleaseListing(body.listingId);
-    if (!released) return NextResponse.json({ error: "Bounty already completed" }, { status: 400 });
-    
-    // Payout
-    let txHashOut = "0x" + Date.now().toString(16);
-    try {
-      txHashOut = await executeVaultPayout(address, listing.collateralNIM, 0.0001);
-    } catch (e) {
-      console.error("Geo payout failed:", e);
-      return NextResponse.json({ error: "Failed to broadcast bounty reward" }, { status: 500 });
+    // If the creator pinned a target, enforce real proximity (haversine).
+    const targetLat = (listing as any).targetLat;
+    const targetLng = (listing as any).targetLng;
+    if (targetLat != null && targetLng != null) {
+      const dist = haversineM(body.lat, body.lng, targetLat, targetLng);
+      if (dist > 150) {
+        return NextResponse.json({ pass: false, reason: `You are ${Math.round(dist)}m from the target location` });
+      }
     }
-    
-    await insertAct({
-      id: newId("act"),
-      actorAddress: address,
-      type: "bounty",
-      oracle: "geo",
-      listingId: listing.id,
-      amountNIM: listing.collateralNIM,
-      feeNIM: 0.0001,
-      proofJson: { lat: body.lat, lng: body.lng, accuracy: body.accuracy },
-      txHashOut,
-      createdAt: listing.createdAt,
-      settledAt: Date.now()
-    });
-    
+
+    const result = await settleAct(
+      {
+        id: newId("act"),
+        actorAddress: address,
+        type: "bounty",
+        oracle: "geo",
+        listingId: listing.id,
+        amountNIM: listing.collateralNIM,
+        feeNIM: MIN_NETWORK_FEE_NIM,
+        proofJson: { lat: body.lat, lng: body.lng, accuracy: body.accuracy },
+        createdAt: listing.createdAt,
+      },
+      { to: address, amountNIM: listing.collateralNIM, feeNIM: MIN_NETWORK_FEE_NIM },
+      () => claimListing(body.listingId),
+      () => finalizeListing(body.listingId),
+      () => unclaimListing(body.listingId)
+    );
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+
     checkAndAwardMilestone(address, "FIRST_BOUNTY").catch(() => {});
-    
-    return NextResponse.json({ pass: true, reason: "Verified location" });
+    return NextResponse.json({ pass: true, reason: "Verified location", txHashOut: result.txHashOut });
   } catch (err) {
     console.error("Geo Verify Route Error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

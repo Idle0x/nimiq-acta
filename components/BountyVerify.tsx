@@ -5,7 +5,7 @@ import { MapPin, Camera, Check, AlertTriangle, Loader2 } from "lucide-react";
 
 type Verdict = { pass: boolean; reason: string; model?: string } | { error: string };
 
-export default function BountyVerify({ task, listingId }: { task: string; listingId: string }) {
+export default function BountyVerify({ task, listingId, onSuccess }: { task: string; listingId: string; onSuccess?: () => void }) {
   const [geo, setGeo] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
@@ -67,6 +67,7 @@ export default function BountyVerify({ task, listingId }: { task: string; listin
         setResult(`Oracle error: ${"error" in data ? data.error : res.statusText}`);
       } else if ("pass" in data) {
         setResult(`${data.pass ? "PASS" : "FAIL"} · ${data.reason} (${data.model ?? "vision"})`);
+        if (data.pass) onSuccess?.();
       }
     } catch (err) {
       setResult(err instanceof Error ? err.message : "verify failed");
