@@ -99,7 +99,7 @@ export default function Home() {
   // Trust score calculation
   const trustScore = useMemo(() => {
     const released = escrows.filter((e) => e.state === "released").length;
-    return Math.min(96, 42 + released * 18 + Math.min(12, escrows.length * 3));
+    return Math.min(100, 0 + released * 18 + Math.min(25, escrows.length * 3));
   }, [escrows]);
 
   // Initial client-side load
@@ -466,6 +466,27 @@ export default function Home() {
                       </span>
                     </div>
 
+                    
+                    {/* STEPPER PROGRESS BAR */}
+                    <div className="mt-6 mb-4 flex items-center justify-between relative px-2">
+                       <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-slate-800 -translate-y-1/2 z-0" />
+                       <div className={`absolute top-1/2 left-4 h-0.5 -translate-y-1/2 z-0 transition-all duration-500 ${e.state === 'released' ? 'w-[calc(100%-2rem)] bg-emerald-500' : 'w-[calc(50%-1rem)] bg-amber-500'}`} />
+                       
+                       <div className="relative z-10 flex flex-col items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center border-4 border-slate-950">
+                            <CheckIcon size={12} className="text-slate-950 font-bold" />
+                          </div>
+                          <span className="text-[9px] text-amber-500 font-bold uppercase tracking-wider">Locked</span>
+                       </div>
+                       
+                       <div className="relative z-10 flex flex-col items-center gap-2">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-950 transition-colors ${e.state === 'released' ? 'bg-emerald-500' : 'bg-slate-800'}`}>
+                             {e.state === 'released' && <CheckIcon size={12} className="text-slate-950 font-bold" />}
+                          </div>
+                          <span className={`text-[9px] font-bold uppercase tracking-wider transition-colors ${e.state === 'released' ? 'text-emerald-500' : 'text-slate-500'}`}>Returned</span>
+                       </div>
+                    </div>
+                    
                     <p className="tnum mt-2 text-2xl font-extrabold">
                       {e.amountNIM.toLocaleString()}{" "}
                       <span className="text-sm text-amber-300">NIM</span>
