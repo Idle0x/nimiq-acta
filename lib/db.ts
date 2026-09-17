@@ -304,3 +304,17 @@ export async function atomicReleaseListing(id: string): Promise<boolean> {
   `;
   return res.length > 0;
 }
+
+export async function cancelListing(id: string): Promise<boolean> {
+  const sql = getSql();
+  if (!sql) return false;
+  const res = await sql`UPDATE listings SET is_active = FALSE WHERE id = ${id} RETURNING id`;
+  return res.length > 0;
+}
+
+export async function cancelEscrow(id: string): Promise<boolean> {
+  const sql = getSql();
+  if (!sql) return false;
+  const res = await sql`UPDATE escrows SET state = 'cancelled', resolved_at = ${Date.now()} WHERE id = ${id} AND state = 'locked' RETURNING id`;
+  return res.length > 0;
+}

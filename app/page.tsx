@@ -325,6 +325,27 @@ export default function Home() {
     [escrows, ensureAuth]
   );
 
+  async function handleCancel(type: "listing" | "escrow", id: string) {
+    if (!confirm("Are you sure you want to cancel this? Funds will be refunded.")) return;
+    try {
+      const res = await fetch("/api/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, id })
+      });
+      if (res.ok) {
+        toast("Cancelled successfully", "success");
+        if (type === "listing") setListings(p => p.filter(l => l.id !== id));
+        if (type === "escrow") setEscrows(p => p.map(e => e.id === id ? { ...e, state: "cancelled" } : e));
+      } else {
+        const err = await res.json();
+        toast(err.error || "Failed to cancel", "error");
+      }
+    } catch (e) {
+      toast("Error cancelling", "error");
+    }
+  }
+
   async function handleCreateListing(data: any) {
     const isAuthed = await ensureAuth();
     if (!isAuthed) {
@@ -379,8 +400,8 @@ export default function Home() {
 
   if (status === "loading") {
     return (
-      <div className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-6 text-center animate-pulse">
-         <div className="w-16 h-16 bg-gradient-to-br from-amber-400/20 to-amber-600/20 rounded-full flex items-center justify-center mb-6">
+      <div className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-4 text-center animate-pulse">
+         <div className="w-16 h-16 bg-gradient-to-br from-amber-400/20 to-amber-600/20 rounded-full flex items-center justify-center mb-4">
             <div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
          </div>
          <h2 className="text-xl font-bold mb-2 text-white">Initializing Protocol</h2>
@@ -391,8 +412,8 @@ export default function Home() {
 
   if (status === "error" && !isConnected) {
     return (
-      <div className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(251,191,36,0.3)]">
+      <div className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-4 text-center">
+        <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(251,191,36,0.3)]">
           <LockIcon size={28} className="text-slate-950" />
         </div>
         <h2 className="text-2xl font-bold mb-2 text-white">Connection Failed</h2>
@@ -409,7 +430,7 @@ export default function Home() {
         
         <button 
           onClick={() => setIsDemoMode(true)}
-          className="mt-6 text-slate-500 text-xs underline decoration-slate-700 hover:text-slate-300 transition-colors"
+          className="mt-4 text-slate-500 text-xs underline decoration-slate-700 hover:text-slate-300 transition-colors"
         >
           Continue in Read-Only Demo Mode
         </button>
@@ -474,7 +495,7 @@ export default function Home() {
                   <EmptyState title="No Bounties" subtitle="No bounties available. Create one!" icon={<ZapIcon size={32} />} />
                 ) : (
                   listings.filter(l => l.kind.startsWith("bounty")).map(l => (
-                    <div key={l.id} className="min-w-[280px] snap-center card-bounty p-5 rounded-2xl flex flex-col justify-between border border-amber-500/20">
+                    <div key={l.id} className="min-w-[280px] snap-center card-bounty p-4 rounded-2xl flex flex-col justify-between border border-amber-500/20">
                       <div>
                         <div className="flex justify-between items-start mb-3">
                           <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-full">{categoryBadge(l)}</span>
@@ -519,7 +540,7 @@ export default function Home() {
                 )}
               </div>
 
-              <div className="flex items-center justify-between mb-4 mt-6">
+              <div className="flex items-center justify-between mb-4 mt-4">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
                   <MapPinIcon size={14} className="text-blue-400" /> Available Nearby (Borrow)
                 </h3>
@@ -532,7 +553,7 @@ export default function Home() {
                   <EmptyState title="No Items" subtitle="No items available to borrow." icon={<MapPinIcon size={32} />} />
                 ) : (
                   listings.filter(l => l.kind === "borrow").map((l) => (
-                    <div key={l.id} className="card-borrow p-5 rounded-2xl border border-blue-500/20">
+                    <div key={l.id} className="card-borrow p-4 rounded-2xl border border-blue-500/20">
                       <div className="flex justify-between items-start mb-3">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 bg-blue-400/10 px-2.5 py-1 rounded-full">{categoryBadge(l)}</span>
                         <div className="text-right">
@@ -586,7 +607,7 @@ export default function Home() {
                 <EmptyState title="No Contracts" subtitle="No active contracts. Start a task or borrow an item!" icon={<CheckIcon size={32} />} />
               ) : (
                 escrows.map((e) => (
-                  <div key={e.id} className="card p-5 rounded-2xl">
+                  <div key={e.id} className="card p-4 rounded-2xl">
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-bold text-lg">{e.title}</h4>
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase ${
@@ -596,7 +617,7 @@ export default function Home() {
                       </span>
                     </div>
 
-                    <div className="mt-6 mb-4 flex items-center justify-between relative px-2">
+                    <div className="mt-4 mb-4 flex items-center justify-between relative px-2">
                        <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-slate-800 -translate-y-1/2 z-0" />
                        <div className={`absolute top-1/2 left-4 h-0.5 -translate-y-1/2 z-0 transition-all duration-500 ${e.state === 'released' ? 'w-[calc(100%-2rem)] bg-emerald-500' : 'w-[calc(50%-1rem)] bg-amber-500'}`} />
                        <div className="relative z-10 flex flex-col items-center gap-2">
@@ -629,6 +650,9 @@ export default function Home() {
                           <ClockIcon size={12} />
                           <span>{timeRemaining(e.expiresAt)}</span>
                         </div>
+                        {e.borrower === accounts[0] && (
+                          <button onClick={() => handleCancel("escrow", e.id)} className="mt-2 w-full py-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-bold hover:bg-rose-500/20">Cancel & Refund</button>
+                        )}
                         
                         {(() => {
                           const kind = listings.find(l => l.id === e.listingId)?.kind;
@@ -675,14 +699,14 @@ export default function Home() {
 
           {tab === "passport" && (
             <div className="space-y-4 animate-fade-in">
-              <div className="card rounded-3xl p-6 text-center border border-white/5">
+              <div className="card rounded-3xl p-4 text-center border border-white/5">
                 <div className="flex justify-center">
                   <TrustRing score={trustScore} size={160} />
                 </div>
                 <p className="mt-4 text-sm text-slate-400 leading-relaxed">
                   Every contract successfully returned builds your on-chain reputation. Higher trust tiers unlock massive collateral discounts.
                 </p>
-                <div className="mt-6 grid grid-cols-3 gap-2 text-center">
+                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-2xl bg-black/40 p-4 border border-white/5">
                     <p className="tnum text-xl font-black text-white">{escrows.length}</p>
                     <p className="text-[9px] uppercase tracking-widest text-slate-500 mt-1">Contracts</p>
@@ -700,7 +724,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="card rounded-2xl p-5 space-y-4 border border-white/5">
+              <div className="card rounded-2xl p-4 space-y-4 border border-white/5">
                 <div className="flex items-center gap-2 pb-2 border-b border-white/5">
                   <WifiIcon size={14} className={isConnected ? "text-emerald-400" : "text-slate-500"} />
                   <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Connection State</p>
@@ -722,7 +746,7 @@ export default function Home() {
               </div>
 
               {escrows.length > 0 && (
-                <div className="card rounded-2xl p-5 border border-white/5">
+                <div className="card rounded-2xl p-4 border border-white/5">
                   <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 pb-2 border-b border-white/5">
                     Global Ledger History
                   </p>
