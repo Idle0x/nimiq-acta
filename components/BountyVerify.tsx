@@ -9,7 +9,26 @@ export default function BountyVerify({ task }: { task: string }) {
   const [geo, setGeo] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  
   const [busy, setBusy] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+
+  // Simulated live terminal streaming
+  async function streamLogs(resultFn: () => Promise<void>) {
+    setBusy(true);
+    setLogs(["> Encrypting image payload..."]);
+    
+    setTimeout(() => setLogs(l => [...l, "> Establishing connection to Hetzner Inference (Vision Oracle)..."]), 600);
+    setTimeout(() => setLogs(l => [...l, "> Analyzing scene context and geometa..."]), 1500);
+    setTimeout(() => setLogs(l => [...l, `> Cross-referencing task: "${task}"...`]), 2500);
+    
+    try {
+      await resultFn();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   function captureGeo() {
@@ -46,28 +65,34 @@ export default function BountyVerify({ task }: { task: string }) {
     setPreview(url);
   }
 
+  
   async function onVerify() {
     if (!preview) return;
-    setBusy(true);
     setResult(null);
-    try {
-      const res = await fetch("/api/bounty/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task, imageUrl: preview }),
-      });
-      const data = (await res.json()) as Verdict;
-      if (!res.ok) {
-        setResult(`Oracle error: ${"error" in data ? data.error : res.statusText}`);
-      } else if ("pass" in data) {
-        setResult(`${data.pass ? "PASS" : "FAIL"} · ${data.reason} (${data.model ?? "qwen"})`);
+    
+    await streamLogs(async () => {
+      try {
+        const res = await fetch("/api/bounty/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ task, imageUrl: preview }),
+        });
+        const data = (await res.json()) as Verdict;
+        
+        setTimeout(() => {
+            if (!res.ok) {
+              setResult(`Oracle error: ${"error" in data ? data.error : res.statusText}`);
+            } else if ("pass" in data) {
+              setResult(`${data.pass ? "PASS" : "FAIL"} · ${data.reason} (${data.model ?? "vision"})`);
+              setLogs(l => [...l, data.pass ? "> VERIFIED: Reality check passed. Funds unlocked." : "> REJECTED: Task criteria not met."]);
+            }
+        }, 3200); // Wait for the terminal animation
+      } catch (err) {
+        setTimeout(() => setResult(err instanceof Error ? err.message : "verify failed"), 3200);
       }
-    } catch (err) {
-      setResult(err instanceof Error ? err.message : "verify failed");
-    } finally {
-      setBusy(false);
-    }
+    });
   }
+
 
   return (
     <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 p-3">
@@ -100,16 +125,33 @@ export default function BountyVerify({ task }: { task: string }) {
         <img src={preview} alt="bounty proof" className="mt-2 max-h-40 w-full rounded-lg object-cover" />
       )}
       
-      <button
-        onClick={onVerify}
-        disabled={!preview || busy}
-        className={`mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-sky-400 py-2 text-xs font-bold text-slate-950 disabled:opacity-50 transition-all btn-press ${
-          preview && !busy ? "shadow-[0_0_12px_rgba(56,189,248,0.4)] animate-pulse" : ""
-        }`}
-      >
-        {busy && <Loader2 size={14} className="animate-spin" />}
-        {busy ? "Qwen oracle checking…" : "Verify with Qwen oracle"}
-      </button>
+      
+      {busy && (
+        <div className="mt-2 rounded-xl bg-black border border-amber-500/20 p-3 font-mono text-[10px] text-amber-500/80 animate-fade-in shadow-[inset_0_0_10px_rgba(0,0,0,1)]">
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
+            <Loader2 size={12} className="animate-spin text-amber-400" />
+            <span className="font-bold text-amber-400 tracking-wider">ORACLE TERMINAL</span>
+          </div>
+          <div className="space-y-1.5 opacity-90 h-[70px] overflow-hidden flex flex-col justify-end">
+            {logs.map((log, i) => (
+              <p key={i} className="animate-slide-up leading-tight">{log}</p>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {!busy && (
+          <button
+            onClick={onVerify}
+            disabled={!preview}
+            className={`mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-amber-400 py-2.5 text-xs font-bold text-slate-950 disabled:opacity-50 transition-all btn-press ${
+              preview ? "shadow-[0_0_12px_rgba(251,191,36,0.4)]" : ""
+            }`}
+          >
+            Submit to Vision Oracle
+          </button>
+      )}
+
 
       {result && (
         <div

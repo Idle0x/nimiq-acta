@@ -13,6 +13,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { SkeletonCard, SkeletonEscrow } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { useToast } from "@/components/Toast";
+import HubApi from "@nimiq/hub-api";
 import {
   RadarIcon,
   LockIcon,
@@ -551,16 +552,18 @@ export default function Home() {
                     <span className="text-slate-500">Vault</span>
                     <span className="tnum text-xs">{ESCROW_VAULT}</span>
                   </div>
+                  
                   <div className="flex justify-between">
                     <span className="text-slate-500">Mode</span>
                     <span className="text-xs">
                       {isConnected ? (
-                        <span className="text-emerald-400">Live</span>
+                        <span className="text-emerald-400">Connected (Hub)</span>
                       ) : (
-                        <span className="text-slate-500">Disconnected</span>
+                        <span className="text-rose-400 font-semibold cursor-pointer" onClick={() => window.location.reload()}>Connect Wallet</span>
                       )}
                     </span>
                   </div>
+
                 </div>
               </div>
 
