@@ -1,8 +1,8 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import { XIcon } from './icons';
+import { Loader2 } from 'lucide-react';
 
-// Dynamically import the scanner to avoid SSR issues with browser APIs
 let Html5QrcodeScanner: any = null;
 
 interface QrScannerProps {
@@ -12,7 +12,8 @@ interface QrScannerProps {
 
 const QrScanner: React.FC<QrScannerProps> = ({ onScan, onClose }) => {
   const [error, setError] = useState<string | null>(null);
-  const scannerRef = useRef<HTMLDivElement>(null);
+  const [verifying, setVerifying] = useState(false);
+  const scannerRef = useRef<any>(null);
 
   useEffect(() => {
     let scanner: any = null;
@@ -26,73 +27,99 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan, onClose }) => {
 
         scanner = new Html5QrcodeScanner(
           'qr-reader',
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
           false
         );
+        scannerRef.current = scanner;
 
         scanner.render(
           (decodedText: string) => {
+            setVerifying(true);
             scanner.clear();
             onScan(decodedText);
           },
           (err: any) => {
-            // Ignore ongoing scan errors
+            if (err?.name === "NotAllowedError") {
+              setError('Camera access denied. Please enable permissions.');
+              scanner.clear();
+            }
           }
         );
-      } catch (err) {
-        setError('Camera access denied or unavailable.');
+      } catch (err: any) {
+        if (err?.name === "NotAllowedError") {
+            setError('Camera access denied. Please enable permissions.');
+        } else {
+            setError('Camera unavailable.');
+        }
       }
     };
 
     initScanner();
 
     return () => {
-      if (scanner) {
-        scanner.clear().catch(console.error);
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(console.error);
       }
     };
   }, [onScan]);
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col">
-      {/* Header */}
-      <div className="bg-slate-900/80 backdrop-blur p-4 flex items-center justify-between border-b border-white/5 relative z-10">
-        <h2 className="text-lg font-semibold text-slate-100">Scan Return QR</h2>
-        <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-100 bg-slate-800 rounded-full">
-          <XIcon size={20} />
-        </button>
-      </div>
+    <div className="fixed inset-0 z-[100] bg-black">
+      {/* Full bleed camera container */}
+      <div id="qr-reader" className={`absolute inset-0 w-full h-full ${error || verifying ? 'hidden' : ''}`} />
+      
+      {/* Glassmorphic overlay */}
+      <div className="absolute inset-0 pointer-events-none flex flex-col">
+        {/* Header (blurred obsidian frame) */}
+        <div className="bg-slate-950/60 backdrop-blur-xl p-4 flex items-center justify-between border-b border-white/5 pointer-events-auto pt-safe">
+          <h2 className="text-lg font-semibold text-slate-100">{verifying ? "Verifying..." : "Scan Return QR"}</h2>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-100 bg-slate-800/50 rounded-full transition-colors">
+            <XIcon size={20} />
+          </button>
+        </div>
 
-      {/* Scanner Viewport */}
-      <div className="flex-1 relative bg-black flex items-center justify-center">
-        {error ? (
-          <div className="text-center p-6 text-rose-400">
-            <p>{error}</p>
-          </div>
-        ) : (
-          <>
-            <div id="qr-reader" className="w-full max-w-sm overflow-hidden rounded-2xl border-2 border-amber-300/50" ref={scannerRef}></div>
-            {/* Overlay scan line */}
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="w-[250px] h-[250px] relative">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-[scan_2s_ease-in-out_infinite]" />
-              </div>
+        {/* Center cutout */}
+        <div className="flex-1 flex flex-col items-center justify-center relative">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" style={{ maskImage: 'radial-gradient(circle at center, transparent 35%, black 45%)', WebkitMaskImage: 'radial-gradient(circle at center, transparent 35%, black 45%)' }} />
+          
+          {error ? (
+            <div className="relative z-10 text-center p-6 text-rose-400 bg-slate-900/90 rounded-2xl border border-rose-500/20 backdrop-blur-xl pointer-events-auto">
+              <p className="font-semibold">{error}</p>
             </div>
-          </>
-        )}
+          ) : verifying ? (
+            <div className="relative z-10 text-center flex flex-col items-center gap-4 text-amber-400">
+              <Loader2 className="w-10 h-10 animate-spin" />
+              <p className="font-mono text-sm tracking-widest font-bold">VERIFYING SIGNATURE</p>
+            </div>
+          ) : (
+            <div className="relative w-[260px] h-[260px] z-10">
+              {/* Corner brackets */}
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-amber-400 rounded-tl-xl" />
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-amber-400 rounded-tr-xl" />
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-amber-400 rounded-bl-xl" />
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-amber-400 rounded-br-xl" />
+              
+              {/* Scanline */}
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,1)] animate-[scan_2s_ease-in-out_infinite]" />
+            </div>
+          )}
+        </div>
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scan {
-          0%, 100% { top: 0; }
-          50% { top: 100%; }
+          0%, 100% { top: 0; opacity: 0; }
+          10% { opacity: 1; }
+          50% { top: 100%; opacity: 1; }
+          90% { opacity: 0; }
         }
         #qr-reader video {
-          border-radius: 1rem;
-          object-fit: cover;
+          object-fit: cover !important;
+          width: 100% !important;
+          height: 100% !important;
         }
         #qr-reader__scan_region {
-          background: #000;
+          height: 100% !important;
         }
         #qr-reader__dashboard {
           display: none !important;

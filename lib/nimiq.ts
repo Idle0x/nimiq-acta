@@ -122,7 +122,7 @@ export function useNimiq() {
       const res = await provider.sendBasicTransaction({
         recipient: args.recipient,
         value: args.value,
-        fee: args.fee ?? 0,
+        fee: args.fee ?? 10,
       });
       if (typeof res === "string") return res;
       throw new Error(
@@ -140,7 +140,7 @@ export function useNimiq() {
       const res = await provider.sendBasicTransactionWithData({
         recipient: args.recipient,
         value: args.value,
-        fee: args.fee ?? 0,
+        fee: args.fee ?? 10,
         data: args.data,
       });
       if (typeof res === "string") return res;

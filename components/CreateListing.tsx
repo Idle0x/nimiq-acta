@@ -1,37 +1,41 @@
 'use client';
 import React, { useState } from 'react';
-import { XIcon, LockIcon, ZapIcon, MapPinIcon, ChevronRightIcon } from './icons';
+import { LockIcon, ZapIcon, MapPinIcon, ChevronRightIcon, XIcon, Camera, QrCodeIcon, UserCheck } from 'lucide-react';
 
 interface CreateListingProps {
-  onSubmit: (listing: { title: string; kind: 'borrow' | 'bounty'; collateralNIM: number; description: string; requireLocation?: boolean }) => void;
   onClose: () => void;
+  onSubmit: (listing: { title: string; kind: 'borrow' | 'bounty' | 'bounty_geo' | 'bounty_qr' | 'bounty_manual'; collateralNIM: number; description: string; requireLocation?: boolean }) => void;
 }
 
-const CreateListing: React.FC<CreateListingProps> = ({ onSubmit, onClose }) => {
+const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit }) => {
   const [step, setStep] = useState(1);
-  const [kind, setKind] = useState<'borrow' | 'bounty' | null>(null);
+  const [kind, setKind] = useState<'borrow' | 'bounty' | 'bounty_geo' | 'bounty_qr' | 'bounty_manual' | null>(null);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [requireLocation, setRequireLocation] = useState(false);
 
   const handleNext = () => {
-    if (step === 1 && kind) setStep(2);
-    else if (step === 2 && title && amount && description) setStep(3);
-    else if (step === 3) {
+    if (step === 1 && kind) {
+      if (kind === 'bounty') setStep(1.5); // Choose bounty type
+      else setStep(2);
+    } else if (step === 1.5 && kind) {
+      setStep(2);
+    } else if (step === 2 && title && amount && description) {
+      setStep(3);
+    } else if (step === 3) {
       onSubmit({
         title,
         kind: kind!,
         collateralNIM: parseFloat(amount),
         description,
-        ...(kind === 'bounty' ? { requireLocation } : {})
+        ...(kind!.startsWith('bounty') ? { requireLocation } : {})
       });
     }
   };
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col">
-      {/* Header */}
       <div className="bg-slate-900/80 backdrop-blur p-4 flex items-center justify-between border-b border-white/5">
         <h2 className="text-lg font-semibold text-slate-100">Create Listing</h2>
         <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-100 bg-slate-800 rounded-full">
@@ -39,14 +43,12 @@ const CreateListing: React.FC<CreateListingProps> = ({ onSubmit, onClose }) => {
         </button>
       </div>
 
-      {/* Progress */}
       <div className="flex gap-1 p-4 bg-slate-900/50">
         {[1, 2, 3].map((s) => (
-          <div key={s} className={`flex-1 h-1.5 rounded-full ${s <= step ? 'bg-amber-300' : 'bg-slate-800'}`} />
+          <div key={s} className={`flex-1 h-1.5 rounded-full ${s <= Math.floor(step) ? 'bg-amber-300' : 'bg-slate-800'}`} />
         ))}
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
         {step === 1 && (
           <>
@@ -69,15 +71,69 @@ const CreateListing: React.FC<CreateListingProps> = ({ onSubmit, onClose }) => {
             <button
               onClick={() => setKind('bounty')}
               className={`p-6 rounded-2xl border text-left flex items-start gap-4 transition-colors ${
-                kind === 'bounty' ? 'bg-sky-400/10 border-sky-400' : 'bg-slate-900 border-white/5 hover:border-white/20'
+                kind?.startsWith('bounty') ? 'bg-sky-400/10 border-sky-400' : 'bg-slate-900 border-white/5 hover:border-white/20'
               }`}
             >
-              <div className={`p-3 rounded-xl ${kind === 'bounty' ? 'bg-sky-400 text-slate-900' : 'bg-slate-800 text-slate-400'}`}>
+              <div className={`p-3 rounded-xl ${kind?.startsWith('bounty') ? 'bg-sky-400 text-slate-900' : 'bg-slate-800 text-slate-400'}`}>
                 <ZapIcon size={24} />
               </div>
               <div>
-                <h4 className="text-lg font-semibold text-slate-100 mb-1">GeoBounty</h4>
+                <h4 className="text-lg font-semibold text-slate-100 mb-1">Create Bounty</h4>
                 <p className="text-sm text-slate-400">Create a task and reward NIM to whoever completes it.</p>
+              </div>
+            </button>
+          </>
+        )}
+
+        {step === 1.5 && (
+          <>
+            <h3 className="text-xl font-bold text-slate-100 mb-2">Choose Challenge Type</h3>
+            <button
+              onClick={() => setKind('bounty')}
+              className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-colors ${
+                kind === 'bounty' ? 'bg-sky-400/10 border-sky-400' : 'bg-slate-900 border-white/5 hover:border-white/20'
+              }`}
+            >
+              <Camera size={24} className={kind === 'bounty' ? 'text-sky-400' : 'text-slate-400'} />
+              <div>
+                <h4 className="text-md font-semibold text-slate-100">PhotoProof (AI)</h4>
+                <p className="text-xs text-slate-400">Vision AI verifies a photo automatically.</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setKind('bounty_geo')}
+              className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-colors ${
+                kind === 'bounty_qr' ? 'bg-sky-400/10 border-sky-400' : 'bg-slate-900 border-white/5 hover:border-white/20'
+              }`}
+            >
+              <MapPinIcon size={24} className={kind === 'bounty_geo' ? 'text-sky-400' : 'text-slate-400'} />
+              <div>
+                <h4 className="text-md font-semibold text-slate-100">CheckIn (Geo)</h4>
+                <p className="text-xs text-slate-400">User must be at a specific location.</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setKind('bounty_qr')}
+              className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-colors ${
+                kind === 'bounty_qr' ? 'bg-sky-400/10 border-sky-400' : 'bg-slate-900 border-white/5 hover:border-white/20'
+              }`}
+            >
+              <QrCodeIcon size={24} className={kind === 'bounty_qr' ? 'text-sky-400' : 'text-slate-400'} />
+              <div>
+                <h4 className="text-md font-semibold text-slate-100">ScanQuest</h4>
+                <p className="text-xs text-slate-400">User must scan a secure QR code you generate.</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setKind('bounty_manual')}
+              className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-colors ${
+                kind === 'bounty_manual' ? 'bg-sky-400/10 border-sky-400' : 'bg-slate-900 border-white/5 hover:border-white/20'
+              }`}
+            >
+              <UserCheck size={24} className={kind === 'bounty_manual' ? 'text-sky-400' : 'text-slate-400'} />
+              <div>
+                <h4 className="text-md font-semibold text-slate-100">CreatorVerified</h4>
+                <p className="text-xs text-slate-400">You manually approve the completion.</p>
               </div>
             </button>
           </>
@@ -118,7 +174,7 @@ const CreateListing: React.FC<CreateListingProps> = ({ onSubmit, onClose }) => {
                 className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-300 focus:ring-1 focus:ring-amber-300 resize-none"
               />
             </div>
-            {kind === 'bounty' && (
+            {kind?.startsWith('bounty') && (
               <label className="flex items-center justify-between p-4 bg-slate-900 border border-white/5 rounded-xl cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
@@ -129,7 +185,7 @@ const CreateListing: React.FC<CreateListingProps> = ({ onSubmit, onClose }) => {
                     <span className="text-xs text-slate-400">User must be at the location to claim</span>
                   </div>
                 </div>
-                <div className={`w-12 h-6 rounded-full p-1 transition-colors ${requireLocation ? 'bg-amber-300' : 'bg-slate-700'}`} onClick={() => setRequireLocation(!requireLocation)}>
+                <div className={`w-12 h-6 rounded-full p-1 transition-colors ${requireLocation ? 'bg-sky-400' : 'bg-slate-700'}`} onClick={() => setRequireLocation(!requireLocation)}>
                   <div className={`w-4 h-4 bg-white rounded-full transition-transform ${requireLocation ? 'translate-x-6' : 'translate-x-0'}`} />
                 </div>
               </label>
@@ -146,7 +202,7 @@ const CreateListing: React.FC<CreateListingProps> = ({ onSubmit, onClose }) => {
                   {kind === 'borrow' ? <LockIcon size={32} /> : <ZapIcon size={32} />}
                 </div>
                 <div>
-                  <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">{kind === 'borrow' ? 'Borrow Item' : 'GeoBounty'}</div>
+                  <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">{kind === 'borrow' ? 'Borrow Item' : 'Challenge'}</div>
                   <div className="text-xl font-bold text-slate-100">{title}</div>
                 </div>
               </div>
@@ -162,7 +218,6 @@ const CreateListing: React.FC<CreateListingProps> = ({ onSubmit, onClose }) => {
         )}
       </div>
 
-      {/* Footer */}
       <div className="p-4 bg-slate-950 border-t border-white/5">
         <button
           onClick={handleNext}

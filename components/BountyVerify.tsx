@@ -5,13 +5,15 @@ import { MapPin, Camera, Check, AlertTriangle, Loader2 } from "lucide-react";
 
 type Verdict = { pass: boolean; reason: string; model?: string } | { error: string };
 
-export default function BountyVerify({ task }: { task: string }) {
+export default function BountyVerify({ task, listingId }: { task: string; listingId: string }) {
   const [geo, setGeo] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   
   const [busy, setBusy] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
+
+  const [geoData, setGeoData] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
 
   // Simulated live terminal streaming
   async function streamLogs(resultFn: () => Promise<void>) {
@@ -38,6 +40,7 @@ export default function BountyVerify({ task }: { task: string }) {
     }
     navigator.geolocation.getCurrentPosition(
       (p) => {
+        setGeoData({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy });
         setGeo(
           `${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)} (±${Math.round(p.coords.accuracy)}m)`
         );
@@ -75,7 +78,7 @@ export default function BountyVerify({ task }: { task: string }) {
         const res = await fetch("/api/bounty/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ task, imageUrl: preview }),
+          body: JSON.stringify({ task, imageUrl: preview, listingId, geo: geoData }),
         });
         const data = (await res.json()) as Verdict;
         

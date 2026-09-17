@@ -1,14 +1,39 @@
 export type ListingCategory = "tools" | "transport" | "electronics" | "sports" | "household" | "other" | "photo" | "delivery" | "survey" | "cleanup";
-export type ListingKind = "borrow" | "bounty";
-export type EscrowState = "locked" | "released" | "cancelled";
+export type ListingKind = "borrow" | "bounty" | "bounty_geo" | "bounty_qr" | "bounty_manual";
+export type EscrowState = "locked" | "released" | "cancelled" | "disputed" | "expired";
+export type ActType = "borrow_lock" | "borrow_return" | "bounty" | "checkin" | "scanquest" | "creator" | "milestone" | "referral";
+export type OracleType = "qr_sig" | "vision" | "geo" | "creator" | "system";
+
+export type Act = {
+  id: string;
+  actorAddress: string;
+  type: ActType;
+  oracle: OracleType;
+  listingId?: string;
+  escrowId?: string;
+  amountNIM: number;
+  feeNIM: number;
+  proofJson?: any;
+  txHashIn?: string;
+  txHashOut?: string;
+  createdAt: number;
+  settledAt?: number;
+  idempotencyKey?: string;
+};
+
+export type LenderKey = {
+  ownerAddress: string;
+  publicKeyHex: string;
+  privateKeyHexEncrypted: string;
+};
 
 export type Listing = {
   id: string;
   title: string;
   owner: string; // the creator/lender Nimiq address
   collateralNIM: number;
-  yieldNIM?: number; // Lenders can demand a yield fee
-  durationDays?: number; // Required commitment
+  yieldNIM?: number;
+  durationDays?: number;
   kind: ListingKind;
   category: ListingCategory;
   description: string;
@@ -41,8 +66,9 @@ export type UserProfile = {
   joinedAt: number;
 };
 
-export const ESCROW_VAULT = "NQ07 ACTA ESCROW VAULT 0000";
-export const MICRO_FEE_NIM = 50;
+export const ESCROW_VAULT = process.env.NEXT_PUBLIC_VAULT_ADDRESS || "NQ86 845N NUJ3 88U4 2V9E DEDF XV8Y CFES 8RKT";
+export const MICRO_FEE_NIM = 0.5;
+export const MIN_NETWORK_FEE_NIM = 0.0001;
 
 // Trust score -> collateral discount. 0..100 maps to 0..30% off, floor 70%.
 export function discountedCollateral(baseNIM: number, trustScore: number) {

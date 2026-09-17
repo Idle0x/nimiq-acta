@@ -18,16 +18,18 @@ export default function BorrowWizard({
   onLock,
   onClose,
   locking,
+  price,
 }: {
   listing: Listing;
   trustScore: number;
   borrower: string;
   locking: boolean;
+  price?: number;
   onLock: (listing: Listing, amountNIM: number) => Promise<Escrow | null>;
   onClose: () => void;
 }) {
   const [step, setStep] = useState(1);
-  const due = discountedCollateral(listing.collateralNIM, trustScore);
+  const due = listing.kind.startsWith("bounty") ? 0 : discountedCollateral(listing.collateralNIM, trustScore);
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center animate-fade-in">
@@ -120,10 +122,13 @@ export default function BorrowWizard({
             
             <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border-[2px] border-amber-300/40 bg-slate-950/60 py-6 animate-pulse-border">
               <Lock size={28} className="text-amber-300 mb-2" />
-              <p className="text-sm font-medium text-slate-400">Total Lock Amount</p>
+              <p className="text-sm font-medium text-slate-400">
+                {listing.kind.startsWith("bounty") ? "Required Collateral" : "Total Lock Amount"}
+              </p>
               <p className="tnum mt-1 text-3xl font-extrabold text-white">
                 {due.toLocaleString()} <span className="text-amber-300">NIM</span>
               </p>
+              {price && <p className="text-sm text-slate-500 mt-2">~${((due * price).toFixed(2))} USD</p>}
             </div>
 
             <button
@@ -134,7 +139,7 @@ export default function BorrowWizard({
               }}
               className="tnum mt-5 w-full rounded-2xl bg-gradient-to-r from-amber-300 to-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.3)] py-4 text-lg font-extrabold text-slate-950 transition-all hover:shadow-[0_0_20px_rgba(251,191,36,0.5)] disabled:opacity-60 disabled:shadow-none btn-press"
             >
-              {locking ? "Locking… (confirm in wallet)" : `Sign & lock ${due.toLocaleString()} NIM`}
+              {locking ? "Locking… (confirm in wallet)" : listing.kind.startsWith("bounty") ? "Accept Challenge" : `Sign & lock ${due.toLocaleString()} NIM`}
             </button>
             <button
               onClick={() => setStep(2)}

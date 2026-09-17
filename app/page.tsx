@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import BottomTabs, { type Tab } from "@/components/BottomTabs";
 import BorrowWizard from "@/components/BorrowWizard";
 import BountyVerify from "@/components/BountyVerify";
+import { Leaderboard, ActivityFeed } from "@/components/LivenessLayer";
+import CheckInVerify from "@/components/CheckInVerify";
+import ManualVerify from "@/components/ManualVerify";
 import QrOverlay from "@/components/QrOverlay";
 import QrScanner from "@/components/QrScanner";
 import CreateListing from "@/components/CreateListing";
@@ -66,12 +69,12 @@ function timeRemaining(expiresAt: number | undefined) {
 }
 
 export default function Home() {
-  const { status, accounts, sendLock } = useNimiq();
+  const { status, accounts, sendLock, signMessage } = useNimiq();
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("radar");
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
-  const [dashboard, setDashboard] = useState<{price: number, stats: any} | null>(null);
+  const [dashboard, setDashboard] = useState<{price: number, stats: any, feed?: any[], leaderboard?: any[]} | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [wizard, setWizard] = useState<Listing | null>(null);
@@ -85,11 +88,8 @@ export default function Home() {
   const borrower = accounts[0] ?? "Anonymous";
   const isConnected = status === "connected";
 
-  // Real Trust Score (0-100)
-  const trustScore = useMemo(() => {
-    const released = escrows.filter((e) => e.state === "released").length;
-    return Math.min(100, 0 + released * 18 + Math.min(25, escrows.length * 3));
-  }, [escrows]);
+  // Real Trust Score (0-100) from the server
+  const trustScore = dashboard?.user?.trustScore || 0;
 
   useEffect(() => {
     try {
@@ -125,13 +125,24 @@ export default function Home() {
   const activeCount = escrows.filter((e) => e.state === "locked").length;
 
   async function handleLock(listing: Listing, amountNIM: number) {
+    const isAuthed = await ensureAuth();
+    if (!isAuthed) {
+      toast("Authentication required to lock funds", "error");
+      return null;
+    }
+
     setLocking(true);
     try {
-      const txHash = await sendLock({
-        recipient: ESCROW_VAULT,
-        value: Math.round(amountNIM * 100_000),
-        fee: 0,
-      });
+      let txHash = "0x" + Date.now().toString(16);
+      
+      if (!listing.kind.startsWith("bounty")) {
+        txHash = await sendLock({
+          recipient: ESCROW_VAULT,
+          value: Math.round(amountNIM * 100_000),
+          fee: 10,
+        });
+      }
+
       const e: Escrow = {
         id: newId("esc"),
         listingId: listing.id,
@@ -147,13 +158,17 @@ export default function Home() {
         description: listing.description,
       };
       
-      setEscrows((p) => [e, ...p]);
-      await fetch("/api/escrows", {
+      const res = await fetch("/api/escrows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "escrow", payload: e }),
       });
-      
+
+      if (!res.ok) {
+        throw new Error("Server failed to record the lock transaction. Your funds may be locked on chain but unrecorded.");
+      }
+
+      setEscrows((p) => [e, ...p]);
       setTab("active");
       toast(`Locked ${amountNIM.toLocaleString()} NIM for ${listing.title}`, "success");
       return e;
@@ -165,50 +180,169 @@ export default function Home() {
     }
   }
 
-  async function handleMakeLenderQr(escrow: Escrow) {
-    let keys = lenderKeys[escrow.id];
-    if (!keys) {
-      const kp = await generateLenderKeypair();
-      keys = { pub: kp.publicKeyHex, priv: kp.privateKeyHex };
-      setLenderKeys((p) => ({ ...p, [escrow.id]: keys! }));
-      setEscrows((p) => p.map((e) => (e.id === escrow.id ? { ...e, lenderPubkey: kp.publicKeyHex } : e)));
+  const ensureAuth = useCallback(async (): Promise<boolean> => {
+    if (!accounts[0]) return false;
+    try {
+      // Fast check if already authed (mocking the check by just trying the challenge)
+      // Actually, we can just do the auth if any secure request fails, or preemptively
+      const res = await fetch("/api/auth/challenge");
+      const { nonce } = await res.json();
+      const sigRes = await signMessage(nonce);
       
-      fetch("/api/escrows", {
+      const toHex = (buf: any) => buf instanceof Uint8Array 
+        ? Array.from(buf).map(b => b.toString(16).padStart(2,'0')).join('') 
+        : buf;
+
+      const authRes = await fetch("/api/auth/verify", {
+         method: "POST", body: JSON.stringify({
+            address: accounts[0],
+            publicKeyHex: toHex(sigRes.publicKey),
+            signatureHex: toHex(sigRes.signature),
+            nonce
+         })
+      });
+      return authRes.ok;
+    } catch {
+      return false;
+    }
+  }, [accounts, signMessage]);
+
+  async function handleMakeLenderQr(escrow: Escrow) {
+    const isAuthed = await ensureAuth();
+    if (!isAuthed) {
+      toast("Authentication required to generate secure QR", "error");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/qr/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ escrowId: escrow.id })
+      });
+      if (!res.ok) throw new Error("Failed to generate QR");
+      const { token, publicKeyHex } = await res.json();
+      
+      setEscrows((p) => p.map((e) => (e.id === escrow.id ? { ...e, lenderPubkey: publicKeyHex } : e)));
+      // Also update escrow with the lender's public key
+      await fetch("/api/escrows", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: escrow.id, lenderPubkey: kp.publicKeyHex }),
-      }).catch(() => {});
+        body: JSON.stringify({ id: escrow.id, lenderPubkey: publicKeyHex }),
+      });
+      
+      setQrToken({ token, escrow });
+    } catch (e) {
+      toast("QR generation failed", "error");
     }
-    const payload: ReturnPayload = createReturnPayload(escrow.id);
-    const token = await signReturn(payload, keys.priv);
-    setQrToken({ token, escrow });
   }
 
   const handleScan = useCallback(
     async (token: string) => {
       const t = token.trim();
       if (!t) return;
+      
+      const isAuthed = await ensureAuth();
+      if (!isAuthed) {
+        toast("Authentication required to process QR scan", "error");
+        setShowScanner(false);
+        return;
+      }
+
+      // 1. Handle CreatorVerified manual request (completer shows QR to creator)
+      if (t.startsWith("manual_req:")) {
+        setShowScanner(false);
+        const [_, listingId, completerAddress] = t.split(":");
+        if (!listingId || !completerAddress) return toast("Invalid manual request QR", "error");
+
+        const res = await fetch("/api/bounty/manual_approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ listingId, completerAddress }),
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          return toast(data.error || "Approval failed", "error");
+        }
+        
+        toast(`Approved completion for ${completerAddress.substring(0,8)}...`, "success");
+        window.location.reload();
+        return;
+      }
+
+      // 2. Try Escrows (Borrow Item Returns)
+      let matched = false;
       for (const e of escrows) {
         if (e.state !== "locked" || !e.lenderPubkey) continue;
-        const payload = await verifyReturn(t, e.lenderPubkey);
+        const payload = await verifyReturn(t, e.lenderPubkey).catch(() => null);
         if (payload && payload.escrowId === e.id) {
-          setEscrows((p) => p.map((x) => (x.id === e.id ? { ...x, state: "released" } : x)));
-          fetch("/api/escrows", {
+          matched = true;
+          setShowScanner(false);
+          const res = await fetch("/api/escrows", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: e.id, state: "released" }),
-          }).catch(() => {});
-          setShowScanner(false);
+            body: JSON.stringify({ id: e.id, token: t }),
+          });
+          
+          if (!res.ok) {
+            const data = await res.json();
+            toast(data.error || "Failed to release", "error");
+            return;
+          }
+          
+          setEscrows((p) => p.map((x) => (x.id === e.id ? { ...x, state: "released" } : x)));
           toast(`Released ${(e.amountNIM - e.feeNIM).toLocaleString()} NIM (${e.title})`, "success");
           return;
         }
       }
-      toast("No matching escrow found.", "error");
+
+      // 3. Try ScanQuest (Creator placed QR, Completer scans it)
+      if (!matched && t.split('.').length === 3) {
+        setShowScanner(false);
+        const res = await fetch("/api/bounty/scanquest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: t }),
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          toast(data.error || "ScanQuest verification failed", "error");
+          return;
+        }
+        
+        toast("Quest completed! Reward claimed.", "success");
+        window.location.reload();
+        return;
+      }
+
+      toast("Invalid QR or no matching locked escrow", "error");
+      setShowScanner(false);
     },
-    [escrows, toast]
+    [escrows, ensureAuth]
   );
 
   async function handleCreateListing(data: any) {
+    const isAuthed = await ensureAuth();
+    if (!isAuthed) {
+      toast("Authentication required to create a listing", "error");
+      return;
+    }
+
+    if (data.kind.startsWith("bounty")) {
+      try {
+        await sendLock({
+          recipient: ESCROW_VAULT,
+          value: Math.round(data.collateralNIM * 100_000),
+          fee: 10,
+        });
+      } catch (err) {
+        toast("Failed to fund bounty: " + (err instanceof Error ? err.message : "unknown"), "error");
+        return;
+      }
+    }
+
     const listing: Listing = {
       id: newId("list"),
       title: data.title,
@@ -223,15 +357,21 @@ export default function Home() {
       isActive: true
     };
 
-    setListings((p) => [listing, ...p]);
-    setShowCreateListing(false);
-    toast("Listing deployed to network.", "success");
-    
-    fetch("/api/escrows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "listing", payload: listing }),
-    }).catch(console.error);
+    try {
+      const res = await fetch("/api/escrows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "listing", payload: listing }),
+      });
+      if (!res.ok) throw new Error("Failed to save listing");
+      
+      setListings((p) => [listing, ...p]);
+      setShowCreateListing(false);
+      toast("Listing deployed to network.", "success");
+    } catch (e) {
+      console.error(e);
+      toast("Failed to deploy listing", "error");
+    }
   }
 
   if (status === "loading") {
@@ -252,10 +392,16 @@ export default function Home() {
         <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(251,191,36,0.3)]">
           <LockIcon size={28} className="text-slate-950" />
         </div>
-        <h2 className="text-2xl font-bold mb-2 text-white">Universal Fallback</h2>
+        <h2 className="text-2xl font-bold mb-2 text-white">Connection Failed</h2>
         <p className="text-slate-400 text-sm mb-8 leading-relaxed max-w-[280px]">
-          Acta is a native Mini App designed for Nimiq Pay. Since you are in a standard browser, connect using the universal Nimiq Hub to test the protocol.
+          Acta is a native Mini App designed for Nimiq Pay. We couldn't establish a secure connection.
         </p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="bg-amber-400 text-slate-950 font-bold py-3 px-8 rounded-full mb-4 w-full max-w-[260px] btn-press shadow-[0_0_15px_rgba(251,191,36,0.4)]"
+        >
+          Retry Connection
+        </button>
         <button 
           onClick={async () => {
             try {
@@ -266,9 +412,16 @@ export default function Home() {
               console.error(e);
             }
           }}
-          className="w-full max-w-[260px] bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3.5 rounded-xl transition-colors"
+          className="border border-white/20 text-white font-semibold py-3 px-8 rounded-full w-full max-w-[260px] btn-press transition-colors hover:bg-white/5"
         >
-          Connect Nimiq Hub
+          Connect via Hub (Web)
+        </button>
+        
+        <button 
+          onClick={() => setStatus("connected")}
+          className="mt-6 text-slate-500 text-xs underline decoration-slate-700 hover:text-slate-300 transition-colors"
+        >
+          Continue in Read-Only Demo Mode
         </button>
       </div>
     );
@@ -319,15 +472,18 @@ export default function Home() {
                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
                   <ZapIcon size={14} className="text-amber-400" /> Earn NIM (Bounties)
                 </h3>
+                <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-white/5 text-xs text-slate-400 hover:text-white transition-colors">
+                  <MapPinIcon size={12} /> Map View
+                </button>
               </div>
               
               <div className="flex gap-4 overflow-x-auto pb-6 mb-2 no-scrollbar snap-x">
                 {loading ? (
                   Array.from({ length: 2 }).map((_, i) => <SkeletonCard key={i} />)
-                ) : listings.filter(l => l.kind === "bounty").length === 0 ? (
+                ) : listings.filter(l => l.kind.startsWith("bounty")).length === 0 ? (
                   <EmptyState title="No Bounties" subtitle="No bounties available. Create one!" icon={<ZapIcon size={32} />} />
                 ) : (
-                  listings.filter(l => l.kind === "bounty").map(l => (
+                  listings.filter(l => l.kind.startsWith("bounty")).map(l => (
                     <div key={l.id} className="min-w-[280px] snap-center card-bounty p-5 rounded-2xl flex flex-col justify-between border border-amber-500/20">
                       <div>
                         <div className="flex justify-between items-start mb-3">
@@ -340,12 +496,34 @@ export default function Home() {
                         <h4 className="font-semibold text-lg leading-tight mb-2 text-white">{l.title}</h4>
                         <p className="text-xs text-slate-400 mb-4 line-clamp-2">{l.description}</p>
                       </div>
-                      <button
-                        onClick={() => setWizard(l)}
-                        className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-sm transition-all btn-press shadow-[0_0_15px_rgba(251,191,36,0.2)]"
-                      >
-                        Accept Bounty
-                      </button>
+                      {l.owner === borrower && l.kind === "bounty_qr" ? (
+                        <button
+                          onClick={async () => {
+                            const res = await fetch("/api/qr/generate", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ type: "scan_quest", escrowId: l.id }),
+                            });
+                            const data = await res.json();
+                            if (res.ok) setQrToken({ token: data.token, escrow: { title: l.title, amountNIM: l.collateralNIM } as any });
+                            else toast(data.error, "error");
+                          }}
+                          className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl text-sm transition-all btn-press shadow-[0_0_15px_rgba(56,189,248,0.2)]"
+                        >
+                          Show Quest QR
+                        </button>
+                      ) : l.owner === borrower ? (
+                        <button disabled className="w-full py-3 bg-slate-800 text-slate-500 font-bold rounded-xl text-sm cursor-not-allowed">
+                          Your Bounty
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setWizard(l)}
+                          className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-sm transition-all btn-press shadow-[0_0_15px_rgba(251,191,36,0.2)]"
+                        >
+                          Accept Bounty
+                        </button>
+                      )}
                     </div>
                   ))
                 )}
@@ -388,7 +566,7 @@ export default function Home() {
                         </div>
                         <div className="text-right">
                            <p className="text-[10px] text-slate-400 uppercase tracking-wider">Yield req.</p>
-                           <p className="text-xs font-bold text-emerald-400 tnum">+{l.yieldNIM || 50} NIM</p>
+                           <p className="text-xs font-bold text-emerald-400 tnum">+{l.yieldNIM || 0.5} NIM</p>
                         </div>
                       </div>
 
@@ -401,11 +579,16 @@ export default function Home() {
                     </div>
                   ))
                 )}
+              
               </div>
+
+              {dashboard?.feed && <ActivityFeed data={dashboard.feed} />}
+              {dashboard?.leaderboard && <Leaderboard data={dashboard.leaderboard} />}
             </div>
           )}
 
           {tab === "active" && (
+
             <div className="space-y-4 animate-fade-in">
               {loading ? (
                 Array.from({ length: 2 }).map((_, i) => <SkeletonEscrow key={i} />)
@@ -457,24 +640,41 @@ export default function Home() {
                           <span>{timeRemaining(e.expiresAt)}</span>
                         </div>
                         
-                        {listings.find(l => l.id === e.listingId)?.kind === "bounty" ? (
-                          <BountyVerify task={e.title} />
-                        ) : (
-                          <div className="mt-4 flex gap-2">
-                            <button
-                              onClick={() => handleMakeLenderQr(e)}
-                              className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 py-3 text-sm font-semibold text-amber-400 transition-all hover:bg-amber-500/20 btn-press"
-                            >
-                              <StarIcon size={14} /> Show return QR
-                            </button>
-                            <button
-                              onClick={() => setShowScanner(true)}
-                              className="flex items-center gap-2 rounded-xl bg-sky-400/15 px-5 py-3 text-sm font-semibold text-sky-300 transition-all hover:bg-sky-400/25 btn-press"
-                            >
-                              <ScanIcon size={14} /> Scan
-                            </button>
-                          </div>
-                        )}
+                        {(() => {
+                          const kind = listings.find(l => l.id === e.listingId)?.kind;
+                          if (kind === "bounty") {
+                            return <BountyVerify task={e.title} listingId={e.listingId} />;
+                          } else if (kind === "bounty_geo") {
+                            return <CheckInVerify title={e.title} listingId={e.listingId} />;
+                          } else if (kind === "bounty_manual") {
+                            return <ManualVerify listingId={e.listingId} />;
+                          } else if (kind === "bounty_qr") {
+                            return (
+                              <button
+                                onClick={() => setShowScanner(true)}
+                                className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-sky-400/15 px-5 py-3 text-sm font-semibold text-sky-300 transition-all hover:bg-sky-400/25 btn-press"
+                              >
+                                <ScanIcon size={14} /> Scan ScanQuest QR
+                              </button>
+                            );
+                          }
+                          return (
+                            <div className="mt-4 flex gap-2">
+                              <button
+                                onClick={() => handleMakeLenderQr(e)}
+                                className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 py-3 text-sm font-semibold text-amber-400 transition-all hover:bg-amber-500/20 btn-press"
+                              >
+                                <StarIcon size={14} /> Show return QR
+                              </button>
+                              <button
+                                onClick={() => setShowScanner(true)}
+                                className="flex items-center gap-2 rounded-xl bg-sky-400/15 px-5 py-3 text-sm font-semibold text-sky-300 transition-all hover:bg-sky-400/25 btn-press"
+                              >
+                                <ScanIcon size={14} /> Scan
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </>
                     )}
                   </div>
@@ -568,7 +768,7 @@ export default function Home() {
         <BottomTabs tab={tab} setTab={setTab} activeCount={activeCount} />
 
         {wizard && (
-          <BorrowWizard
+          <BorrowWizard price={dashboard?.price} 
             listing={wizard}
             trustScore={trustScore}
             borrower={borrower}
