@@ -71,6 +71,15 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("radar");
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+
+  const [dashboard, setDashboard] = useState<{price: number, stats: any} | null>(null);
+  
+  useEffect(() => {
+    fetch("/api/dashboard").then(r => r.json()).then(d => {
+      if(d.price) setDashboard(d);
+    }).catch(console.error);
+  }, []);
+
   const [listings, setListings] = useState<Listing[]>(SEED_LISTINGS);
   const [shared, setShared] = useState(false);
   const [loading, setLoading] = useState(true);
