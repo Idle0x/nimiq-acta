@@ -339,3 +339,13 @@ input:focus, textarea:focus {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 25%, transparent);
 }
 * { scroll-behavior: smooth; }
+
+@keyframes twirl-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-twirl {
+  background-size: 200% 200%;
+  animation: twirl-shimmer 8s ease-in-out infinite;
+}

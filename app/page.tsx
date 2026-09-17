@@ -329,7 +329,7 @@ export default function Landing() {
             </Marginalia>
             <div className="mt-10 flex justify-center gap-4 flex-wrap">
               <PressLink href="/app" className="!px-8 !py-4">Enter the Protocol</PressLink>
-              <GhostLink href="https://github.com/your-org/acta" className="!px-8 !py-4">Read the Code</GhostLink>
+              <GhostLink href="https://github.com/Idle0x/nimiq-acta" className="!px-8 !py-4">Read the Code</GhostLink>
             </div>
           </Reveal>
         </div>
@@ -412,24 +412,26 @@ export default function Landing() {
               </p>
             </div>
             
-            <div>
-              <h4 className="caps text-[9px] text-[var(--ink3)] mb-4">Nimiq Ecosystem</h4>
-              <ul className="space-y-3 text-[13px]">
-                <li><a href="https://nimiq.com" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Nimiq Platform</a></li>
-                <li><a href="https://nimiq.com/developers/" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Developer Documentation</a></li>
-                <li><a href="https://forum.nimiq.community/" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Community Forum</a></li>
-                <li><a href="https://nimiq.com/wallet/" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Nimiq Wallet</a></li>
-              </ul>
-            </div>
+            <div className="md:col-span-2 grid grid-cols-2 gap-6">
+              <div>
+                <h4 className="caps text-[9px] text-[var(--ink3)] mb-4">Nimiq Ecosystem</h4>
+                <ul className="space-y-3 text-[13px]">
+                  <li><a href="https://nimiq.com" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Nimiq Platform</a></li>
+                  <li><a href="https://nimiq.com/developers/" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Developer Documentation</a></li>
+                  <li><a href="https://forum.nimiq.community/" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Community Forum</a></li>
+                  <li><a href="https://nimiq.com/wallet/" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Nimiq Wallet</a></li>
+                </ul>
+              </div>
 
-            <div>
-              <h4 className="caps text-[9px] text-[var(--ink3)] mb-4">Acta Project</h4>
-              <ul className="space-y-3 text-[13px]">
-                <li><a href="/app" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Launch the App</a></li>
-                <li><a href="/app?tab=passport" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors flex items-center gap-1">Check Trust Score <ArrowUpRight size={12}/></a></li>
-                <li><a href="https://github.com" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">GitHub Repository</a></li>
-                <li><a href="#" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Hackathon Submission</a></li>
-              </ul>
+              <div>
+                <h4 className="caps text-[9px] text-[var(--ink3)] mb-4">Acta Project</h4>
+                <ul className="space-y-3 text-[13px]">
+                  <li><a href="/app" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Launch the App</a></li>
+                  <li><a href="/app?tab=passport" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors flex items-center gap-1">Check Trust Score <ArrowUpRight size={12}/></a></li>
+                  <li><a href="https://github.com/Idle0x/nimiq-acta" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">GitHub Repository</a></li>
+                  <li><a href="#" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Hackathon Submission</a></li>
+                </ul>
+              </div>
             </div>
           </div>
 
@@ -438,7 +440,7 @@ export default function Landing() {
             <p className="marginalia text-xs text-center">
               Set in Cormorant, Garamond, Grotesk & Plex. Printed on the Nimiq blockchain.
             </p>
-            <p className="caps text-[10px] bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-cyan-200 font-bold drop-shadow-[0_0_12px_rgba(56,189,248,0.45)] tracking-widest">Money moves when reality changes.</p>
+            <p className="caps text-[10px] bg-clip-text text-transparent bg-gradient-to-r from-[#CCD4D9] via-white to-[#C3CBD1] font-bold drop-shadow-[0_0_8px_rgba(204,212,217,0.3)] tracking-widest animate-twirl">Money moves when reality changes.</p>
           </div>
         </div>
       </footer>
