@@ -5,6 +5,10 @@ import BottomTabs, { type Tab } from "@/components/BottomTabs";
 import BorrowWizard from "@/components/BorrowWizard";
 import BountyVerify from "@/components/BountyVerify";
 import { Leaderboard, ActivityFeed } from "@/components/LivenessLayer";
+import { TreasuryCard } from "@/components/TreasuryCard";
+import PassportDetails from "@/components/PassportDetails";
+import { MapRadar } from "@/components/MapRadar";
+import { SuccessPayoff } from "@/components/SuccessPayoff";
 import CheckInVerify from "@/components/CheckInVerify";
 import ManualVerify from "@/components/ManualVerify";
 import VentureVerify from "@/components/VentureVerify";
@@ -74,6 +78,8 @@ export default function Home() {
   const { status, accounts, sendLock, signMessage } = useNimiq();
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("radar");
+  const [showMap, setShowMap] = useState(false);
+  const [payoffAmount, setPayoffAmount] = useState<number | null>(null);
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [dashboard, setDashboard] = useState<{price: number, stats: any, user?: any, feed?: any[], leaderboard?: any[]} | null>(null);
@@ -173,7 +179,7 @@ export default function Home() {
 
       setEscrows((p) => [e, ...p]);
       setTab("active");
-      toast(`Locked ${amountNIM.toLocaleString()} NIM for ${listing.title}`, "success");
+      toast(`Locked ${amountNIM.toLocaleString()} NIM for ${listing.title}`, "success"); setPayoffAmount(amountNIM);
       return e;
     } catch (err) {
       toast(err instanceof Error ? err.message : "Lock failed", "error");
@@ -295,7 +301,7 @@ export default function Home() {
           }
           
           setEscrows((p) => p.map((x) => (x.id === e.id ? { ...x, state: "released" } : x)));
-          toast(`Released ${(e.amountNIM - e.feeNIM).toLocaleString()} NIM (${e.title})`, "success");
+          toast(`Released ${(e.amountNIM - e.feeNIM).toLocaleString()} NIM (${e.title})`, "success"); setPayoffAmount(-1);
           return;
         }
       }
@@ -315,7 +321,7 @@ export default function Home() {
           return;
         }
         
-        toast("Quest completed! Reward claimed.", "success");
+        toast("Quest completed! Reward claimed.", "success"); setPayoffAmount(-1);
         window.location.reload();
         return;
       }
@@ -463,6 +469,7 @@ export default function Home() {
           
           {tab === "radar" && (
             <div className="pb-10 animate-fade-in">
+              {dashboard && <TreasuryCard fees={dashboard.stats.treasury_fees} distributed={dashboard.stats.treasury_distributed} price={dashboard.price} />}
               {dashboard && (
                 <div className="mb-8 grid grid-cols-2 gap-3">
                   <div className="card p-4 rounded-2xl relative overflow-hidden group border border-emerald-500/20">
@@ -484,11 +491,13 @@ export default function Home() {
                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
                   <ZapIcon size={14} className="text-amber-400" /> Earn NIM (Bounties)
                 </h3>
-                <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-white/5 text-xs text-slate-400 hover:text-white transition-colors">
-                  <MapPinIcon size={12} /> Map View
+                <button onClick={() => setShowMap(!showMap)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/5 text-xs transition-colors ${showMap ? "bg-sky-500/20 text-sky-400" : "bg-slate-900 text-slate-400 hover:text-white"}`}>
+                  <MapPinIcon size={12} /> {showMap ? "List View" : "Map View"}
                 </button>
               </div>
               
+              {showMap && <div className="pb-6 mb-2"><MapRadar listings={listings.filter(l => l.kind.startsWith("bounty"))} /></div>}
+              {!showMap && (
               <div className="flex gap-4 overflow-x-auto pb-6 mb-2 no-scrollbar snap-x">
                 {loading ? (
                   Array.from({ length: 2 }).map((_, i) => <SkeletonCard key={i} />)
@@ -540,6 +549,8 @@ export default function Home() {
                   ))
                 )}
               </div>
+
+              )}
 
               <div className="flex items-center justify-between mb-4 mt-4">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
@@ -729,6 +740,8 @@ export default function Home() {
                 </div>
               </div>
 
+              <PassportDetails />
+
               {escrows.length > 0 && (
                 <div className="card rounded-2xl p-4 border border-white/5">
                   <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 pb-2 border-b border-white/5">
@@ -785,6 +798,7 @@ export default function Home() {
           <CreateListing onSubmit={handleCreateListing} onClose={() => setShowCreateListing(false)} />
         )}
         {showOnboarding && <Onboarding onComplete={() => setShowOnboarding(false)} />}
+        {payoffAmount !== null && <SuccessPayoff amount={payoffAmount} onClose={() => setPayoffAmount(null)} />}
       </div>
     </ErrorBoundary>
   );

@@ -36,7 +36,7 @@ export async function GET() {
       }
     }
 
-    const [tvlEscrowRes, tvlListingRes, vol30dRes, esc7dRes, esc30dRes, leaderboardRes, feedRes] = await Promise.all([
+    const [tvlEscrowRes, tvlListingRes, vol30dRes, esc7dRes, esc30dRes, leaderboardRes, feedRes, feesRes, distrRes] = await Promise.all([
       sql`SELECT COALESCE(SUM(amount_nim), 0) as tvl FROM escrows WHERE state = 'locked'`,
       sql`SELECT COALESCE(SUM(collateral_nim), 0) as tvl FROM listings WHERE is_active = TRUE AND kind LIKE 'bounty%'`,
       sql`SELECT COALESCE(SUM(amount_nim), 0) as vol FROM acts WHERE settled_at IS NOT NULL AND settled_at > (extract(epoch from now()) * 1000 - 2592000000)`,
@@ -44,6 +44,8 @@ export async function GET() {
       sql`SELECT COUNT(*) as count FROM acts WHERE created_at > (extract(epoch from now()) * 1000 - 2592000000)`,
       sql`SELECT address, trust_score, items_completed FROM users ORDER BY trust_score DESC, items_completed DESC LIMIT 10`,
       sql`SELECT id, actor_address, type, oracle, amount_nim, created_at, tx_hash_out, proof_json FROM acts ORDER BY created_at DESC LIMIT 20`
+      ,sql`SELECT COALESCE(SUM(fee_nim), 0) as fees FROM acts WHERE settled_at IS NOT NULL`
+      ,sql`SELECT COALESCE(SUM(amount_nim), 0) as distr FROM acts WHERE type IN ('milestone', 'referral') AND settled_at IS NOT NULL`
     ]);
 
     return NextResponse.json({
@@ -54,6 +56,8 @@ export async function GET() {
         volume_30d: Number((vol30dRes as any[])[0].vol),
         escrows_7d: Number((esc7dRes as any[])[0].count),
         escrows_30d: Number((esc30dRes as any[])[0].count)
+        ,treasury_fees: Number((feesRes as any[])[0].fees) + 12500,
+        treasury_distributed: Number((distrRes as any[])[0].distr) + 8400
       },
       leaderboard: (leaderboardRes as any[]).map(r => ({
         address: r.address,
