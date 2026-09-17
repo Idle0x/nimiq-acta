@@ -440,7 +440,7 @@ export default function Landing() {
             <p className="marginalia text-xs text-center">
               Set in Cormorant, Garamond, Grotesk & Plex. Printed on the Nimiq blockchain.
             </p>
-            <p className="caps text-[10px] bg-clip-text text-transparent bg-gradient-to-r from-[#CCD4D9] via-white to-[#C3CBD1] font-bold drop-shadow-[0_0_8px_rgba(204,212,217,0.3)] tracking-widest animate-twirl">Money moves when reality changes.</p>
+            <p className="caps text-[10px] font-bold tracking-widest animate-text-shimmer">Money moves when reality changes.</p>
           </div>
         </div>
       </footer>
