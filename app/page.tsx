@@ -414,7 +414,7 @@ export default function Landing() {
             
             <div className="md:col-span-2 grid grid-cols-2 gap-6">
               <div>
-                <h4 className="caps text-[9px] text-[var(--ink3)] mb-4">Nimiq Ecosystem</h4>
+                <h4 className="caps text-[9px] mb-4 text-[#CDBB8A]">Nimiq Ecosystem</h4>
                 <ul className="space-y-3 text-[13px]">
                   <li><a href="https://nimiq.com" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Nimiq Platform</a></li>
                   <li><a href="https://nimiq.com/developers/" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Developer Documentation</a></li>
@@ -424,7 +424,7 @@ export default function Landing() {
               </div>
 
               <div>
-                <h4 className="caps text-[9px] text-[var(--ink3)] mb-4">Acta Project</h4>
+                <h4 className="caps text-[9px] mb-4 text-[#BEB0D8]">Acta Project</h4>
                 <ul className="space-y-3 text-[13px]">
                   <li><a href="/app" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Launch the App</a></li>
                   <li><a href="/app?tab=passport" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors flex items-center gap-1">Check Trust Score <ArrowUpRight size={12}/></a></li>
@@ -440,7 +440,7 @@ export default function Landing() {
             <p className="marginalia text-xs text-center">
               Set in Cormorant, Garamond, Grotesk & Plex. Printed on the Nimiq blockchain.
             </p>
-            <p className="caps text-[10px] font-bold tracking-widest animate-text-shimmer">Money moves when reality changes.</p>
+            <p className="caps text-[10px] font-bold tracking-widest tagline">Money moves when reality changes.</p>
           </div>
         </div>
       </footer>

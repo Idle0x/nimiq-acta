@@ -340,11 +340,29 @@ input:focus, textarea:focus {
 }
 * { scroll-behavior: smooth; }
 
-@keyframes color-shimmer {
-  0% { color: #CCD4D9; text-shadow: 0 0 6px rgba(204, 212, 217, 0.3); }
-  50% { color: #ffffff; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
-  100% { color: #C3CBD1; text-shadow: 0 0 6px rgba(195, 203, 209, 0.3); }
+
+
+.tagline {
+  background: linear-gradient(
+    110deg,
+    #8DEBFF 0%,
+    #CFFAFF 25%,
+    #D7C7FF 45%,
+    #B8FFD9 65%,
+    #8DEBFF 85%,
+    #D7C7FF 100%
+  );
+  background-size: 250% 250%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: flow 8s ease-in-out infinite;
 }
-.animate-text-shimmer {
-  animation: color-shimmer 6s ease-in-out infinite alternate;
+
+@keyframes flow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
