@@ -183,19 +183,25 @@ export default function Landing() {
           <div className="grid md:grid-cols-3 gap-5 mt-14">
             {DOCTRINE.map((d, i) => (
               <Reveal key={d.title} delay={i * 140}>
-                <Plate hover className="group relative p-7 h-full min-h-[300px] overflow-hidden">
-                  <p className="caps text-[9px] text-[var(--gold)]">{d.clause}</p>
-                  <div className="flex items-center gap-4 mt-5">
-                    <span className="seal !bg-none bg-[var(--gold)] !shadow-none flex items-center justify-center w-11 h-11 rounded-full" style={{ background: "var(--gold)" }}>
-                      <d.icon size={18} className="text-[#1c1508]" strokeWidth={1.8} />
-                    </span>
-                    <h3 className="h-display text-3xl text-[var(--ink)]">{d.title}</h3>
+                <Plate hover className="group flex flex-col h-fit overflow-hidden">
+                  <div className="p-7">
+                    <p className="caps text-[9px] text-[var(--gold)]">{d.clause}</p>
+                    <div className="flex items-center gap-4 mt-5">
+                      <span className="seal !bg-none bg-[var(--gold)] !shadow-none flex items-center justify-center w-11 h-11 rounded-full" style={{ background: "var(--gold)" }}>
+                        <d.icon size={18} className="text-[#1c1508]" strokeWidth={1.8} />
+                      </span>
+                      <h3 className="h-display text-3xl text-[var(--ink)]">{d.title}</h3>
+                    </div>
+                    <p className="mt-5 text-[15px] leading-relaxed text-[var(--ink2)]">{d.body}</p>
                   </div>
-                  <p className="mt-5 text-[15px] leading-relaxed text-[var(--ink2)]">{d.body}</p>
-
-                  {/* hover reveal — the plate's hidden margin note */}
-                  <div className="absolute inset-x-0 bottom-0 p-7 pt-10 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] border-t border-[var(--line)] backdrop-blur-sm">
-                    <p className="marginalia text-[13px]">{d.hover}</p>
+                  <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">
+                    <div className="overflow-hidden">
+                      <div className="p-7 pt-6 bg-[color-mix(in_srgb,var(--verdigris)_12%,transparent)] border-t border-[color-mix(in_srgb,var(--verdigris)_20%,transparent)]">
+                        <p className="marginalia text-[13px] text-[color-mix(in_srgb,var(--ink)_80%,var(--verdigris))] saturate-150">
+                          {d.hover}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </Plate>
               </Reveal>
@@ -221,17 +227,19 @@ export default function Landing() {
           <div className="mt-12">
             {ORACLES.map((o, i) => (
               <Reveal key={o.n} delay={i * 90}>
-                <div className="ledger-row group cursor-default">
-                  <span className="figure text-sm text-[var(--gold)] w-8 shrink-0">{o.n}.</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-display text-2xl text-[var(--ink)] leading-tight">{o.name}</p>
-                    <p className="caps text-[9px] text-[var(--ink3)] mt-1">{o.proof}</p>
-                    <p className="marginalia text-sm mt-3 max-h-0 opacity-0 overflow-hidden group-hover:max-h-40 group-hover:opacity-100 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">
-                      {o.detail}
-                    </p>
+                <a href={o.n === "I" ? "/app" : o.n === "II" ? "/app?tab=active" : o.n === "III" ? "/app?tab=radar" : "/app?tab=passport"} className="ledger-row group block">
+                  <div className="flex items-start">
+                    <span className="figure text-sm text-[var(--gold)] w-8 shrink-0 mt-1">{o.n}.</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display text-2xl text-[var(--ink)] leading-tight group-hover:text-[var(--gold)] transition-colors">{o.name}</p>
+                      <p className="caps text-[9px] text-[var(--ink3)] mt-1">{o.proof}</p>
+                      <p className="marginalia text-sm mt-3 max-h-0 opacity-0 overflow-hidden group-hover:max-h-40 group-hover:opacity-100 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">
+                        {o.detail}
+                      </p>
+                    </div>
+                    <ArrowUpRight size={16} className="text-[var(--ink3)] group-hover:text-[var(--gold)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0 mt-1" />
                   </div>
-                  <ArrowUpRight size={16} className="text-[var(--ink3)] group-hover:text-[var(--gold)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0" />
-                </div>
+                </a>
               </Reveal>
             ))}
           </div>
@@ -243,7 +251,7 @@ export default function Landing() {
         <div className="mx-auto max-w-5xl">
           <Reveal>
             <Rule className="mb-10"><span className="font-serif text-lg">&#10086;</span></Rule>
-            <Kicker index="§ 4">The Ledger</Kicker>
+            <a href="/app?tab=active" className="block hover:opacity-80 transition-opacity"><Kicker index="§ 4">The Ledger</Kicker></a>
             <h2 className="h-display text-4xl sm:text-5xl mt-4 text-[var(--ink)]">
               The protocol never sleeps.
             </h2>
@@ -280,7 +288,7 @@ export default function Landing() {
             <Reveal delay={150} className="lg:col-span-2">
               <div className="space-y-5">
                 <div className="plate p-6">
-                  <p className="caps text-[9px] text-[var(--gold)]">The Trust Mechanic</p>
+                  <a href="/app?tab=passport" className="caps text-[9px] text-[var(--gold)] hover:underline flex items-center gap-1 w-fit">The Trust Mechanic <ArrowUpRight size={10}/></a>
                   <p className="mt-4 text-[15px] leading-relaxed text-[var(--ink2)]">
                     Every settled act compounds a public score — completion, volume,
                     tenure, oracle diversity, community value — and a higher score
@@ -327,14 +335,77 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ================= COLOPHON ================= */}
-      <footer className="px-6 py-10 border-t border-[var(--line)]">
-        <div className="mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="caps text-[9px] text-[var(--ink3)]">Acta — MMXXVI</p>
-          <p className="marginalia text-xs text-center">
-            Set in Cormorant, Garamond, Grotesk &amp; Plex. Printed on the Nimiq blockchain.
-          </p>
-          <p className="caps text-[9px] text-[var(--ink3)]">Money moves when reality changes.</p>
+      {/* ================= ARCHITECTURE & TECH STACK ================= */}
+      <section className="px-6 py-24 bg-[color-mix(in_srgb,var(--surface)_30%,transparent)] border-t border-[var(--line)]">
+        <div className="mx-auto max-w-5xl">
+          <Reveal>
+            <Kicker index="§ 5">Architecture</Kicker>
+            <h2 className="h-display text-4xl sm:text-5xl mt-4 text-[var(--ink)]">
+              Woven from modern threads.
+            </h2>
+            <Marginalia className="mt-4 max-w-lg">
+              Acta is a zero-trust orchestrator. It does not reinvent consensus; it connects robust, bleeding-edge primitives into a seamless action economy.
+            </Marginalia>
+          </Reveal>
+
+          <div className="mt-14 grid md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+            {[
+              { title: "Nimiq Pay Mini-App", desc: "Native integration with window.nimiq. Funds are locked strictly on-chain using Nimiq's fast, lightweight consensus without bridging volatile assets." },
+              { title: "Qwen3.6 Vision Oracle", desc: "A sceptical AI evaluator hosted via Hetzner inference. It analyzes submitted photo proofs against the listing's constraints, substituting human arbitration." },
+              { title: "Ed25519 Cryptography", desc: "Secure, offline QR handshakes. Lenders sign ten-minute disposable tokens locally; borrowers scan to execute cryptographic zero-knowledge returns." },
+              { title: "Next.js & React 19", desc: "Server-side hydration, edge-ready API routes, and instantaneous state transitions wrapped in a strict TypeScript architecture." },
+              { title: "Neon Serverless Postgres", desc: "Robust, branching database layer maintaining the off-chain index of active bounties, reputation histories, and the global treasury ledger." },
+              { title: "Haversine Geolocation", desc: "HTML5 secure contexts verifying physical check-ins with mathematically rigorous bounding box accuracy limits." }
+            ].map((t, i) => (
+              <Reveal key={t.title} delay={i * 100}>
+                <h4 className="caps text-[10px] text-[var(--gold)] mb-3">{t.title}</h4>
+                <p className="text-[14px] leading-relaxed text-[var(--ink2)]">{t.desc}</p>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ================= COLOPHON & FOOTER ================= */}
+      <footer className="px-6 py-16 bg-[var(--bg2)] border-t border-[var(--line)]">
+        <div className="mx-auto max-w-5xl">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 md:gap-6 mb-16">
+            <div className="md:col-span-2">
+              <Seal size={32} className="!text-xs mb-4">A</Seal>
+              <h3 className="h-display text-2xl text-[var(--ink)] mb-3">Acta</h3>
+              <p className="text-[13px] leading-relaxed text-[var(--ink2)] max-w-sm">
+                Built for the Nimiq Hackathon. Acta proves that Web3 isn't just about moving money — it's about moving reality. By linking fast consensus with physical deeds, we turn trust into a protocol.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="caps text-[9px] text-[var(--ink3)] mb-4">Nimiq Ecosystem</h4>
+              <ul className="space-y-3 text-[13px]">
+                <li><a href="https://nimiq.com" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Nimiq Platform</a></li>
+                <li><a href="https://nimiq.com/developers/" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Developer Documentation</a></li>
+                <li><a href="https://forum.nimiq.community/" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Community Forum</a></li>
+                <li><a href="https://nimiq.com/wallet/" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Nimiq Wallet</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="caps text-[9px] text-[var(--ink3)] mb-4">Acta Project</h4>
+              <ul className="space-y-3 text-[13px]">
+                <li><a href="/app" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Launch the App</a></li>
+                <li><a href="/app?tab=passport" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors flex items-center gap-1">Check Trust Score <ArrowUpRight size={12}/></a></li>
+                <li><a href="https://github.com" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">GitHub Repository</a></li>
+                <li><a href="#" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Hackathon Submission</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-[var(--line-strong)]">
+            <p className="caps text-[9px] text-[var(--ink3)]">Acta — MMXXVI</p>
+            <p className="marginalia text-xs text-center">
+              Set in Cormorant, Garamond, Grotesk & Plex. Printed on the Nimiq blockchain.
+            </p>
+            <p className="caps text-[9px] text-[var(--ink3)]">Money moves when reality changes.</p>
+          </div>
         </div>
       </footer>
     </main>

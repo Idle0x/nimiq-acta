@@ -24,19 +24,27 @@ export default function Reveal({
       setShown(true);
       return;
     }
+    let timeoutId: ReturnType<typeof setTimeout>;
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
           if (e.isIntersecting) {
+            clearTimeout(timeoutId);
             setShown(true);
-            io.disconnect();
+          } else {
+            timeoutId = setTimeout(() => {
+              setShown(false);
+            }, 3000);
           }
         });
       },
       { threshold: 0.15, rootMargin: "0px 0px -8% 0px" }
     );
     io.observe(el);
-    return () => io.disconnect();
+    return () => {
+      clearTimeout(timeoutId);
+      io.disconnect();
+    };
   }, []);
 
   return (
