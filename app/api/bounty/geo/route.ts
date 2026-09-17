@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     }
 
     const listing = await fetchListing(body.listingId);
-    if (!listing || listing.kind !== "bounty_geo") {
+    if (!listing || listing.kind !== "bounty_venture") {
       return NextResponse.json({ error: "Invalid listing or not a Geo bounty" }, { status: 404 });
     }
 

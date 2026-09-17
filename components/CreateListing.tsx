@@ -4,12 +4,12 @@ import { LockIcon, ZapIcon, MapPinIcon, ChevronRightIcon, XIcon, Camera, QrCodeI
 
 interface CreateListingProps {
   onClose: () => void;
-  onSubmit: (listing: { title: string; kind: 'borrow' | 'bounty' | 'bounty_geo' | 'bounty_qr' | 'bounty_manual'; collateralNIM: number; description: string; requireLocation?: boolean }) => void;
+  onSubmit: (listing: { title: string; kind: 'borrow' | 'bounty' | 'bounty_venture' | 'bounty_qr' | 'bounty_manual'; collateralNIM: number; description: string; requireLocation?: boolean }) => void;
 }
 
 const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit }) => {
   const [step, setStep] = useState(1);
-  const [kind, setKind] = useState<'borrow' | 'bounty' | 'bounty_geo' | 'bounty_qr' | 'bounty_manual' | null>(null);
+  const [kind, setKind] = useState<'borrow' | 'bounty' | 'bounty_venture' | 'bounty_qr' | 'bounty_manual' | null>(null);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -96,20 +96,20 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit }) => {
             >
               <Camera size={24} className={kind === 'bounty' ? 'text-sky-400' : 'text-slate-400'} />
               <div>
-                <h4 className="text-md font-semibold text-slate-100">PhotoProof (AI)</h4>
-                <p className="text-xs text-slate-400">Vision AI verifies a photo automatically.</p>
+                <h4 className="text-md font-semibold text-slate-100">Showcase</h4>
+                <p className="text-xs text-slate-400">Creative and practical challenges where the result can be demonstrated visually.</p>
               </div>
             </button>
             <button
-              onClick={() => setKind('bounty_geo')}
+              onClick={() => setKind('bounty_venture')}
               className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-colors ${
-                kind === 'bounty_qr' ? 'bg-sky-400/10 border-sky-400' : 'bg-slate-900 border-white/5 hover:border-white/20'
+                kind === 'bounty_venture' ? 'bg-sky-400/10 border-sky-400' : 'bg-slate-900 border-white/5 hover:border-white/20'
               }`}
             >
-              <MapPinIcon size={24} className={kind === 'bounty_geo' ? 'text-sky-400' : 'text-slate-400'} />
+              <MapPinIcon size={24} className={kind === 'bounty_venture' ? 'text-sky-400' : 'text-slate-400'} />
               <div>
-                <h4 className="text-md font-semibold text-slate-100">CheckIn (Geo)</h4>
-                <p className="text-xs text-slate-400">User must be at a specific location.</p>
+                <h4 className="text-md font-semibold text-slate-100">Venture</h4>
+                <p className="text-xs text-slate-400">Anything-goes challenges built around ideas, activities, goals, and experiences.</p>
               </div>
             </button>
             <button
@@ -121,7 +121,7 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit }) => {
               <QrCodeIcon size={24} className={kind === 'bounty_qr' ? 'text-sky-400' : 'text-slate-400'} />
               <div>
                 <h4 className="text-md font-semibold text-slate-100">ScanQuest</h4>
-                <p className="text-xs text-slate-400">User must scan a secure QR code you generate.</p>
+                <p className="text-xs text-slate-400">Discovery-based challenges centered around finding and unlocking hidden QR codes.</p>
               </div>
             </button>
             <button
@@ -132,8 +132,8 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit }) => {
             >
               <UserCheck size={24} className={kind === 'bounty_manual' ? 'text-sky-400' : 'text-slate-400'} />
               <div>
-                <h4 className="text-md font-semibold text-slate-100">CreatorVerified</h4>
-                <p className="text-xs text-slate-400">You manually approve the completion.</p>
+                <h4 className="text-md font-semibold text-slate-100">Request</h4>
+                <p className="text-xs text-slate-400">Real-world tasks, favors, and opportunities that require a completed submission.</p>
               </div>
             </button>
           </>

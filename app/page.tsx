@@ -7,6 +7,7 @@ import BountyVerify from "@/components/BountyVerify";
 import { Leaderboard, ActivityFeed } from "@/components/LivenessLayer";
 import CheckInVerify from "@/components/CheckInVerify";
 import ManualVerify from "@/components/ManualVerify";
+import VentureVerify from "@/components/VentureVerify";
 import QrOverlay from "@/components/QrOverlay";
 import QrScanner from "@/components/QrScanner";
 import CreateListing from "@/components/CreateListing";
@@ -440,8 +441,8 @@ export default function Home() {
 
   return (
     <ErrorBoundary>
-      <div className="h-screen w-full bg-slate-950 text-slate-50 flex flex-col font-sans selection:bg-amber-500/30 overflow-hidden">
-        <header className="px-5 pt-8 pb-4 flex justify-between items-center bg-gradient-to-b from-slate-950/80 to-transparent z-10 backdrop-blur-sm shrink-0">
+      <div className="fixed inset-0 bg-slate-950 text-slate-50 flex flex-col font-sans selection:bg-amber-500/30 overflow-hidden">
+        <header className="px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-3 flex justify-between items-center bg-slate-950/90 z-10 backdrop-blur-md shrink-0 border-b border-white/5">
           <div>
             <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
               <span className="bg-gradient-to-br from-amber-300 to-amber-600 bg-clip-text text-transparent">Acta</span>
@@ -458,7 +459,7 @@ export default function Home() {
           </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-5 pb-24 no-scrollbar">
+        <main className="flex-1 overflow-y-auto px-4 pt-4 pb-6 no-scrollbar">
           
           {tab === "radar" && (
             <div className="pb-10 animate-fade-in">
@@ -519,18 +520,18 @@ export default function Home() {
                             if (res.ok) setQrToken({ token: data.token, escrow: { title: l.title, amountNIM: l.collateralNIM } as any });
                             else toast(data.error, "error");
                           }}
-                          className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl text-sm transition-all btn-press shadow-[0_0_15px_rgba(56,189,248,0.2)]"
+                          className="w-full py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-lg text-xs transition-all btn-press"
                         >
                           Show Quest QR
                         </button>
                       ) : l.owner === borrower ? (
-                        <button disabled className="w-full py-3 bg-slate-800 text-slate-500 font-bold rounded-xl text-sm cursor-not-allowed">
+                        <button disabled className="w-full py-2 bg-slate-800 text-slate-500 font-bold rounded-lg text-xs cursor-not-allowed">
                           Your Bounty
                         </button>
                       ) : (
                         <button
                           onClick={() => setWizard(l)}
-                          className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-sm transition-all btn-press shadow-[0_0_15px_rgba(251,191,36,0.2)]"
+                          className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition-all btn-press"
                         >
                           Accept Bounty
                         </button>
@@ -553,34 +554,34 @@ export default function Home() {
                   <EmptyState title="No Items" subtitle="No items available to borrow." icon={<MapPinIcon size={32} />} />
                 ) : (
                   listings.filter(l => l.kind === "borrow").map((l) => (
-                    <div key={l.id} className="card-borrow p-4 rounded-2xl border border-blue-500/20">
-                      <div className="flex justify-between items-start mb-3">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 bg-blue-400/10 px-2.5 py-1 rounded-full">{categoryBadge(l)}</span>
+                    <div key={l.id} className="card-borrow p-3 rounded-xl border border-blue-500/20">
+                      <div className="flex justify-between items-center mb-2">
+                        <div>
+                          <h4 className="font-semibold text-sm leading-tight text-white truncate">{l.title}</h4>
+                          <p className="text-[10px] text-slate-400 truncate max-w-[200px]">{l.description}</p>
+                        </div>
                         <div className="text-right">
-                          <p className="text-lg font-bold tnum text-blue-400 flex items-center justify-end gap-1">
-                            <LockIcon size={14} />
+                          <p className="text-sm font-bold tnum text-blue-400 flex items-center justify-end gap-1">
+                            <LockIcon size={12} />
                             {l.collateralNIM.toLocaleString()} NIM
                           </p>
-                          {dashboard && <p className="text-[10px] text-blue-400/70">~${(l.collateralNIM * dashboard.price).toFixed(2)} USD</p>}
                         </div>
                       </div>
-                      <h4 className="font-semibold text-lg leading-tight mb-2 text-white">{l.title}</h4>
-                      <p className="text-xs text-slate-400 mb-4">{l.description}</p>
-                      
-                      <div className="flex items-center gap-3 bg-black/40 p-3 rounded-xl mb-5 border border-white/5">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-                          <span className="text-xs font-bold text-white">{(l.owner || 'A').charAt(0)}</span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">Lender Profile</p>
-                          <p className="text-xs font-semibold text-white">{l.owner.slice(0, 16)}...</p>
+                      <div className="flex items-center justify-between bg-black/40 p-2 rounded-lg mb-3 border border-white/5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                            <span className="text-[10px] font-bold text-white">{(l.owner || 'A').charAt(0)}</span>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-slate-400 uppercase">Lender</p>
+                            <p className="text-[10px] font-semibold text-white">{l.owner.slice(0, 8)}...</p>
+                          </div>
                         </div>
                         <div className="text-right">
-                           <p className="text-[10px] text-slate-400 uppercase tracking-wider">Yield req.</p>
-                           <p className="text-xs font-bold text-emerald-400 tnum">+{l.yieldNIM || 0.5} NIM</p>
+                           <p className="text-[9px] text-slate-400 uppercase">Yield</p>
+                           <p className="text-[10px] font-bold text-emerald-400 tnum">+{l.yieldNIM || 0.5} NIM</p>
                         </div>
                       </div>
-
                       <button
                         onClick={() => setWizard(l)}
                         className="w-full py-3 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl text-sm transition-all btn-press shadow-[0_0_15px_rgba(59,130,246,0.3)]"
@@ -607,37 +608,20 @@ export default function Home() {
                 <EmptyState title="No Contracts" subtitle="No active contracts. Start a task or borrow an item!" icon={<CheckIcon size={32} />} />
               ) : (
                 escrows.map((e) => (
-                  <div key={e.id} className="card p-4 rounded-2xl">
+                  <div key={e.id} className="card p-3 rounded-xl mb-3">
                     <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-lg">{e.title}</h4>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase ${
+                      <div>
+                        <h4 className="font-bold text-sm text-white">{e.title}</h4>
+                        <p className="tnum mt-0.5 text-lg font-extrabold text-white">
+                          {e.amountNIM.toLocaleString()} <span className="text-xs text-slate-400">NIM</span>
+                        </p>
+                      </div>
+                      <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-widest uppercase ${
                           e.state === "locked" ? "bg-amber-300/15 text-amber-300" : "bg-emerald-400/15 text-emerald-300"
                         }`}>
                         {e.state}
                       </span>
                     </div>
-
-                    <div className="mt-4 mb-4 flex items-center justify-between relative px-2">
-                       <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-slate-800 -translate-y-1/2 z-0" />
-                       <div className={`absolute top-1/2 left-4 h-0.5 -translate-y-1/2 z-0 transition-all duration-500 ${e.state === 'released' ? 'w-[calc(100%-2rem)] bg-emerald-500' : 'w-[calc(50%-1rem)] bg-amber-500'}`} />
-                       <div className="relative z-10 flex flex-col items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center border-4 border-slate-950">
-                            <CheckIcon size={12} className="text-slate-950 font-bold" />
-                          </div>
-                          <span className="text-[9px] text-amber-500 font-bold uppercase tracking-wider">Locked</span>
-                       </div>
-                       <div className="relative z-10 flex flex-col items-center gap-2">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-950 transition-colors ${e.state === 'released' ? 'bg-emerald-500' : 'bg-slate-800'}`}>
-                             {e.state === 'released' && <CheckIcon size={12} className="text-slate-950 font-bold" />}
-                          </div>
-                          <span className={`text-[9px] font-bold uppercase tracking-wider transition-colors ${e.state === 'released' ? 'text-emerald-500' : 'text-slate-500'}`}>Returned</span>
-                       </div>
-                    </div>
-
-                    <p className="tnum mt-2 text-2xl font-extrabold text-white">
-                      {e.amountNIM.toLocaleString()} <span className="text-sm text-slate-400">NIM</span>
-                    </p>
-                    {dashboard && <p className="text-[10px] text-slate-500">~${(e.amountNIM * dashboard.price).toFixed(2)} USD</p>}
 
                     <div className="mt-2 flex items-center gap-3 text-[10px] text-slate-500 uppercase tracking-widest font-semibold">
                       <span className="tnum">Tx: {e.txHash.slice(0, 16)}...</span>
@@ -651,15 +635,15 @@ export default function Home() {
                           <span>{timeRemaining(e.expiresAt)}</span>
                         </div>
                         {e.borrower === accounts[0] && (
-                          <button onClick={() => handleCancel("escrow", e.id)} className="mt-2 w-full py-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-bold hover:bg-rose-500/20">Cancel & Refund</button>
+                          <button onClick={() => handleCancel("escrow", e.id)} className="mt-2 w-full py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-md text-[10px] uppercase font-bold hover:bg-rose-500/20">Cancel & Refund</button>
                         )}
                         
                         {(() => {
                           const kind = listings.find(l => l.id === e.listingId)?.kind;
                           if (kind === "bounty") {
                             return <BountyVerify task={e.title} listingId={e.listingId} />;
-                          } else if (kind === "bounty_geo") {
-                            return <CheckInVerify listingId={e.listingId} />;
+                          } else if (kind === "bounty_venture") {
+                            return <VentureVerify listingId={e.listingId} />;
                           } else if (kind === "bounty_manual") {
                             return <ManualVerify listingId={e.listingId} />;
                           } else if (kind === "bounty_qr") {

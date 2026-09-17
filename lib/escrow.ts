@@ -1,5 +1,5 @@
 export type ListingCategory = "tools" | "transport" | "electronics" | "sports" | "household" | "other" | "photo" | "delivery" | "survey" | "cleanup";
-export type ListingKind = "borrow" | "bounty" | "bounty_geo" | "bounty_qr" | "bounty_manual";
+export type ListingKind = "borrow" | "bounty" | "bounty_venture" | "bounty_qr" | "bounty_manual";
 export type EscrowState = "locked" | "released" | "cancelled" | "disputed" | "expired";
 export type ActType = "borrow_lock" | "borrow_return" | "bounty" | "checkin" | "scanquest" | "creator" | "milestone" | "referral";
 export type OracleType = "qr_sig" | "vision" | "geo" | "creator" | "system";
