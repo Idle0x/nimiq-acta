@@ -335,33 +335,67 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ================= ARCHITECTURE & TECH STACK ================= */}
-      <section className="px-6 py-24 bg-[color-mix(in_srgb,var(--surface)_30%,transparent)] border-t border-[var(--line)]">
+      {/* ================= UNWRAPPING THE PROTOCOL ================= */}
+      <section className="px-6 py-32 bg-[color-mix(in_srgb,var(--surface)_30%,transparent)] border-t border-[var(--line)]">
         <div className="mx-auto max-w-5xl">
           <Reveal>
-            <Kicker index="§ 5">Architecture</Kicker>
-            <h2 className="h-display text-4xl sm:text-5xl mt-4 text-[var(--ink)]">
-              Woven from modern threads.
+            <Kicker index="§ 5">Unwrapping the Protocol</Kicker>
+            <h2 className="h-display text-4xl sm:text-5xl mt-4 text-[var(--ink)] max-w-2xl">
+              Nimiq at the core. Reality at the edge.
             </h2>
-            <Marginalia className="mt-4 max-w-lg">
-              Acta is a zero-trust orchestrator. It does not reinvent consensus; it connects robust, bleeding-edge primitives into a seamless action economy.
+            <Marginalia className="mt-6 max-w-xl">
+              Acta is not a traditional web application; it is a zero-trust orchestrator. By stripping away intermediaries and embedding directly into the Nimiq Pay ecosystem, we expose the bare metal of distributed consensus. Here is how the skeleton moves.
             </Marginalia>
           </Reveal>
 
-          <div className="mt-14 grid md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
-            {[
-              { title: "Nimiq Pay Mini-App", desc: "Native integration with window.nimiq. Funds are locked strictly on-chain using Nimiq's fast, lightweight consensus without bridging volatile assets." },
-              { title: "Qwen3.6 Vision Oracle", desc: "A sceptical AI evaluator hosted via Hetzner inference. It analyzes submitted photo proofs against the listing's constraints, substituting human arbitration." },
-              { title: "Ed25519 Cryptography", desc: "Secure, offline QR handshakes. Lenders sign ten-minute disposable tokens locally; borrowers scan to execute cryptographic zero-knowledge returns." },
-              { title: "Next.js & React 19", desc: "Server-side hydration, edge-ready API routes, and instantaneous state transitions wrapped in a strict TypeScript architecture." },
-              { title: "Neon Serverless Postgres", desc: "Robust, branching database layer maintaining the off-chain index of active bounties, reputation histories, and the global treasury ledger." },
-              { title: "Haversine Geolocation", desc: "HTML5 secure contexts verifying physical check-ins with mathematically rigorous bounding box accuracy limits." }
-            ].map((t, i) => (
-              <Reveal key={t.title} delay={i * 100}>
-                <h4 className="caps text-[10px] text-[var(--gold)] mb-3">{t.title}</h4>
-                <p className="text-[14px] leading-relaxed text-[var(--ink2)]">{t.desc}</p>
-              </Reveal>
-            ))}
+          <div className="mt-20 grid md:grid-cols-2 gap-x-12 gap-y-16">
+            <Reveal delay={100}>
+              <div className="border-t border-[var(--line-strong)] pt-6">
+                <h4 className="caps text-[11px] text-[var(--gold)] mb-3 flex items-center justify-between">
+                  <span>I. The Mini-App Runtime</span>
+                  <span className="font-mono text-[9px] opacity-50">window.nimiq</span>
+                </h4>
+                <p className="text-[15px] leading-relaxed text-[var(--ink2)]">
+                  Acta does not ask you to install an extension or manage a seed phrase in your browser. It runs purely as an embedded Mini-App within Nimiq Pay. By invoking the native <code className="text-xs bg-[var(--surface)] px-1 py-0.5 rounded">sendBasicTransaction()</code>, funds are locked straight from your wallet into the protocol's vault. No bridging volatile assets, no middleman routing.
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delay={200}>
+              <div className="border-t border-[var(--line-strong)] pt-6">
+                <h4 className="caps text-[11px] text-[var(--gold)] mb-3 flex items-center justify-between">
+                  <span>II. Albatross & Sub-Second Settlement</span>
+                  <span className="font-mono text-[9px] opacity-50">Nimiq PoS</span>
+                </h4>
+                <p className="text-[15px] leading-relaxed text-[var(--ink2)]">
+                  Proof of Action requires instant execution. Because Nimiq operates on the Albatross Proof-of-Stake consensus—capable of generating Micro Blocks in under a second—Acta's oracle verifications trigger immediate on-chain settlement. The moment you scan the return QR, the network reaches consensus, and the escrow unlocks instantly.
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delay={300}>
+              <div className="border-t border-[var(--line-strong)] pt-6">
+                <h4 className="caps text-[11px] text-[var(--gold)] mb-3 flex items-center justify-between">
+                  <span>III. Cryptographic Handshakes</span>
+                  <span className="font-mono text-[9px] opacity-50">Ed25519</span>
+                </h4>
+                <p className="text-[15px] leading-relaxed text-[var(--ink2)]">
+                  The ScanQuest and Borrowing oracles rely on zero-knowledge physical proximity. The lender's device uses Nimiq's native cryptographic curves to sign a ten-minute disposable payload locally. When the borrower scans the QR, they are literally transmitting mathematical proof of return. It is unforgeable by construction.
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delay={400}>
+              <div className="border-t border-[var(--line-strong)] pt-6">
+                <h4 className="caps text-[11px] text-[var(--gold)] mb-3 flex items-center justify-between">
+                  <span>IV. Sceptical Machine Vision</span>
+                  <span className="font-mono text-[9px] opacity-50">Qwen3.6 & Neon</span>
+                </h4>
+                <p className="text-[15px] leading-relaxed text-[var(--ink2)]">
+                  For photo proofs, Acta delegates human arbitration to a stateless AI oracle. We stream image buffers to a heavily-prompted vision model instructed to default to refusal upon any doubt. The state machine and reputation histories are then permanently etched into our Neon Serverless Postgres index, acting as the memory of the protocol.
+                </p>
+              </div>
+            </Reveal>
           </div>
         </div>
       </section>
@@ -374,7 +408,7 @@ export default function Landing() {
               <Seal size={32} className="!text-xs mb-4">A</Seal>
               <h3 className="h-display text-2xl text-[var(--ink)] mb-3">Acta</h3>
               <p className="text-[13px] leading-relaxed text-[var(--ink2)] max-w-sm">
-                Built for the Nimiq Hackathon. Acta proves that Web3 isn't just about moving money — it's about moving reality. By linking fast consensus with physical deeds, we turn trust into a protocol.
+                Built for the Nimiq Hackathon. Acta proves that distributed ledger technology isn't just about moving money — it's about moving reality. By linking fast consensus with physical deeds, we turn trust into a protocol.
               </p>
             </div>
             
@@ -404,7 +438,7 @@ export default function Landing() {
             <p className="marginalia text-xs text-center">
               Set in Cormorant, Garamond, Grotesk & Plex. Printed on the Nimiq blockchain.
             </p>
-            <p className="caps text-[9px] text-[var(--ink3)]">Money moves when reality changes.</p>
+            <p className="caps text-[10px] bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-cyan-200 font-bold drop-shadow-[0_0_12px_rgba(56,189,248,0.45)] tracking-widest">Money moves when reality changes.</p>
           </div>
         </div>
       </footer>
