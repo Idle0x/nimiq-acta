@@ -114,9 +114,12 @@ export async function settleAct(
   await insertAct({ ...act, txHashOut, settledAt: Date.now() });
   // 4. Referral drip: the actor's FIRST settled act pays their referrer.
   //    Best-effort — a treasury hiccup must never fail a settlement.
-  settleReferralReward(act.actorAddress).catch((e) => console.error("referral drip failed:", e));
-  // 5. Sweep the retry queue: past treasury failures get paid now.
-  import("./milestones").then((m) => m.processPendingDrips().catch(() => {}));
+  // 5. Sweep the retry queue and award first-settlement milestone.
+  import("./milestones").then((m) => {
+    m.checkAndAwardMilestone(act.actorAddress, "FIRST_SETTLED").catch(() => {});
+    m.awardRecurring(act.actorAddress, "settle").catch(() => {});
+    m.processPendingDrips().catch(() => {});
+  });
   return { ok: true, txHashOut };
 }
 

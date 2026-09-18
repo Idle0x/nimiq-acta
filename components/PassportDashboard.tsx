@@ -23,6 +23,7 @@ import {
 import Identicon from "./Identicon";
 import Stamps from "./Stamps";
 import { trustTier } from "./AppChrome";
+import { InfoTooltip } from "./Tooltip";
 
 const STATE_CHIP: Record<string, { label: string; color: string }> = {
   locked: { label: "In progress", color: "var(--gold)" },
@@ -404,21 +405,30 @@ export default function PassportDashboard({
           </div>
           <div className="mt-2.5 flex gap-3">
             <div>
-              <p className="figure text-[15px] font-extrabold text-[var(--ink)]">
-                {activeData.totals?.settledCount ?? 0}
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="figure text-[15px] font-extrabold text-[var(--ink)]">
+                  {activeData.totals?.settledCount ?? 0}
+                </p>
+                <InfoTooltip title="Total Acts" content="Cryptographic acts and verified transactions completed on Nimiq." size={9} />
+              </div>
               <p className="caps text-[6.5px] text-[var(--ink3)]">acts</p>
             </div>
             <div>
-              <p className="figure text-[15px] font-extrabold text-[var(--gold2)]">
-                {Math.round(activeData.totals?.settledVolume ?? 0).toLocaleString()}
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="figure text-[15px] font-extrabold text-[var(--gold2)]">
+                  {Math.round(activeData.totals?.settledVolume ?? 0).toLocaleString()}
+                </p>
+                <InfoTooltip title="Volume Settled" content="Cumulative NIM volume safely moved through your settled contracts." size={9} />
+              </div>
               <p className="caps text-[6.5px] text-[var(--ink3)]">NIM settled</p>
             </div>
             <div>
-              <p className="figure text-[15px] font-extrabold text-[var(--verdigris)]">
-                {activeData.streak?.current ?? 0}/7
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="figure text-[15px] font-extrabold text-[var(--verdigris)]">
+                  {activeData.streak?.current ?? 0}/7
+                </p>
+                <InfoTooltip title="Weekly Streak" content="Consecutive days checking in or settling protocol covenants." size={9} />
+              </div>
               <p className="caps text-[6.5px] text-[var(--ink3)]">streak</p>
             </div>
           </div>
@@ -443,7 +453,7 @@ export default function PassportDashboard({
         ))}
       </div>
 
-      {/* 3+ Tabs Navigation Bar */}
+      {/* Mini Tabs Navigation Bar */}
       <div className="mb-2 mt-4 flex gap-1 overflow-x-auto no-scrollbar border-y border-[var(--line)] bg-[color-mix(in_srgb,var(--ink)_4%,transparent)] px-2 py-1.5">
         {segs.map(([id, label]) => (
           <button
@@ -461,6 +471,20 @@ export default function PassportDashboard({
         ))}
       </div>
 
+      {/* Clear 1-line explanation for the selected mini-tab */}
+      <div className="px-4 mb-2">
+        <div className="px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--ink)_3%,transparent)] border border-[var(--line)]/10 text-center">
+          <p className="text-[10.5px] text-[var(--ink2)] leading-relaxed">
+            {seg === "overview" && "Daily check-ins, personal identity record, and action items requiring your signature."}
+            {seg === "trades" && "History of your active, settled, and refunded borrow covenants."}
+            {seg === "listings" && "Bounties and borrow items you have proclaimed to the protocol."}
+            {seg === "settlements" && "Cryptographic settlement receipts and proofs verified on the Nimiq ledger."}
+            {seg === "collection" && "Notarial seal achievements and reputation credentials earned through protocol actions."}
+            {seg === "referrals" && "Your peer invite link and referral rewards (10 NIM for every friend's first settled act)."}
+          </p>
+        </div>
+      </div>
+
       {/* Tab 1: Overview */}
       {seg === "overview" && (
         <div className="px-4 animate-fade-in space-y-4">
@@ -469,7 +493,9 @@ export default function PassportDashboard({
             <span className="font-display text-[10px] text-[var(--gold)]">❦</span>
           </div>
           <p className="marginalia text-[11.5px]">
-            Member {activeData.joinedAt ? formatDistanceToNow(activeData.joinedAt, { addSuffix: false }) : "recently"}.
+            {activeData.joinedAt
+              ? `Protocol citizen since ${new Date(activeData.joinedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.`
+              : "Active protocol citizen."}{" "}
             Every settled act strengthens your reputation and lowers future collateral requirements.
           </p>
 

@@ -33,6 +33,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { SkeletonCard, SkeletonEscrow } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { useToast } from "@/components/Toast";
+import { InfoTooltip } from "@/components/Tooltip";
 import { Coins, Sparkles, QrCode, FileText, ChevronRight, ShieldCheck } from "lucide-react";
 import HubApi from "@nimiq/hub-api";
 import {
@@ -587,14 +588,23 @@ export default function Home() {
 
               {/* BOUNTY CONTAINER (Spanning full width across the edges of the screen with subtle border designs, custom background, and capped max height) */}
               <section className="-mx-4 parchment-bounty-section px-4 py-4 mb-2">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--gold)] flex items-center gap-2">
-                    <ZapIcon size={15} className="text-[var(--gold)]" /> Earn NIM (Bounties)
-                  </h3>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--gold)] flex items-center gap-2">
+                      <ZapIcon size={15} className="text-[var(--gold)]" /> Earn NIM (Bounties)
+                    </h3>
+                    <InfoTooltip
+                      title="How Protocol Bounties Work"
+                      content="Patrons lock full NIM rewards into the protocol vault upfront. Performers complete real-world deeds and submit verifiable proof (AI vision inspection, GPS check-in, or ScanQuest tokens). Upon verification, locked funds release directly to your wallet."
+                    />
+                  </div>
                   <button onClick={() => setShowMap(!showMap)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--line)]/10 text-xs transition-colors ${showMap ? "bg-[var(--gold)]/20 text-[var(--gold)]" : "bg-[var(--surface)] text-[var(--ink3)] hover:text-[var(--ink)]"}`}>
                     <MapPinIcon size={12} /> {showMap ? "List View" : "Map View"}
                   </button>
                 </div>
+                <p className="text-xs text-[var(--ink3)] leading-relaxed mb-3">
+                  Complete real-world tasks and verified deeds to earn instant NIM rewards funded upfront by patrons.
+                </p>
                 
                 {/* Subtle pulsing/bouncy/growing-shrinking button that skips step 1 and opens bounty creation */}
                 <button
@@ -718,11 +728,20 @@ export default function Home() {
 
               {/* BORROW CONTAINER (Spanning full width across the edges of the screen with subtle border designs, custom background, and capped max height) */}
               <section className="-mx-4 parchment-borrow-section px-4 py-4 mb-3">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--sky)] flex items-center gap-2">
-                    <MapPinIcon size={15} className="text-[var(--sky)]" /> Available Nearby (Borrow)
-                  </h3>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--sky)] flex items-center gap-2">
+                      <MapPinIcon size={15} className="text-[var(--sky)]" /> Available Nearby (Borrow)
+                    </h3>
+                    <InfoTooltip
+                      title="How Borrowing Works"
+                      content="Borrowers lock the item's collateral value into the Nimiq smart escrow. The lender hands over the item for the agreed duration. Upon return inspection, scanning the generated QR covenant automatically unlocks and refunds your collateral back to your wallet."
+                    />
+                  </div>
                 </div>
+                <p className="text-xs text-[var(--ink3)] leading-relaxed mb-3">
+                  Borrow tools, physical goods, and community hardware securely backed by 100% refundable on-chain NIM collateral.
+                </p>
                 
                 {/* Subtle pulsing/bouncy/growing-shrinking button that skips step 1 and opens borrow creation */}
                 <button
@@ -816,13 +835,22 @@ export default function Home() {
 
               {/* HORIZONTAL SCROLLING BOTTOM CARDS (Global Activity & Trust Leaderboard in swiping carousel) */}
               <div className="relative -mx-4 mb-6">
-                <div className="flex items-center justify-between px-4 mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink3)] flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--verdigris)] animate-pulse" />
-                    Public Registers & Deeds
-                  </span>
+                <div className="flex items-center justify-between px-4 mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink3)] flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--verdigris)] animate-pulse" />
+                      Public Registers & Deeds
+                    </span>
+                    <InfoTooltip
+                      title="On-Chain Settlement Ledgers"
+                      content="Immutable public logs of peer-to-peer acts, escrow releases, and community standing recorded directly on the Nimiq network."
+                    />
+                  </div>
                   <span className="marginalia text-[10px] text-[var(--ink3)]">Swipe cards ↔</span>
                 </div>
+                <p className="px-4 text-[10.5px] text-[var(--ink3)] mb-2.5">
+                  An immutable public ledger of live settlements, peer-to-peer acts, and verified protocol citizens on Nimiq.
+                </p>
                 <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory no-scrollbar px-4">
                   <div className="w-[88vw] max-w-[440px] shrink-0 snap-center">
                     <ActivityFeed data={dashboard?.feed ?? []} onView={setProfileAddr} />
@@ -838,7 +866,7 @@ export default function Home() {
           {tab === "active" && (
 
             <div className="px-4 pb-10 animate-fade-in">
-              <div className="mb-4 flex gap-1 border-y border-[var(--line)] px-1 py-1.5">
+              <div className="mb-3 flex gap-1 border-y border-[var(--line)] px-1 py-1.5">
                 {([["progress", "In progress"], ["awaiting", `Awaiting me${awaitingCount > 0 ? ` (${awaitingCount})` : ""}`], ["settled", "Settled"], ["refunded", "Refunded"]] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setActiveSeg(id)}
                     className="caps flex-1 rounded-full py-2 text-[8px] transition-all"
@@ -846,6 +874,16 @@ export default function Home() {
                     {label}
                   </button>
                 ))}
+              </div>
+
+              {/* Clear 1-line explanation for each mini-tab in My Queue */}
+              <div className="mb-4 px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--ink)_3%,transparent)] border border-[var(--line)]/10 text-center">
+                <p className="text-[11px] text-[var(--ink2)] leading-relaxed">
+                  {activeSeg === "progress" && "Active covenants currently locked in escrow awaiting on-chain verification or return proof."}
+                  {activeSeg === "awaiting" && "Submissions and claims awaiting your direct approval or sign-off as listing creator."}
+                  {activeSeg === "settled" && "Successfully fulfilled covenants with rewards or released collateral paid out on-chain."}
+                  {activeSeg === "refunded" && "Cancelled or expired escrows where collateral has been returned in full to the depositor."}
+                </p>
               </div>
               {activeSeg === "awaiting" ? (
                 <CreatorApprovals onApproved={refetch} onCount={setAwaitingCount} showEmpty onView={setProfileAddr} />
@@ -975,21 +1013,44 @@ export default function Home() {
                 <p className="mt-4 text-sm text-[var(--ink3)] leading-relaxed">
                   Every contract successfully returned builds your on-chain reputation. Higher trust tiers unlock massive collateral discounts.
                 </p>
-                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                  <div className="border-t border-[var(--line)] px-1 pt-3">
-                    <p className="tnum text-xl font-black text-[var(--ink)]">
-                      {escrows.filter(e => e.borrower === borrower || (e as any).owner === borrower || (e as any).completer === borrower).length}
-                    </p>
+                <div className="mt-4 flex gap-2.5 overflow-x-auto no-scrollbar snap-x snap-mandatory pt-2 pb-1">
+                  <div className="flex-1 min-w-[100px] shrink-0 snap-center rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <p className="tnum text-xl font-black text-[var(--ink)]">
+                        {escrows.filter(e => e.borrower === borrower || (e as any).owner === borrower || (e as any).completer === borrower).length}
+                      </p>
+                      <InfoTooltip
+                        title="Total Contracts"
+                        content="Total number of covenants (borrow or bounty tasks) you have participated in as borrower, patron, or fulfiller."
+                        size={11}
+                      />
+                    </div>
                     <p className="text-[9px] uppercase tracking-widest text-[var(--ink3)] mt-1">Contracts</p>
                   </div>
-                  <div className="border-t border-[var(--line)] px-1 pt-3">
-                    <p className="tnum text-xl font-black text-[var(--verdigris)]">
-                      {escrows.filter((e) => (e.borrower === borrower || (e as any).owner === borrower || (e as any).completer === borrower) && e.state === "released").length}
-                    </p>
+
+                  <div className="flex-1 min-w-[100px] shrink-0 snap-center rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <p className="tnum text-xl font-black text-[var(--verdigris)]">
+                        {escrows.filter((e) => (e.borrower === borrower || (e as any).owner === borrower || (e as any).completer === borrower) && e.state === "released").length}
+                      </p>
+                      <InfoTooltip
+                        title="Settled Contracts"
+                        content="Contracts successfully completed with returned collateral and confirmed on-chain payouts."
+                        size={11}
+                      />
+                    </div>
                     <p className="text-[9px] uppercase tracking-widest text-[var(--ink3)] mt-1">Settled</p>
                   </div>
-                  <div className="border-t border-[var(--line)] px-1 pt-3">
-                    <p className="tnum text-xl font-black text-[var(--gold)]">{activeCount}</p>
+
+                  <div className="flex-1 min-w-[100px] shrink-0 snap-center rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <p className="tnum text-xl font-black text-[var(--gold)]">{activeCount}</p>
+                      <InfoTooltip
+                        title="Active Contracts"
+                        content="Escrows currently locked in progress or awaiting verification in your queue."
+                        size={11}
+                      />
+                    </div>
                     <p className="text-[9px] uppercase tracking-widest text-[var(--ink3)] mt-1">Active</p>
                   </div>
                 </div>

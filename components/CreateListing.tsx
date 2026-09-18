@@ -89,7 +89,12 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
         {step === 1 && (
           <>
-            <h3 className="text-xl font-bold text-[var(--ink)] mb-2">What do you want to create?</h3>
+            <div>
+              <h3 className="text-xl font-bold text-[var(--ink)] mb-1">What do you want to create?</h3>
+              <p className="text-xs text-[var(--ink3)] leading-relaxed">
+                Select whether to offer physical equipment for peer borrowing with refundable collateral, or deploy a funded bounty reward for verified tasks.
+              </p>
+            </div>
             <button
               onClick={() => setKind('borrow')}
               className={`p-6 rounded-2xl border text-left flex items-start gap-4 transition-colors ${
@@ -124,7 +129,12 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
 
         {step === 1.5 && (
           <>
-            <h3 className="text-xl font-bold text-[var(--ink)] mb-2">Choose Challenge Type</h3>
+            <div>
+              <h3 className="text-xl font-bold text-[var(--ink)] mb-1">Choose Challenge Type</h3>
+              <p className="text-xs text-[var(--ink3)] leading-relaxed">
+                Select how participants will verify completion. You can use AI Vision photo verification, GPS physical presence, ScanQuest QR discovery, or manual patron sign-off.
+              </p>
+            </div>
             <button
               onClick={() => setKind('bounty')}
               className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-colors ${
@@ -190,7 +200,14 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
 
         {step === 2 && (
           <div className="space-y-4">
-            <h3 className="text-xl font-bold text-[var(--ink)] mb-4">Enter Details</h3>
+            <div>
+              <h3 className="text-xl font-bold text-[var(--ink)] mb-1">Enter Details</h3>
+              <p className="text-xs text-[var(--ink3)] leading-relaxed">
+                {kind === 'borrow'
+                  ? 'Describe the asset and define the exact NIM collateral borrowers must lock in the vault. Collateral is returned in full upon safe return.'
+                  : 'Define the task parameters, requirements, and reward amount in NIM. Your reward is locked upfront in escrow and released upon verification.'}
+              </p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-[var(--ink3)] mb-1">Title</label>
               <input
@@ -246,14 +263,24 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
 
         {step === 2.5 && kind?.startsWith('bounty') && (
           <div className="space-y-4">
-            <h3 className="text-xl font-bold text-[var(--ink)] mb-2">Set the contract</h3>
+            <div>
+              <h3 className="text-xl font-bold text-[var(--ink)] mb-1">Set the contract</h3>
+              <p className="text-xs text-[var(--ink3)] leading-relaxed">
+                Configure automated verification criteria, execution time limits, and oracle rules that dictate how escrow funds are unlocked.
+              </p>
+            </div>
             <AiOracleConfig kind={kind!} value={contract} onChange={setContract} />
           </div>
         )}
 
         {step === 3 && (
           <div className="space-y-6">
-            <h3 className="text-xl font-bold text-[var(--ink)] mb-4">Review & Post</h3>
+            <div>
+              <h3 className="text-xl font-bold text-[var(--ink)] mb-1">Review & Post</h3>
+              <p className="text-xs text-[var(--ink3)] leading-relaxed">
+                Verify all contract terms before submitting. Once confirmed, your listing will be broadcast across the protocol and visible on the peer radar.
+              </p>
+            </div>
             <div className="bg-[var(--surface)] border border-[var(--line)]/5 rounded-2xl p-6 space-y-4">
               <div className="flex items-center gap-4 border-b border-[var(--line)]/5 pb-4">
                 <div className={`p-4 rounded-xl ${kind === 'borrow' ? 'bg-[var(--gold)]/10 text-[var(--gold)]' : 'bg-[var(--sky)]/10 text-[var(--sky)]'}`}>

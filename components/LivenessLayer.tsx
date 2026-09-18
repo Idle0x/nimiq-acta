@@ -1,13 +1,20 @@
 import { ZapIcon, TrendingUpIcon, TargetIcon, UserCheck, CheckCircle2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { InfoTooltip } from "./Tooltip";
 
 export function Leaderboard({ data, onView }: { data: any[]; onView?: (address: string) => void }) {
   const list = data || [];
   return (
     <div className="card rounded-2xl p-3.5 border border-[var(--line)]/10 bg-[var(--surface)]/90 h-[165px] flex flex-col justify-between">
-      <h3 className="text-[11px] font-bold uppercase tracking-wider text-[var(--ink3)] flex items-center gap-1.5 mb-2 shrink-0">
-        <TrendingUpIcon size={13} className="text-[var(--verdigris)]" /> Trust Leaderboard
-      </h3>
+      <div className="flex items-center justify-between mb-2 shrink-0">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-[var(--ink3)] flex items-center gap-1.5">
+          <TrendingUpIcon size={13} className="text-[var(--verdigris)]" /> Trust Leaderboard
+        </h3>
+        <InfoTooltip
+          title="Trust Score Calculation"
+          content="Trust scores (0–100) are mathematically earned from settled covenants, on-time asset returns, verified task completions, and zero disputes."
+        />
+      </div>
       {list.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-2">
           <p className="marginalia text-[11px] text-[var(--ink3)]">No signers yet.</p>
@@ -43,9 +50,15 @@ export function ActivityFeed({ data, onView }: { data: any[]; onView?: (address:
 
   return (
     <div className="card rounded-2xl p-3.5 border border-[var(--line)]/10 bg-[var(--surface)]/90 h-[165px] flex flex-col justify-between">
-      <h3 className="text-[11px] font-bold uppercase tracking-wider text-[var(--ink3)] flex items-center gap-1.5 mb-2 shrink-0">
-        <TargetIcon size={13} className="text-[var(--sky)]" /> Global Activity
-      </h3>
+      <div className="flex items-center justify-between mb-2 shrink-0">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-[var(--ink3)] flex items-center gap-1.5">
+          <TargetIcon size={13} className="text-[var(--sky)]" /> Global Activity
+        </h3>
+        <InfoTooltip
+          title="Live Network Event Stream"
+          content="Real-time cryptographic deeds, escrow locks, milestone payouts, and oracle settlements occurring across the Acta protocol."
+        />
+      </div>
       {list.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-2">
           <p className="marginalia text-[11px] text-[var(--ink3)]">No activity recorded yet.</p>

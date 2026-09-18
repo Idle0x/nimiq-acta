@@ -32,14 +32,42 @@ async function rpcCall(method: string, params: unknown[]): Promise<any> {
   return data.result?.data;
 }
 
-function deriveVaultKeyPair() {
+function deriveVaultKeyPair(): Nimiq.KeyPair {
   const seedPhrase = process.env.VAULT_SEED_PHRASE;
   if (!seedPhrase) throw new Error("Backend Vault Seed Phrase not configured in environment.");
-  const entropy = Nimiq.MnemonicUtils.mnemonicToEntropy(seedPhrase).serialize();
-  const extPrivKey = Nimiq.ExtendedPrivateKey.generateMasterKey(entropy);
-  const privKey = extPrivKey.derivePath("m/44'/242'/0'/0'").privateKey;
-  const keyPair = Nimiq.KeyPair.derive(privKey);
-  return keyPair;
+
+  let extPrivKey: Nimiq.ExtendedPrivateKey;
+  try {
+    extPrivKey = Nimiq.MnemonicUtils.mnemonicToExtendedPrivateKey(seedPhrase.trim());
+  } catch {
+    const entropy = Nimiq.MnemonicUtils.mnemonicToEntropy(seedPhrase.trim()).serialize();
+    extPrivKey = Nimiq.ExtendedPrivateKey.generateMasterKey(entropy);
+  }
+
+  const expectedAddr = process.env.NEXT_PUBLIC_VAULT_ADDRESS;
+  const cleanExpected = expectedAddr ? expectedAddr.replace(/\s+/g, "").toUpperCase() : null;
+
+  const candidatePaths = [
+    "m/44'/242'/0'/0'",
+    "m/44'/242'/0'",
+    "m/44'/242'/0'/0",
+    "m/44'/242'/0'/0/0",
+  ];
+
+  if (cleanExpected) {
+    for (const path of candidatePaths) {
+      try {
+        const privKey = extPrivKey.derivePath(path).privateKey;
+        const kp = Nimiq.KeyPair.derive(privKey);
+        if (kp.publicKey.toAddress().toUserFriendlyAddress().replace(/\s+/g, "").toUpperCase() === cleanExpected) {
+          return kp;
+        }
+      } catch {}
+    }
+  }
+
+  const defaultPriv = extPrivKey.derivePath("m/44'/242'/0'/0'").privateKey;
+  return Nimiq.KeyPair.derive(defaultPriv);
 }
 
 /** Live vault balance in NIM — used by the dashboard so the treasury card reconciles with the chain. */
@@ -68,7 +96,7 @@ export async function executeVaultPayout(
     const sender = keyPair.publicKey.toAddress();
     const networkId = parseInt(process.env.NIMIQ_NETWORK_ID || "24", 10);
 
-    const recipient = Nimiq.Address.fromUserFriendlyAddress(recipientAddress);
+    const recipient = Nimiq.Address.fromString(recipientAddress.trim());
     const valueLunas = BigInt(Math.round(amountNIM * 100_000));
     const feeLunas = BigInt(Math.round(Math.max(feeNIM, MIN_FEE_NIM) * 100_000));
 

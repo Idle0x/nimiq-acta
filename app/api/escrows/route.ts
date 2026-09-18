@@ -7,7 +7,7 @@ import type { Escrow, Listing } from "@/lib/escrow";
 import { getSessionAddress } from "@/lib/session";
 import { verifyReturn } from "@/lib/qr";
 import { newId, SETTLE_FEE_NIM } from "@/lib/escrow";
-import { awardRecurring } from "@/lib/milestones";
+import { awardRecurring, checkAndAwardMilestone } from "@/lib/milestones";
 import { claimEscrow, finalizeEscrow, unclaimEscrow, settleAct } from "@/lib/settle";
 
 if (hasDb()) {
@@ -101,6 +101,7 @@ export async function POST(req: Request) {
       createdAt: Date.now(),
       idempotencyKey: idemKey,
     });
+    checkAndAwardMilestone(address, "FIRST_LOCKED").catch(() => {});
     awardRecurring(address, "lock").catch(() => {});
     if (sql) {
       try {
@@ -110,7 +111,7 @@ export async function POST(req: Request) {
         const title = (lrows[0] as any)?.title ?? e.title;
         if (owner && owner !== address) {
           await notify(owner, "info", "Your listing was accepted",
-            `"${title}" — ${e.amountNIM.toLocaleString()} NIM locked. Track progress in Active.`, "/active");
+            `"${title}" — ${e.amountNIM.toLocaleString()} NIM locked. Track progress in My Queue.`, "/active");
         }
         await notify(address, "info", "Contract accepted",
           `"${title}" — lock recorded. Submit proof before the deadline.`, "/active");
@@ -157,7 +158,9 @@ export async function POST(req: Request) {
         createdAt: Date.now(),
         idempotencyKey: idemKey,
       });
+      checkAndAwardMilestone(address, "FIRST_BOUNTY").catch(() => {});
     }
+    checkAndAwardMilestone(address, "FIRST_LISTING").catch(() => {});
     awardRecurring(address, "listing").catch(() => {});
     return NextResponse.json({ ok: true });
   }
