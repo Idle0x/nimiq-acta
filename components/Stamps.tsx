@@ -11,22 +11,23 @@ const STAMPS = [
   { match: "creator", name: "Patron", desc: "Approved a submission", Icon: UserCheck },
 ];
 
-export default function Stamps({ initialActs }: { initialActs?: any[] }) {
-  const [acts, setActs] = useState<any[]>(
-    initialActs ?? [
-      { type: "borrow_return", oracle: "qr_sig" },
-      { type: "bounty", oracle: "vision" },
-    ]
-  );
+export default function Stamps({ initialActs, address }: { initialActs?: any[]; address?: string }) {
+  const [acts, setActs] = useState<any[]>(initialActs ?? []);
+
   useEffect(() => {
-    fetch("/api/passport")
+    if (initialActs !== undefined) {
+      setActs(initialActs);
+      return;
+    }
+    const q = address ? `?address=${encodeURIComponent(address)}` : "";
+    fetch(`/api/passport${q}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        const list = d?.acts ?? d?.stamps;
-        if (Array.isArray(list) && list.length > 0) setActs(list);
+        const list = d?.acts ?? d?.stamps ?? [];
+        if (Array.isArray(list)) setActs(list);
       })
       .catch(() => {});
-  }, []);
+  }, [address, initialActs]);
 
   return (
     <div className="grid grid-cols-3 gap-2.5">

@@ -128,11 +128,11 @@ function CheckInPanel({ address }: { address?: string }) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="figure text-[16px] font-extrabold text-[var(--ink)]">
-              {s?.streak ?? 1}
+              {s?.streak ?? 0}
               <span className="text-[11px] font-bold text-[var(--gold)]"> day streak</span>
             </p>
             <p className="marginalia mt-0.5 text-[10.5px]">
-              {s?.total ?? 1} total check-ins · +1 NIM reward
+              {s?.total ?? 0} total check-ins · +1 NIM reward
             </p>
           </div>
           <button
@@ -413,7 +413,7 @@ export default function PassportDashboard({
             </div>
             <div>
               <p className="figure text-[15px] font-extrabold text-[var(--verdigris)]">
-                {activeData.streak?.current ?? 1}/7
+                {activeData.streak?.current ?? 0}/7
               </p>
               <p className="caps text-[6.5px] text-[var(--ink3)]">streak</p>
             </div>
@@ -611,7 +611,7 @@ export default function PassportDashboard({
       {/* Tab 5: Stamps & Badges */}
       {seg === "collection" && (
         <div className="px-4 animate-fade-in">
-          <Stamps />
+          <Stamps initialActs={activeData.acts} address={displayAddress} />
           <p className="marginalia mt-3 text-[11px]">
             Stamps and milestone badges are minted by settling acts and verifying physical custody with Nimiq Pay.
           </p>

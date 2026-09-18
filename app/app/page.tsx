@@ -958,12 +958,14 @@ export default function Home() {
                 </p>
                 <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                   <div className="border-t border-[var(--line)] px-1 pt-3">
-                    <p className="tnum text-xl font-black text-[var(--ink)]">{escrows.length}</p>
+                    <p className="tnum text-xl font-black text-[var(--ink)]">
+                      {escrows.filter(e => e.borrower === borrower || (e as any).owner === borrower || (e as any).completer === borrower).length}
+                    </p>
                     <p className="text-[9px] uppercase tracking-widest text-[var(--ink3)] mt-1">Contracts</p>
                   </div>
                   <div className="border-t border-[var(--line)] px-1 pt-3">
                     <p className="tnum text-xl font-black text-[var(--verdigris)]">
-                      {escrows.filter((e) => e.state === "released").length}
+                      {escrows.filter((e) => (e.borrower === borrower || (e as any).owner === borrower || (e as any).completer === borrower) && e.state === "released").length}
                     </p>
                     <p className="text-[9px] uppercase tracking-widest text-[var(--ink3)] mt-1">Settled</p>
                   </div>
