@@ -77,7 +77,12 @@ export async function POST(req: Request) {
         proofJson: { nonce: verified.nonce, scene: sceneVerdict },
         createdAt: listing.createdAt,
       },
-      { to: address, amountNIM: listing.collateralNIM - SETTLE_FEE_NIM, feeNIM: SETTLE_FEE_NIM },
+      {
+        to: address,
+        amountNIM: listing.collateralNIM - SETTLE_FEE_NIM,
+        feeNIM: SETTLE_FEE_NIM,
+        message: `Acta: ScanQuest reward for "${listing.title}"`,
+      },
       () => claimListing(listingId),
       () => finalizeListing(listingId),
       () => unclaimListing(listingId)

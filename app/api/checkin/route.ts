@@ -85,6 +85,7 @@ export async function POST(req: Request) {
         type: "checkin",
         proof: { day },
         refId: `checkin:${day}`,
+        message: `Acta: Daily check-in reward (${day})`,
       });
       if (tx) {
         await sql`UPDATE checkins SET tx_hash = ${tx} WHERE address = ${address} AND day = ${day}`;

@@ -96,6 +96,7 @@ export default function Home() {
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [dashboard, setDashboard] = useState<{price: number, stats: any, vault?: any, user?: any, feed?: any[], leaderboard?: any[]} | null>(null);
+  const [userTrustScore, setUserTrustScore] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [wizard, setWizard] = useState<Listing | null>(null);
@@ -121,9 +122,22 @@ export default function Home() {
   const borrower = accounts[0] ?? "Anonymous";
   const isConnected = status === "connected" || isDemoMode;
 
-  // Real Trust Score (0-100) from the server
-  const trustScore = dashboard?.user?.trustScore || 0;
+  // Real Trust Score (0-100) from the server (stable across refetches)
+  const trustScore = userTrustScore ?? dashboard?.user?.trustScore ?? 0;
   const tier = trustTier(trustScore);
+
+  // Sync trust score as soon as account address is known
+  useEffect(() => {
+    if (!accounts[0]) return;
+    fetch(`/api/me?address=${encodeURIComponent(accounts[0])}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d.trustScore === "number") {
+          setUserTrustScore(d.trustScore);
+        }
+      })
+      .catch(() => {});
+  }, [accounts]);
 
   const ensureAuth = useCallback(async (): Promise<boolean> => {
     const addr = accounts[0] || (isDemoMode ? "NQ07 0000 0000 0000 0000 0000 0000 0000" : null);
@@ -198,18 +212,24 @@ export default function Home() {
 
   const refetch = useCallback(async () => {
     try {
+      const q = accounts[0] ? `?address=${encodeURIComponent(accounts[0])}` : "";
       const [eRes, dRes] = await Promise.all([
         fetch("/api/escrows").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch("/api/dashboard").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch(`/api/dashboard${q}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       if (eRes) {
         if (Array.isArray(eRes.escrows)) setEscrows(eRes.escrows);
         if (Array.isArray(eRes.listings)) setListings(eRes.listings);
       }
-      if (dRes?.price) setDashboard(dRes);
+      if (dRes?.price) {
+        setDashboard(dRes);
+        if (typeof dRes.user?.trustScore === "number") {
+          setUserTrustScore(dRes.user.trustScore);
+        }
+      }
       refreshUnread();
     } catch { /* refetch best-effort */ }
-  }, [refreshUnread]);
+  }, [accounts, refreshUnread]);
 
   // Lazy expiry sweep once per load (cron also runs hourly server-side).
   useEffect(() => {
@@ -219,9 +239,15 @@ export default function Home() {
   // Fetch true Database State
   useEffect(() => {
     let cancelled = false;
+    const q = accounts[0] ? `?address=${encodeURIComponent(accounts[0])}` : "";
     
-    fetch("/api/dashboard").then(r => r.json()).then(d => {
-      if(!cancelled && d.price) setDashboard(d);
+    fetch(`/api/dashboard${q}`).then(r => r.json()).then(d => {
+      if(!cancelled && d.price) {
+        setDashboard(d);
+        if (typeof d.user?.trustScore === "number") {
+          setUserTrustScore(d.user.trustScore);
+        }
+      }
     }).catch(() => {});
 
     fetch("/api/escrows")
@@ -237,7 +263,7 @@ export default function Home() {
       });
       
     return () => { cancelled = true; };
-  }, []);
+  }, [accounts]);
 
   const activeCount = escrows.filter((e) => e.state === "locked").length;
 
@@ -257,6 +283,7 @@ export default function Home() {
           recipient: ESCROW_VAULT,
           value: Math.round(amountNIM * 100_000),
           fee: 10,
+          data: `Acta: Locked collateral for "${listing.title}"`,
         });
       }
 
@@ -458,6 +485,7 @@ export default function Home() {
           recipient: ESCROW_VAULT,
           value: Math.round(data.collateralNIM * 100_000),
           fee: Math.max(10, MIN_NETWORK_FEE_NIM * 100_000), // network minimum fee
+          data: `Acta: Bounty deposit for "${data.title}"`,
         });
       } catch (err) {
         toast(humanize("Failed to fund bounty: " + (err instanceof Error ? err.message : "unknown")), "error");
@@ -1060,6 +1088,7 @@ export default function Home() {
                 address={accounts[0] || null}
                 isConnected={status === "connected" && !!accounts[0]}
                 onSignIn={ensureAuth}
+                onScoreLoaded={(score) => setUserTrustScore(score)}
               />
               <FolioRule />
               <div className="px-4"><PassportDetails address={accounts[0]} /></div>

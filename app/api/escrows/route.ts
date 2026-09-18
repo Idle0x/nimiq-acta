@@ -247,7 +247,12 @@ export async function PATCH(req: Request) {
         proofJson: { nonce: payload.nonce },
         createdAt: escrow.createdAt,
       },
-      { to: escrow.borrower, amountNIM: escrow.amountNIM - SETTLE_FEE_NIM, feeNIM: SETTLE_FEE_NIM },
+      {
+        to: escrow.borrower,
+        amountNIM: escrow.amountNIM - SETTLE_FEE_NIM,
+        feeNIM: SETTLE_FEE_NIM,
+        message: `Acta: Returned "${escrow.title}" — collateral released`,
+      },
       () => claimEscrow(body.id!),
       () => finalizeEscrow(body.id!),
       () => unclaimEscrow(body.id!)

@@ -32,12 +32,22 @@ export type RecurKind = keyof typeof RECURRING;
 export async function dripTreasury(
   address: string,
   amountNIM: number,
-  opts: { type: "milestone" | "referral" | "checkin"; proof: Record<string, unknown>; refId: string }
+  opts: {
+    type: "milestone" | "referral" | "checkin";
+    proof: Record<string, unknown>;
+    refId: string;
+    message?: string;
+  }
 ): Promise<string | null> {
   const sql = getSql();
   if (!sql) return null;
+  const msg = opts.message || (
+    opts.type === "checkin" ? `Acta: Daily check-in reward (+${amountNIM} NIM)` :
+    opts.type === "referral" ? `Acta Referral: Friend settlement reward (+${amountNIM} NIM)` :
+    `Acta Milestone: ${opts.refId.replace("ms_", "").replace(/_/g, " ")} (+${amountNIM} NIM)`
+  );
   try {
-    const txHashOut = await executeVaultPayout(address, amountNIM, 0.0001);
+    const txHashOut = await executeVaultPayout(address, amountNIM, 0.0001, msg);
     await insertAct({
       id: newId("act"),
       actorAddress: address,
@@ -45,7 +55,7 @@ export async function dripTreasury(
       oracle: "system",
       amountNIM,
       feeNIM: 0,
-      proofJson: opts.proof,
+      proofJson: { ...opts.proof, message: msg },
       txHashOut,
       createdAt: Date.now(),
       settledAt: Date.now(),
@@ -56,7 +66,7 @@ export async function dripTreasury(
     try {
       await sql`
         INSERT INTO pending_drips (id, kind, address, amount_nim, ref_id, proof_json, attempts, created_at)
-        VALUES (${newId("drip")}, ${opts.type}, ${address}, ${amountNIM}, ${opts.refId}, ${JSON.stringify(opts.proof)}, 0, ${Date.now()})
+        VALUES (${newId("drip")}, ${opts.type}, ${address}, ${amountNIM}, ${opts.refId}, ${JSON.stringify({ ...opts.proof, message: msg })}, 0, ${Date.now()})
         ON CONFLICT (kind, address, ref_id) DO NOTHING
       `;
     } catch {
@@ -88,7 +98,8 @@ export async function processPendingDrips(limit = 10): Promise<{ paid: number; p
       }
       await sql`UPDATE pending_drips SET attempts = ${Number(r.attempts ?? 0) + 1} WHERE id = ${id}`;
       try {
-        const tx = await executeVaultPayout(address, amount, 0.0001);
+        const retryMsg = (proof as any)?.message || `Acta Treasury: ${kind} reward (+${amount} NIM)`;
+        const tx = await executeVaultPayout(address, amount, 0.0001, retryMsg);
         await insertAct({
           id: newId("act"),
           actorAddress: address,
@@ -128,10 +139,12 @@ export async function checkAndAwardMilestone(address: string, milestoneKey: keyo
   `;
   if (existing.length > 0) return; // Already awarded
 
+  const label = milestoneKey.replace(/_/g, " ");
   await dripTreasury(address, milestone.rewardNIM, {
     type: "milestone",
     proof: { milestone_id: milestone.id },
     refId: milestone.id,
+    message: `Acta Milestone: ${label} (+${milestone.rewardNIM} NIM)`,
   });
 }
 
@@ -182,5 +195,6 @@ export async function awardRecurring(address: string, kind: RecurKind) {
     type: "milestone",
     proof: { milestone_id: milestoneId, rule: kind, every: rule.every, n, count },
     refId: milestoneId,
+    message: `Acta Activity Reward: ${rule.every * n}th ${kind} (+${rule.rewardNIM} NIM)`,
   });
 }

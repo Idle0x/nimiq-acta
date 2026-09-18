@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 
   // 2. Payout first — money moves before any state claims it moved.
   const feeNIM = SETTLE_FEE_NIM;
-  const txHash = await executeVaultPayout(address, amountNIM - feeNIM, feeNIM);
+  const txHash = await executeVaultPayout(address, amountNIM - feeNIM, feeNIM, `Acta: AI Vision reward for "${String(l.title)}"`);
 
   // 3. Atomic transitions. Listing flip is authoritative (bounties are funded
   // via the listing lock); the per-completer escrow row is best-effort.

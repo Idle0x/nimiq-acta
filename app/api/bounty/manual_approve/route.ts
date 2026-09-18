@@ -78,7 +78,12 @@ export async function POST(req: Request) {
         proofJson: { approver: address },
         createdAt: listing.createdAt,
       },
-      { to: completerAddress, amountNIM: listing.collateralNIM - SETTLE_FEE_NIM, feeNIM: SETTLE_FEE_NIM },
+      {
+        to: completerAddress,
+        amountNIM: listing.collateralNIM - SETTLE_FEE_NIM,
+        feeNIM: SETTLE_FEE_NIM,
+        message: `Acta: Approved reward for "${listing.title}"`,
+      },
       () => claimListing(listingId),
       () => finalizeListing(listingId),
       () => unclaimListing(listingId)

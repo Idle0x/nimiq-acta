@@ -94,7 +94,12 @@ export async function POST(req: Request) {
         proofJson: { lat: body.lat, lng: body.lng, accuracy: body.accuracy, scene: geoScene },
         createdAt: listing.createdAt,
       },
-      { to: address, amountNIM: listing.collateralNIM - SETTLE_FEE_NIM, feeNIM: SETTLE_FEE_NIM },
+      {
+        to: address,
+        amountNIM: listing.collateralNIM - SETTLE_FEE_NIM,
+        feeNIM: SETTLE_FEE_NIM,
+        message: `Acta: GPS Check-In reward for "${listing.title}"`,
+      },
       () => claimListing(body.listingId),
       () => finalizeListing(body.listingId),
       () => unclaimListing(body.listingId)

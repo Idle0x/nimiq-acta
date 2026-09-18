@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     if (l.tx_hash && amount > 0) {
       try {
         const { executeVaultPayout } = await import("@/lib/backend-nimiq");
-        await executeVaultPayout(l.owner as string, amount, 0);
+        await executeVaultPayout(l.owner as string, amount, 0, `Acta: Expired listing refund for "${(l.title as string) || "listing"}"`);
       } catch { /* vault offline — row is still marked expired, retry next run */ }
     }
     await notify(l.owner as string, "info", "Listing expired",
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     if (e.borrower && amount > 0) {
       try {
         const { executeVaultPayout } = await import("@/lib/backend-nimiq");
-        await executeVaultPayout(e.borrower as string, amount, 0);
+        await executeVaultPayout(e.borrower as string, amount, 0, `Acta: Expired lock refund for contract #${e.id}`);
       } catch { /* retry next run */ }
     }
     await notify(e.borrower as string, "info", "Deadline passed — lock refunded",

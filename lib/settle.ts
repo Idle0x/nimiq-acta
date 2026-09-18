@@ -71,13 +71,14 @@ export async function cancelListingWithRefund(
   const res = await sql`
     UPDATE listings SET state = 'settling', is_active = FALSE
     WHERE id = ${id} AND state = 'open'
-    RETURNING tx_hash
+    RETURNING tx_hash, title
   `;
   if (res.length === 0) return false;
   const txHash = (res[0] as any).tx_hash;
+  const title = (res[0] as any).title || "listing";
   if (txHash) {
     try {
-      await executeVaultPayout(refundTo, amountNIM, 0.0001);
+      await executeVaultPayout(refundTo, amountNIM, 0.0001, `Acta: Refund for cancelled "${title}"`);
     } catch (e) {
       await unclaimListing(id);
       throw e;
@@ -91,7 +92,7 @@ export async function cancelListingWithRefund(
 
 export async function settleAct(
   act: Omit<Act, "txHashOut" | "settledAt">,
-  payout: { to: string; amountNIM: number; feeNIM: number },
+  payout: { to: string; amountNIM: number; feeNIM: number; message?: string },
   claim: () => Promise<boolean>,
   finalize: () => Promise<void>,
   unclaim: () => Promise<void>
@@ -103,7 +104,7 @@ export async function settleAct(
   try {
     // 1. Money moves FIRST. If this throws, the row returns to its
     //    previous state and the whole operation is safely retryable.
-    txHashOut = await executeVaultPayout(payout.to, payout.amountNIM, payout.feeNIM);
+    txHashOut = await executeVaultPayout(payout.to, payout.amountNIM, payout.feeNIM, payout.message);
   } catch (e) {
     await unclaim();
     throw e;
@@ -148,10 +149,14 @@ export async function settleReferralReward(referee: string): Promise<void> {
   const { dripTreasury } = await import("./milestones");
   for (const [to, side] of [[referrer, "referrer"], [referee, "referee"]] as const) {
     if (paidSides.has(side)) continue;
+    const msg = side === "referrer"
+      ? `Acta Referral: Friend first settlement reward (+10 NIM)`
+      : `Acta Referral: Welcome referral reward (+10 NIM)`;
     const tx = await dripTreasury(to, REFERRAL_REWARD_NIM, {
       type: "referral",
       proof: { referral_id: referralId, side },
       refId: `${referralId}:${side}`,
+      message: msg,
     });
     if (tx) {
       await notify(to, "referral", "Referral reward settled",

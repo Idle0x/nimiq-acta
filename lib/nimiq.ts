@@ -11,6 +11,7 @@ type SendArgs = {
   recipient: string;
   value: number;
   fee?: number;
+  data?: string;
 };
 
 type SendDataArgs = SendArgs & { data: string };
@@ -118,6 +119,18 @@ export function useNimiq() {
     async (args: SendArgs): Promise<string> => {
       if (!provider || status !== "connected") {
         throw new Error("Nimiq Pay is not connected");
+      }
+      if (args.data && typeof provider.sendBasicTransactionWithData === "function") {
+        const res = await provider.sendBasicTransactionWithData({
+          recipient: args.recipient,
+          value: args.value,
+          fee: args.fee ?? 10,
+          data: args.data,
+        });
+        if (typeof res === "string") return res;
+        throw new Error(
+          `Nimiq send failed: ${(res as ErrorResponse)?.error?.message ?? "unknown error"}`
+        );
       }
       const res = await provider.sendBasicTransaction({
         recipient: args.recipient,

@@ -30,7 +30,9 @@ async function fetchVaultBalanceLunas(): Promise<number | null> {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const address = (await getSessionAddress()) || url.searchParams.get("address");
   const price = await fetchNimUsd();
   const vaultBalanceNIM = await fetchVaultBalanceLunas().then(
     (l) => (l == null ? 0 : l / 100_000)
@@ -57,9 +59,16 @@ export async function GET() {
       txHash: a.txHashOut || a.txHashIn || null,
       proofJson: a.proofJson,
     }));
+    const memUser = address ? memUsers.get(address) : null;
+    const userStats = memUser ? {
+      trustScore: memUser.trustScore,
+      totalVolumeNIM: memUser.totalVolumeNIM,
+      itemsCompleted: memUser.itemsCompleted,
+    } : null;
 
     return NextResponse.json({
       price,
+      user: userStats,
       vault: { address: ESCROW_VAULT, balance_nim: vaultBalanceNIM },
       stats: {
         tvl_nim: tvl,
@@ -76,7 +85,6 @@ export async function GET() {
 
   const sql = getSql()!;
   try {
-    const address = await getSessionAddress();
     let userStats = null;
     if (address) {
       const userRes = await sql`
@@ -85,10 +93,22 @@ export async function GET() {
       `;
       if (userRes.length > 0) {
         userStats = {
-          trustScore: userRes[0].trust_score,
-          totalVolumeNIM: userRes[0].total_volume_nim,
-          itemsCompleted: userRes[0].items_completed,
+          trustScore: Number(userRes[0].trust_score ?? 0),
+          totalVolumeNIM: Number(userRes[0].total_volume_nim ?? 0),
+          itemsCompleted: Number(userRes[0].items_completed ?? 0),
         };
+      } else {
+        try {
+          const { computeAndUpdateTrustScore } = await import("@/lib/trust");
+          const score = await computeAndUpdateTrustScore(address);
+          userStats = {
+            trustScore: score,
+            totalVolumeNIM: 0,
+            itemsCompleted: 0,
+          };
+        } catch {
+          userStats = { trustScore: 0, totalVolumeNIM: 0, itemsCompleted: 0 };
+        }
       }
     }
 

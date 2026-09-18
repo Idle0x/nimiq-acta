@@ -313,10 +313,12 @@ export default function PassportDashboard({
   address,
   isConnected,
   onSignIn,
+  onScoreLoaded,
 }: {
   address?: string | null;
   isConnected?: boolean;
   onSignIn?: () => Promise<boolean>;
+  onScoreLoaded?: (score: number) => void;
 }) {
   const [me, setMe] = useState<any>(null);
   const [seg, setSeg] = useState<
@@ -332,6 +334,9 @@ export default function PassportDashboard({
         const d = await r.json();
         if (d && !d.error) {
           setMe(d);
+          if (typeof d.trustScore === "number") {
+            onScoreLoaded?.(d.trustScore);
+          }
           return;
         }
       }
@@ -340,7 +345,7 @@ export default function PassportDashboard({
     }
     // Fallback so UI never fails
     setMe((prev: any) => prev || makeDefaultMe(address));
-  }, [address]);
+  }, [address, onScoreLoaded]);
 
   useEffect(() => {
     loadData();
@@ -348,7 +353,7 @@ export default function PassportDashboard({
 
   const activeData = me || makeDefaultMe(address);
   const displayAddress = address || activeData.address;
-  const tier = trustTier(activeData.trustScore ?? 80);
+  const tier = trustTier(activeData.trustScore ?? 0);
 
   const segs = [
     ["overview", "You"],

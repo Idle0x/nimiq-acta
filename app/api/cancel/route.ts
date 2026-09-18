@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Contract is being settled" }, { status: 409 });
   }
   try {
-    await executeVaultPayout(address, escrow.amountNIM, MIN_NETWORK_FEE_NIM);
+    await executeVaultPayout(address, escrow.amountNIM, MIN_NETWORK_FEE_NIM, `Acta: Escrow cancelled — collateral refund for "${escrow.title || "item"}"`);
   } catch (e) {
     await unclaimEscrow(id);
     console.error("Refund failed:", e);

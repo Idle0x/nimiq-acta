@@ -85,7 +85,8 @@ export async function getVaultBalanceNIM(): Promise<number> {
 export async function executeVaultPayout(
   recipientAddress: string,
   amountNIM: number,
-  feeNIM: number = MIN_FEE_NIM
+  feeNIM: number = MIN_FEE_NIM,
+  message?: string
 ): Promise<string> {
   return enqueue(async () => {
     if (!process.env.VAULT_SEED_PHRASE) {
@@ -111,14 +112,25 @@ export async function executeVaultPayout(
     const blockHeight = await rpcCall("getBlockNumber", []);
     if (typeof blockHeight !== "number") throw new Error("Failed to fetch block number from RPC");
 
-    const tx = Nimiq.TransactionBuilder.newBasic(
-      sender,
-      recipient,
-      valueLunas,
-      feeLunas,
-      blockHeight,
-      networkId
-    );
+    const cleanMsg = message?.trim();
+    const tx = cleanMsg && cleanMsg.length > 0
+      ? Nimiq.TransactionBuilder.newBasicWithData(
+          sender,
+          recipient,
+          new TextEncoder().encode(cleanMsg.slice(0, 128)),
+          valueLunas,
+          feeLunas,
+          blockHeight,
+          networkId
+        )
+      : Nimiq.TransactionBuilder.newBasic(
+          sender,
+          recipient,
+          valueLunas,
+          feeLunas,
+          blockHeight,
+          networkId
+        );
     tx.sign(keyPair, undefined as any);
     const txHex = tx.toHex();
 
