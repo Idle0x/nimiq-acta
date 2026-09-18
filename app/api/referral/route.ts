@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { getSql } from "@/lib/db";
+import { getSql, ensureDbSchema, getMemStore } from "@/lib/db";
 import { getSessionAddress } from "@/lib/session";
 
 function buildLink(req: Request, code: string) {
@@ -14,15 +14,21 @@ export async function GET(req: Request) {
   if (!address) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const sql = getSql();
   if (!sql) {
-    const { getMemStore } = await import("@/lib/db");
     const { memReferrals } = getMemStore();
     const existing = memReferrals.get(address);
     const code = existing?.code ?? `${address.replace(/[^A-Z0-9]/gi, "").slice(2, 8)}7a`;
     return NextResponse.json({ code, link: buildLink(req, code) });
   }
-  const rows = await sql`SELECT code FROM referrals WHERE referrer = ${address} LIMIT 1`;
-  const code = (rows[0]?.code as string) ?? null;
-  return NextResponse.json({ code, link: code ? buildLink(req, code) : null });
+  try {
+    await ensureDbSchema();
+    const rows = await sql`SELECT code FROM referrals WHERE referrer = ${address} LIMIT 1`;
+    const code = (rows[0]?.code as string) ?? null;
+    return NextResponse.json({ code, link: code ? buildLink(req, code) : null });
+  } catch (err) {
+    console.error("Referral GET error:", err);
+    const fallbackCode = `${address.replace(/[^A-Z0-9]/gi, "").slice(2, 8)}7a`;
+    return NextResponse.json({ code: fallbackCode, link: buildLink(req, fallbackCode) });
+  }
 }
 
 export async function POST(req: Request) {
@@ -37,7 +43,6 @@ export async function POST(req: Request) {
   const sql = getSql();
 
   if (!sql) {
-    const { getMemStore } = await import("@/lib/db");
     const { memReferrals } = getMemStore();
     let existing = memReferrals.get(address);
     if (!existing) {
@@ -48,11 +53,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: existing.code, link: buildLink(req, existing.code) });
   }
 
-  const existing = await sql`SELECT code FROM referrals WHERE referrer = ${address} LIMIT 1`;
-  let code = existing[0]?.code as string | undefined;
-  if (!code) {
-    code = `${address.replace(/[^A-Z0-9]/gi, "").slice(2, 8)}${crypto.randomBytes(2).toString("hex")}`;
-    await sql`INSERT INTO referrals (id, referrer, code, created_at) VALUES (${crypto.randomUUID()}, ${address}, ${code}, ${Date.now()})`;
+  try {
+    await ensureDbSchema();
+    const existing = await sql`SELECT code FROM referrals WHERE referrer = ${address} LIMIT 1`;
+    let code = existing[0]?.code as string | undefined;
+    if (!code) {
+      code = `${address.replace(/[^A-Z0-9]/gi, "").slice(2, 8)}${crypto.randomBytes(2).toString("hex")}`;
+      await sql`INSERT INTO referrals (id, referrer, code, created_at) VALUES (${crypto.randomUUID()}, ${address}, ${code}, ${Date.now()})`;
+    }
+    return NextResponse.json({ code, link: buildLink(req, code) });
+  } catch (err) {
+    console.error("Referral POST error:", err);
+    const fallbackCode = `${address.replace(/[^A-Z0-9]/gi, "").slice(2, 8)}${crypto.randomBytes(2).toString("hex")}`;
+    return NextResponse.json({ code: fallbackCode, link: buildLink(req, fallbackCode) });
   }
-  return NextResponse.json({ code, link: buildLink(req, code) });
 }

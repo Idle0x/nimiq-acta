@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   fetchEscrows, fetchListings, fetchEscrow, fetchListing, hasDb,
-  insertEscrow, insertListing, initDbSchema, getSql, consumeNonce,
+  insertEscrow, insertListing, ensureDbSchema, getSql, consumeNonce,
 } from "@/lib/db";
 import type { Escrow, Listing } from "@/lib/escrow";
 import { getSessionAddress } from "@/lib/session";
@@ -11,15 +11,17 @@ import { awardRecurring } from "@/lib/milestones";
 import { claimEscrow, finalizeEscrow, unclaimEscrow, settleAct } from "@/lib/settle";
 
 if (hasDb()) {
-  initDbSchema().catch(console.error);
+  ensureDbSchema().catch(console.error);
 }
 
 export async function GET() {
+  await ensureDbSchema();
   const [listings, escrows] = await Promise.all([fetchListings(), fetchEscrows()]);
   return NextResponse.json({ listings, escrows });
 }
 
 export async function POST(req: Request) {
+  await ensureDbSchema();
   let address = await getSessionAddress();
   const data = await req.json().catch(() => ({}));
   if (!address && data.address) address = data.address;

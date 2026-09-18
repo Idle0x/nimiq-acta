@@ -120,9 +120,9 @@ export async function settleAct(
   return { ok: true, txHashOut };
 }
 
-const REFERRAL_REWARD_NIM = 30;
+const REFERRAL_REWARD_NIM = 10;
 
-/** Pays 30 NIM to referrer AND referee on the referee's first settled act. Once ever. */
+/** Pays 10 NIM to referrer AND referee on the referee's first settled act. Once ever. */
 export async function settleReferralReward(referee: string): Promise<void> {
   const { getSql } = await import("./db");
   const sql = getSql();
@@ -152,7 +152,7 @@ export async function settleReferralReward(referee: string): Promise<void> {
     });
     if (tx) {
       await notify(to, "referral", "Referral reward settled",
-        `30 NIM from the treasury — ${side === "referrer" ? "your friend settled their first act" : "your first act settled"}.`,
+        `10 NIM from the treasury — ${side === "referrer" ? "your friend settled their first act" : "your first act settled"}.`,
         `https://www.nimiqwatch.com/transaction/${tx}`);
     }
   }

@@ -59,9 +59,9 @@ export default function ReferralSheet({ open, onClose, address }: { open: boolea
           <button onClick={onClose} className="ghost rounded-full p-1.5"><X size={13} /></button>
         </div>
 
-        <h3 className="font-display text-xl font-semibold text-[var(--ink)]">You both earn 30 NIM.</h3>
+        <h3 className="font-display text-xl font-semibold text-[var(--ink)]">You both earn 10 NIM.</h3>
         <p className="marginalia mt-1.5 text-[12.5px]">
-          When their first act settles, the treasury drips 30 NIM to each of you — recorded in the act ledger.
+          When their first act settles, the treasury drips 10 NIM to each of you — recorded in the act ledger.
         </p>
 
         <div className="mt-4 rounded-xl border border-[var(--line2)] bg-black/30 p-3">

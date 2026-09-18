@@ -124,11 +124,68 @@ export default function Home() {
   const trustScore = dashboard?.user?.trustScore || 0;
   const tier = trustTier(trustScore);
 
-  useEffect(() => {
-    if (accounts[0]) {
-      fetch("/api/auth/session", { cache: "no-store" }).catch(() => {});
+  const ensureAuth = useCallback(async (): Promise<boolean> => {
+    const addr = accounts[0] || (isDemoMode ? "NQ07 0000 0000 0000 0000 0000 0000 0000" : null);
+    if (!addr) return false;
+    try {
+      // 1. Cached session probe first — avoids re-signing on every action.
+      const probe = await fetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
+      if (probe && probe.ok) return true;
+
+      // 2. Try cryptographic signature if provider supports signing
+      try {
+        const res = await fetch("/api/auth/challenge");
+        if (res.ok) {
+          const { nonce } = await res.json();
+          const sigRes = await signMessage(`Acta login\n\nNonce: ${nonce}`);
+
+          if (sigRes && typeof sigRes === "object" && "publicKey" in sigRes && "signature" in sigRes) {
+            const toHex = (buf: any) =>
+              buf instanceof Uint8Array
+                ? Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("")
+                : typeof buf === "string"
+                  ? buf.replace(/^0x/, "")
+                  : String(buf);
+
+            let ref: string | null = null;
+            try {
+              ref = new URLSearchParams(window.location.search).get("ref");
+            } catch { /* non-browser */ }
+
+            const authRes = await fetch("/api/auth/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                publicKey: toHex((sigRes as any).publicKey),
+                signature: toHex((sigRes as any).signature),
+                nonce,
+                ...(ref ? { ref } : {}),
+              }),
+            });
+            if (authRes.ok) return true;
+          }
+        }
+      } catch {
+        // provider.sign unavailable, unsupported or rejected — continue to address session fallback
+      }
+
+      // 3. Address session fallback for connected wallet or demo
+      const sessionRes = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: addr }),
+      });
+      return sessionRes.ok;
+    } catch {
+      return false;
     }
-  }, [accounts]);
+  }, [accounts, signMessage, isDemoMode]);
+
+  useEffect(() => {
+    if (accounts[0] || isDemoMode) {
+      ensureAuth().catch(() => {});
+    }
+  }, [accounts, isDemoMode, ensureAuth]);
 
   useEffect(() => {
     try {
@@ -221,7 +278,7 @@ export default function Home() {
       const res = await fetch("/api/escrows", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": idemKey },
-        body: JSON.stringify({ type: "escrow", payload: e }),
+        body: JSON.stringify({ type: "escrow", payload: e, address: borrower }),
       });
 
       if (!res.ok) {
@@ -239,44 +296,6 @@ export default function Home() {
       setLocking(false);
     }
   }
-
-  const ensureAuth = useCallback(async (): Promise<boolean> => {
-    if (!accounts[0]) return false;
-    try {
-      // Cached session probe first — avoids re-signing on every action.
-      const probe = await fetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
-      if (probe && probe.ok) return true;
-      const res = await fetch("/api/auth/challenge");
-      const { nonce } = await res.json();
-      const sigRes = await signMessage(`Acta login\n\nNonce: ${nonce}`);
-
-      const toHex = (buf: any) =>
-        buf instanceof Uint8Array
-          ? Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("")
-          : typeof buf === "string"
-            ? buf.replace(/^0x/, "")
-            : String(buf);
-
-      let ref: string | null = null;
-      try {
-        ref = new URLSearchParams(window.location.search).get("ref");
-      } catch { /* non-browser */ }
-
-      const authRes = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          publicKey: toHex((sigRes as any).publicKey),
-          signature: toHex((sigRes as any).signature),
-          nonce,
-          ...(ref ? { ref } : {}),
-        }),
-      });
-      return authRes.ok;
-    } catch {
-      return false;
-    }
-  }, [accounts, signMessage]);
 
   async function handleMakeLenderQr(escrow: Escrow) {
     const isAuthed = await ensureAuth();
@@ -467,7 +486,7 @@ export default function Home() {
       const res = await fetch("/api/escrows", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": listingKey },
-        body: JSON.stringify({ type: "listing", payload: listing, txHash }),
+        body: JSON.stringify({ type: "listing", payload: listing, txHash, address: borrower }),
       });
       if (!res.ok) throw new Error("Failed to save listing");
       
@@ -988,7 +1007,7 @@ export default function Home() {
                 onClick={() => setRefOpen(true)}
                 className="ghost w-full rounded-2xl py-3 text-[12px] font-semibold text-[var(--gold2)]"
               >
-                Invite friends — earn 30 NIM per settled act
+                Invite friends — earn 10 NIM per settled act
               </button>
               </div>
             </div>

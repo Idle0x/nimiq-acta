@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
 import * as Nimiq from "@nimiq/core";
-import { getSql } from "@/lib/db";
+import { getSql, ensureDbSchema } from "@/lib/db";
 import { setSession } from "@/lib/session";
 import { notify } from "@/lib/notify";
 
@@ -10,6 +10,7 @@ import { notify } from "@/lib/notify";
 (ed as any).hashes.sha512 = sha512;
 
 export async function POST(req: Request) {
+  await ensureDbSchema();
   let body: { publicKey?: string; signature?: string; nonce?: string; ref?: string };
   try {
     body = await req.json();
@@ -80,9 +81,9 @@ export async function POST(req: Request) {
           `;
           if (inserted.length > 0) {
             await notify(referral.referrer as string, "referral", "A friend joined via your link",
-              "Their first act will settle your 30 NIM referral reward from the treasury.");
+              "Their first act will settle your 10 NIM referral reward from the treasury.");
             await notify(address, "referral", "Welcome to Acta",
-              "You joined via a referral link. Settle your first act to earn 30 NIM from the treasury.");
+              "You joined via a referral link. Settle your first act to earn 10 NIM from the treasury.");
             // Reward lands at settlement time (settleReferralReward on the
             // referee's first settled act) — login only records the link.
           }

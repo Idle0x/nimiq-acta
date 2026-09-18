@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSql } from "@/lib/db";
+import { getSql, ensureDbSchema } from "@/lib/db";
 import { getSessionAddress } from "@/lib/session";
 import { notify } from "@/lib/notify";
 
@@ -66,30 +66,41 @@ export async function POST(req: Request) {
     });
   }
 
-  const claimed = await sql`
-    INSERT INTO checkins (address, day, created_at, tx_hash)
-    VALUES (${address}, ${day}, ${Date.now()}, NULL)
-    ON CONFLICT (address, day) DO NOTHING
-    RETURNING day
-  `;
-  if (claimed.length === 0) {
-    return NextResponse.json({ error: "Already checked in today — come back tomorrow" }, { status: 409 });
-  }
+  try {
+    await ensureDbSchema();
+    const claimed = await sql`
+      INSERT INTO checkins (address, day, created_at, tx_hash)
+      VALUES (${address}, ${day}, ${Date.now()}, NULL)
+      ON CONFLICT (address, day) DO NOTHING
+      RETURNING day
+    `;
+    if (claimed.length === 0) {
+      return NextResponse.json({ error: "Already checked in today — come back tomorrow" }, { status: 409 });
+    }
 
-  const { dripTreasury } = await import("@/lib/milestones");
-  const tx = await dripTreasury(address, CHECKIN_REWARD_NIM, {
-    type: "checkin",
-    proof: { day },
-    refId: `checkin:${day}`,
-  });
-  if (tx) {
-    await sql`UPDATE checkins SET tx_hash = ${tx} WHERE address = ${address} AND day = ${day}`;
-    await notify(address, "payout", "Daily check-in settled",
-      `1 NIM for showing up — streak kept alive.`, `https://www.nimiqwatch.com/transaction/${tx}`);
+    let tx: string | null = null;
+    try {
+      const { dripTreasury } = await import("@/lib/milestones");
+      tx = await dripTreasury(address, CHECKIN_REWARD_NIM, {
+        type: "checkin",
+        proof: { day },
+        refId: `checkin:${day}`,
+      });
+      if (tx) {
+        await sql`UPDATE checkins SET tx_hash = ${tx} WHERE address = ${address} AND day = ${day}`;
+        await notify(address, "payout", "Daily check-in settled",
+          `1 NIM for showing up — streak kept alive.`, `https://albatross.nimiqwatch.com/transaction/${tx}`);
+      }
+    } catch (dripErr) {
+      console.warn("Treasury drip error during check-in:", dripErr);
+    }
+
+    const status = await readStatus(sql, address, day);
+    return NextResponse.json({ ok: true, txHash: tx, queued: !tx, ...status });
+  } catch (err: any) {
+    console.error("Checkin POST error:", err);
+    return NextResponse.json({ error: err?.message || "Check-in failed" }, { status: 500 });
   }
-  // tx null => queued in pending_drips; the claim stands, money follows on retry.
-  const status = await readStatus(sql, address, day);
-  return NextResponse.json({ ok: true, txHash: tx, queued: !tx, ...status });
 }
 
 export async function GET(req: Request) {
@@ -125,7 +136,19 @@ export async function GET(req: Request) {
     });
   }
 
-  return NextResponse.json(await readStatus(sql, address, today));
+  try {
+    await ensureDbSchema();
+    return NextResponse.json(await readStatus(sql, address, today));
+  } catch (err) {
+    console.error("Checkin GET error:", err);
+    return NextResponse.json({
+      checkedToday: false,
+      streak: 0,
+      total: 0,
+      month: today.slice(0, 7),
+      monthDays: [],
+    });
+  }
 }
 
 async function readStatus(sql: NonNullable<ReturnType<typeof getSql>>, address: string, today: string) {

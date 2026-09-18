@@ -100,6 +100,10 @@ function CheckInPanel({ address }: { address?: string }) {
         body: JSON.stringify({ address }),
       });
       const d = await r.json().catch(() => ({}));
+      if (r.status === 409) {
+        setS((prev: any) => prev ? { ...prev, checkedToday: true } : { checkedToday: true, streak: 1, total: 1, month: new Date().toISOString().slice(0, 7), monthDays: [new Date().toISOString().slice(0, 10)] });
+        return;
+      }
       if (!r.ok) throw new Error((d as any).error || "Check-in failed");
       setS(d);
     } catch (e) {
@@ -233,7 +237,7 @@ function ReferralPanel({ address }: { address?: string }) {
             <Share2 size={16} className="text-[var(--gold)]" /> Referral Program
           </h4>
           <p className="marginalia text-[11px] mt-1 text-[var(--ink3)]">
-            Invite peers to borrow or complete challenges. You earn <strong className="text-[var(--gold)]">30 NIM</strong> for every act they settle.
+            Invite peers to borrow or complete challenges. You earn <strong className="text-[var(--gold)]">10 NIM</strong> for every act they settle.
           </p>
         </div>
       </div>

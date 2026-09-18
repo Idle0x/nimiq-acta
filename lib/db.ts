@@ -27,6 +27,18 @@ export function hasDb() {
   return !!process.env.DATABASE_URL;
 }
 
+let schemaInitPromise: Promise<void> | null = null;
+export async function ensureDbSchema() {
+  if (!process.env.DATABASE_URL) return;
+  if (!schemaInitPromise) {
+    schemaInitPromise = initDbSchema().catch((err) => {
+      schemaInitPromise = null;
+      console.error("DB schema init failed:", err);
+    });
+  }
+  await schemaInitPromise;
+}
+
 export async function initDbSchema() {
   const url = process.env.DATABASE_URL;
   if (!url) return;

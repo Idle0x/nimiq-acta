@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { getSql } from "@/lib/db";
+import { getSql, ensureDbSchema } from "@/lib/db";
 
 export async function GET() {
+  await ensureDbSchema();
   const nonce = crypto.randomBytes(16).toString("hex");
   const sql = getSql();
   if (sql) {
