@@ -105,8 +105,8 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
                 <LockIcon size={24} />
               </div>
               <div>
-                <h4 className="text-lg font-semibold text-[var(--ink)] mb-1">Borrow Item</h4>
-                <p className="text-sm text-[var(--ink3)]">Offer an item for others to borrow by locking NIM as collateral.</p>
+                <h4 className="text-lg font-semibold text-[var(--ink)] mb-1">List Asset to Lend</h4>
+                <p className="text-sm text-[var(--ink3)]">Offer your gear for others to borrow. Borrowers will lock your required NIM collateral in escrow upon rental.</p>
               </div>
             </button>
 
@@ -287,14 +287,19 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
                   {kind === 'borrow' ? <LockIcon size={32} /> : <ZapIcon size={32} />}
                 </div>
                 <div>
-                  <div className="text-xs text-[var(--ink3)] uppercase tracking-wider mb-1">{kind === 'borrow' ? 'Borrow Item' : 'Challenge'}</div>
+                  <div className="text-xs text-[var(--ink3)] uppercase tracking-wider mb-1">{kind === 'borrow' ? 'Asset to Lend' : 'Challenge'}</div>
                   <div className="text-xl font-bold text-[var(--ink)]">{title}</div>
                 </div>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-[var(--ink3)]">{kind === 'borrow' ? 'Collateral' : 'Reward'}</span>
+                <span className="text-[var(--ink3)]">{kind === 'borrow' ? 'Borrower Collateral (Locked on rental)' : 'Bounty Deposit'}</span>
                 <span className="font-semibold text-[var(--ink)] tnum">{amount} NIM</span>
               </div>
+              {kind === 'borrow' && (
+                <p className="text-[11px] text-[var(--ink3)] italic border-t border-[var(--line)]/5 pt-2">
+                  No upfront deposit required to list. The borrower locks this collateral in escrow when taking custody.
+                </p>
+              )}
               <div className="py-2 text-sm text-[var(--ink2)] leading-relaxed">
                 {description}
               </div>
@@ -309,7 +314,7 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
           disabled={step === 1 && !kind || step === 2 && (!title || !amount || !(parseFloat(amount) >= 0.01) || !description)}
           className="w-full py-4 bg-[var(--gold)] hover:bg-[var(--gold)] text-[var(--ink)] rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {step === 3 ? 'Post Listing' : 'Next'}
+          {step === 3 ? (kind === 'borrow' ? 'Publish Rental Listing' : 'Fund & Post Bounty') : 'Next'}
           {step < 3 && <ChevronRightIcon size={20} />}
         </button>
       </div>

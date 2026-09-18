@@ -115,22 +115,38 @@ export function useNimiq() {
 
   const connected = status === "connected";
 
+function truncateUtf8(str: string, maxBytes = 64): string {
+  try {
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(str);
+    if (bytes.length <= maxBytes) return str;
+    const decoder = new TextDecoder("utf-8");
+    return decoder.decode(bytes.subarray(0, maxBytes)).replace(/\uFFFD/g, "");
+  } catch {
+    return str.slice(0, 30);
+  }
+}
+
   const sendLock = useCallback(
     async (args: SendArgs): Promise<string> => {
       if (!provider || status !== "connected") {
         throw new Error("Nimiq Pay is not connected");
       }
       if (args.data && typeof provider.sendBasicTransactionWithData === "function") {
-        const res = await provider.sendBasicTransactionWithData({
-          recipient: args.recipient,
-          value: args.value,
-          fee: args.fee ?? 10,
-          data: args.data,
-        });
-        if (typeof res === "string") return res;
-        throw new Error(
-          `Nimiq send failed: ${(res as ErrorResponse)?.error?.message ?? "unknown error"}`
-        );
+        try {
+          const safeData = truncateUtf8(args.data, 64);
+          const res = await provider.sendBasicTransactionWithData({
+            recipient: args.recipient,
+            value: args.value,
+            fee: args.fee ?? 10,
+            data: safeData,
+          });
+          if (typeof res === "string") return res;
+          if (res && !(res as ErrorResponse).error) return res as any;
+          console.warn("sendBasicTransactionWithData returned error response, falling back to basic:", res);
+        } catch (dataErr) {
+          console.warn("sendBasicTransactionWithData threw, falling back to basic transaction:", dataErr);
+        }
       }
       const res = await provider.sendBasicTransaction({
         recipient: args.recipient,
@@ -150,11 +166,23 @@ export function useNimiq() {
       if (!provider || status !== "connected") {
         throw new Error("Nimiq Pay is not connected");
       }
-      const res = await provider.sendBasicTransactionWithData({
+      try {
+        const safeData = truncateUtf8(args.data, 64);
+        const res = await provider.sendBasicTransactionWithData({
+          recipient: args.recipient,
+          value: args.value,
+          fee: args.fee ?? 10,
+          data: safeData,
+        });
+        if (typeof res === "string") return res;
+        if (res && !(res as ErrorResponse).error) return res as any;
+      } catch (e) {
+        console.warn("sendWithData failed, falling back to basic:", e);
+      }
+      const res = await provider.sendBasicTransaction({
         recipient: args.recipient,
         value: args.value,
         fee: args.fee ?? 10,
-        data: args.data,
       });
       if (typeof res === "string") return res;
       throw new Error(

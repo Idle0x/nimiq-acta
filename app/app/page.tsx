@@ -279,11 +279,12 @@ export default function Home() {
       let txHash = "0x" + Date.now().toString(16);
       
       if (!listing.kind.startsWith("bounty")) {
+        const shortTitle = listing.title.length > 25 ? listing.title.slice(0, 22) + "..." : listing.title;
         txHash = await sendLock({
           recipient: ESCROW_VAULT,
           value: Math.round(amountNIM * 100_000),
           fee: 10,
-          data: `Acta: Locked collateral for "${listing.title}"`,
+          data: `Acta: Escrow "${shortTitle}"`,
         });
       }
 
@@ -481,11 +482,12 @@ export default function Home() {
     let txHash: string | undefined;
     if (data.kind.startsWith("bounty")) {
       try {
+        const shortTitle = data.title.length > 25 ? data.title.slice(0, 22) + "..." : data.title;
         txHash = await sendLock({
           recipient: ESCROW_VAULT,
           value: Math.round(data.collateralNIM * 100_000),
           fee: Math.max(10, MIN_NETWORK_FEE_NIM * 100_000), // network minimum fee
-          data: `Acta: Bounty deposit for "${data.title}"`,
+          data: `Acta: Bounty "${shortTitle}"`,
         });
       } catch (err) {
         toast(humanize("Failed to fund bounty: " + (err instanceof Error ? err.message : "unknown")), "error");
@@ -730,17 +732,32 @@ export default function Home() {
                             <QrCode size={13} />
                             <span>Show Quest QR</span>
                           </button>
+                        ) : l.owner === borrower && l.kind === "borrow" ? (
+                          <button
+                            onClick={() => { const full = listings.find((x) => x.id === l.id) ?? l; setWizard(full as any); }}
+                            className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--gold)] to-[var(--gold2)] text-[#181206] font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all btn-press"
+                          >
+                            <LockIcon size={13} />
+                            <span>Borrow & Lock Collateral</span>
+                          </button>
                         ) : l.owner === borrower ? (
                           <button disabled className="w-full py-2.5 px-4 bg-[var(--surface2)] text-[var(--ink3)] font-semibold rounded-xl text-xs cursor-not-allowed border border-[var(--line)]/10">
                             Your Proclamation
                           </button>
                         ) : (
                           <button
-                            onClick={() => setReviewListingId(l.id)}
+                            onClick={() => {
+                              if (l.kind === "borrow") {
+                                const full = listings.find((x) => x.id === l.id) ?? l;
+                                setWizard(full as any);
+                              } else {
+                                setReviewListingId(l.id);
+                              }
+                            }}
                             disabled={isDemoMode}
                             className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--gold)] to-[var(--gold2)] hover:from-[var(--gold2)] hover:to-[var(--gold)] text-[#181206] font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_2px_10px_rgba(212,175,55,0.25)] border border-[var(--gold)] active:scale-[0.98] transition-all btn-press disabled:opacity-50"
                           >
-                            <span>Accept Bounty Challenge</span>
+                            <span>{l.kind === "borrow" ? "Borrow & Lock Collateral" : "Accept Bounty Challenge"}</span>
                             <ChevronRight size={13} strokeWidth={3} />
                           </button>
                         )}
