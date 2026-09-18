@@ -36,7 +36,7 @@ export async function dripTreasury(
     type: "milestone" | "referral" | "checkin";
     proof: Record<string, unknown>;
     refId: string;
-    message?: string;
+    message: string;
   }
 ): Promise<string | null> {
   const sql = getSql();

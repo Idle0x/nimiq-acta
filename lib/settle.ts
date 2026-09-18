@@ -92,7 +92,7 @@ export async function cancelListingWithRefund(
 
 export async function settleAct(
   act: Omit<Act, "txHashOut" | "settledAt">,
-  payout: { to: string; amountNIM: number; feeNIM: number; message?: string },
+  payout: { to: string; amountNIM: number; feeNIM: number; message: string },
   claim: () => Promise<boolean>,
   finalize: () => Promise<void>,
   unclaim: () => Promise<void>
