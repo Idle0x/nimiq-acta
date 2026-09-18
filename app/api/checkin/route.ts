@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSql, ensureDbSchema } from "@/lib/db";
 import { getSessionAddress } from "@/lib/session";
 import { notify } from "@/lib/notify";
+import { explorerTxUrl } from "@/lib/escrow";
 
 export const CHECKIN_REWARD_NIM = 1;
 
@@ -90,7 +91,7 @@ export async function POST(req: Request) {
       if (tx) {
         await sql`UPDATE checkins SET tx_hash = ${tx} WHERE address = ${address} AND day = ${day}`;
         await notify(address, "payout", "Daily check-in settled",
-          `1 NIM for showing up — streak kept alive.`, `https://albatross.nimiqwatch.com/transaction/${tx}`);
+          `1 NIM for showing up — streak kept alive.`, explorerTxUrl(tx));
       }
     } catch (dripErr) {
       console.warn("Treasury drip error during check-in:", dripErr);

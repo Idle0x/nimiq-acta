@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionAddress } from "@/lib/session";
 import { fetchListing, hasDb, getLenderKey, consumeNonce } from "@/lib/db";
 import { claimListing, finalizeListing, unclaimListing, settleAct } from "@/lib/settle";
-import { newId, MIN_NETWORK_FEE_NIM, SETTLE_FEE_NIM } from "@/lib/escrow";
+import { newId, MIN_NETWORK_FEE_NIM, SETTLE_FEE_NIM, explorerTxUrl } from "@/lib/escrow";
 import { verifyReturn } from "@/lib/qr";
 import { awardRecurring } from "@/lib/milestones";
 
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
     const { notify } = await import("@/lib/notify");
     await notify(address, "payout", "ScanQuest settled",
       `${listing.collateralNIM.toLocaleString()} NIM paid out for "${listing.title}".`,
-      `https://www.nimiqwatch.com/transaction/${result.txHashOut}`);
+      explorerTxUrl(result.txHashOut));
     await notify(listing.owner, "released", "Your ScanQuest was completed",
       `"${listing.title}" was verified by signed-QR proof and paid from the vault.`);
     return NextResponse.json({ ok: true, txHashOut: result.txHashOut });

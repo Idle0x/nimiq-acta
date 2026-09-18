@@ -24,6 +24,7 @@ import Identicon from "./Identicon";
 import Stamps from "./Stamps";
 import { trustTier } from "./AppChrome";
 import { InfoTooltip } from "./Tooltip";
+import { explorerTxUrl } from "@/lib/escrow";
 
 const STATE_CHIP: Record<string, { label: string; color: string }> = {
   locked: { label: "In progress", color: "var(--gold)" },
@@ -56,7 +57,7 @@ function Row({
         <p className="text-[10.5px] text-[var(--ink3)]">{sub}</p>
         {tx ? (
           <a
-            href={tx.startsWith("0x") ? `https://www.nimiqwatch.com/transaction/${tx}` : `https://albatross.nimiqwatch.com/transaction/${tx}`}
+            href={explorerTxUrl(tx)}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-0.5 text-[9px] text-[var(--sky)] hover:underline"

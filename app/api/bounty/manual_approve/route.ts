@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionAddress } from "@/lib/session";
 import { fetchListing, hasDb, getSql, consumeNonce } from "@/lib/db";
 import { claimListing, finalizeListing, unclaimListing, settleAct } from "@/lib/settle";
-import { newId, MIN_NETWORK_FEE_NIM, SETTLE_FEE_NIM } from "@/lib/escrow";
+import { newId, MIN_NETWORK_FEE_NIM, SETTLE_FEE_NIM, explorerTxUrl } from "@/lib/escrow";
 import { awardRecurring } from "@/lib/milestones";
 
 // Creator-as-oracle approval. Covers both 'bounty_manual' (creator scans the
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
     const { notify } = await import("@/lib/notify");
     await notify(completerAddress, "payout", "Submission approved",
       `"${listing.title}" was approved by the sponsor. ${listing.collateralNIM.toLocaleString()} NIM paid out.`,
-      `https://www.nimiqwatch.com/transaction/${result.txHashOut}`);
+      explorerTxUrl(result.txHashOut));
     await notify(address, "released", "You approved a submission",
       `Reward for "${listing.title}" released to ${completerAddress.slice(0, 12)}...`);
     return NextResponse.json({ ok: true, txHashOut: result.txHashOut });

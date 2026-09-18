@@ -1,6 +1,6 @@
 import { getSql, insertAct } from "./db";
 import { executeVaultPayout } from "./backend-nimiq";
-import type { Act } from "./escrow";
+import { type Act, explorerTxUrl } from "./escrow";
 
 // ---------- Escrows: locked -> settling -> released|locked ----------
 
@@ -161,7 +161,7 @@ export async function settleReferralReward(referee: string): Promise<void> {
     if (tx) {
       await notify(to, "referral", "Referral reward settled",
         `10 NIM from the treasury — ${side === "referrer" ? "your friend settled their first act" : "your first act settled"}.`,
-        `https://www.nimiqwatch.com/transaction/${tx}`);
+        explorerTxUrl(tx));
     }
   }
 }

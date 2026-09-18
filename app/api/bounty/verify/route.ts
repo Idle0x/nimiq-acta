@@ -3,7 +3,7 @@ import { getSql } from "@/lib/db";
 import { getSessionAddress } from "@/lib/session";
 import { verifyBountyPhoto, OracleError } from "@/lib/vision";
 import { executeVaultPayout } from "@/lib/backend-nimiq";
-import { SETTLE_FEE_NIM } from "@/lib/escrow";
+import { SETTLE_FEE_NIM, explorerTxUrl } from "@/lib/escrow";
 import { notify } from "@/lib/notify";
 import { beginIdempotent } from "@/lib/idempotency";
 
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
 
   await notify(address, "payout", "Bounty settled",
     `${amountNIM.toLocaleString()} NIM paid out. The oracle agreed: "${verdict.reason}"`,
-    `https://www.nimiqwatch.com/transaction/${txHash}`);
+    explorerTxUrl(txHash));
   await notify(String(l.owner), "released", "Your bounty was completed",
     `"${String(l.title)}" was verified by the AI oracle and paid from the vault.`);
 

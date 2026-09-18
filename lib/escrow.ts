@@ -107,3 +107,14 @@ export function newId(prefix: string): string {
     .slice(0, 6);
   return `${prefix}-${Date.now().toString(36)}-${rand}`;
 }
+
+export function explorerTxUrl(txHash?: string | null): string {
+  if (!txHash) return "https://nim.re/explorer";
+  const clean = txHash.replace(/^0x/, "").trim();
+  return `https://nim.re/explorer/tx/${clean}`;
+}
+
+export function explorerAddressUrl(address?: string | null): string {
+  if (!address) return "https://nim.re/explorer";
+  return `https://nim.re/explorer/address/${encodeURIComponent(address.trim())}`;
+}

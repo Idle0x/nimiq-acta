@@ -1,6 +1,7 @@
 import { ZapIcon, TrendingUpIcon, TargetIcon, UserCheck, CheckCircle2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { InfoTooltip } from "./Tooltip";
+import { explorerTxUrl } from "@/lib/escrow";
 
 export function Leaderboard({ data, onView }: { data: any[]; onView?: (address: string) => void }) {
   const list = data || [];
@@ -106,7 +107,7 @@ export function ActivityFeed({ data, onView }: { data: any[]; onView?: (address:
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-[10px] font-bold text-[var(--gold)]">+{act.amountNIM} NIM</p>
-                  {act.txHash && <a href={`https://albatross.nimiqwatch.com/transaction/${act.txHash}`} target="_blank" className="text-[8px] text-[var(--sky)] hover:underline">Tx</a>}
+                  {act.txHash && <a href={explorerTxUrl(act.txHash)} target="_blank" className="text-[8px] text-[var(--sky)] hover:underline">Tx</a>}
                 </div>
               </div>
             );

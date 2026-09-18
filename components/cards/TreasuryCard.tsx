@@ -1,5 +1,6 @@
 "use client";
 import { Vault, ArrowUpRight } from "lucide-react";
+import { explorerAddressUrl } from "@/lib/escrow";
 
 /** Full-bleed treasury folio — no box. Written on the page. */
 export default function TreasuryCard({
@@ -57,7 +58,7 @@ export default function TreasuryCard({
       <div className="mt-4 flex items-center justify-between border-t border-[var(--line)] pt-3">
         <p className="font-mono text-[10.5px] text-[var(--ink3)]">{vaultAddress.slice(0, 22)}…</p>
         <a
-          href={`https://albatross.nimiqwatch.com/account/${vaultAddress.replace(/\s+/g, "")}`}
+          href={explorerAddressUrl(vaultAddress)}
           target="_blank"
           rel="noreferrer"
           className="caps flex items-center gap-1 text-[8.5px] font-bold text-[var(--gold)] hover:underline"

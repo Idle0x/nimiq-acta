@@ -6,7 +6,7 @@ import {
 import type { Escrow, Listing } from "@/lib/escrow";
 import { getSessionAddress } from "@/lib/session";
 import { verifyReturn } from "@/lib/qr";
-import { newId, SETTLE_FEE_NIM } from "@/lib/escrow";
+import { newId, SETTLE_FEE_NIM, explorerTxUrl } from "@/lib/escrow";
 import { awardRecurring, checkAndAwardMilestone } from "@/lib/milestones";
 import { claimEscrow, finalizeEscrow, unclaimEscrow, settleAct } from "@/lib/settle";
 
@@ -272,7 +272,7 @@ export async function PATCH(req: Request) {
       const { notify } = await import("@/lib/notify");
       await notify(escrow.borrower, "released", "Collateral released",
         `${(escrow.amountNIM - escrow.feeNIM).toLocaleString()} NIM returned to your vault.`,
-        `https://www.nimiqwatch.com/transaction/${result.txHashOut}`);
+        explorerTxUrl(result.txHashOut));
       if (sql) {
         const lrows = await sql`SELECT owner FROM listings WHERE id = ${escrow.listingId} LIMIT 1`;
         const owner = (lrows[0] as any)?.owner as string | undefined;
