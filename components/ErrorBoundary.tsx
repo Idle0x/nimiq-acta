@@ -27,17 +27,17 @@ class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 px-4 text-center">
-          <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mb-6">
-            <AlertTriangleIcon size={32} className="text-rose-400" />
+        <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--bg)] px-4 text-center">
+          <div className="w-16 h-16 bg-[var(--wax)]/10 rounded-full flex items-center justify-center mb-6">
+            <AlertTriangleIcon size={32} className="text-[var(--wax)]" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-100 mb-3">Something went wrong</h1>
-          <p className="text-slate-400 mb-8 max-w-sm">
+          <h1 className="text-2xl font-bold text-[var(--ink)] mb-3">Something went wrong</h1>
+          <p className="text-[var(--ink3)] mb-8 max-w-sm">
             We encountered an unexpected error while rendering this view.
           </p>
           <button
             onClick={() => this.setState({ hasError: false, error: undefined })}
-            className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-xl transition-colors border border-white/5"
+            className="flex items-center gap-2 px-6 py-3 bg-[var(--surface2)] hover:bg-[var(--surface2)] text-[var(--ink)] rounded-xl transition-colors border border-[var(--line)]/5"
           >
             <RefreshCwIcon size={20} />
             Try again

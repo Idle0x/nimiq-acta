@@ -16,28 +16,28 @@ export default function QrOverlay({
 }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/75 p-6 backdrop-blur-sm animate-fade-in">
-      <div className="glass relative w-full max-w-sm rounded-3xl border border-white/15 p-5 text-center animate-scale-in">
+    <div className="app-ink fixed inset-0 z-40 flex items-center justify-center bg-[color-mix(in_srgb,var(--ink)_65%,transparent)] p-6 backdrop-blur-sm animate-fade-in">
+      <div className="glass relative w-full max-w-sm rounded-3xl border border-[var(--line)]/15 p-5 text-center animate-scale-in">
         <button 
           onClick={onClose} 
-          className="absolute right-4 top-4 rounded-full bg-white/5 p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+          className="absolute right-4 top-4 rounded-full bg-[color-mix(in_srgb,var(--gold)_8%,transparent)]/5 p-1.5 text-[var(--ink3)] transition-colors hover:bg-[color-mix(in_srgb,var(--gold)_8%,transparent)]/10 hover:text-[var(--ink)]"
         >
           <X size={16} />
         </button>
 
         <h2 className="mt-2 text-xl font-bold text-gradient-gold">Return Confirmed</h2>
-        <p className="mt-1 text-sm text-slate-400">Scan lender QR to release funds</p>
-        <p className="tnum mt-2 text-xs font-medium text-slate-300">
-          {escrow.title} · <span className="text-sky-400">{(escrow.amountNIM - escrow.feeNIM).toLocaleString()} NIM back</span>
+        <p className="mt-1 text-sm text-[var(--ink3)]">Scan lender QR to release funds</p>
+        <p className="tnum mt-2 text-xs font-medium text-[var(--ink2)]">
+          {escrow.title} · <span className="text-[var(--sky)]">{(escrow.amountNIM - escrow.feeNIM).toLocaleString()} NIM back</span>
         </p>
 
-        <div className="mx-auto mt-6 w-fit rounded-2xl bg-gradient-to-tr from-amber-500/40 via-transparent to-amber-300/40 p-[2px] animate-pulse-border">
-          <div className="rounded-[14px] bg-white p-3">
+        <div className="mx-auto mt-6 w-fit rounded-2xl bg-gradient-to-tr from-[color-mix(in_srgb,var(--gold)_35%,transparent)] via-transparent to-[color-mix(in_srgb,var(--gold)_35%,transparent)] p-[2px] animate-pulse-border">
+          <div className="rounded-[14px] bg-[color-mix(in_srgb,var(--gold)_8%,transparent)] p-3">
             <QRCodeSVG value={token} size={200} />
           </div>
         </div>
 
-        <p className="mt-5 break-all rounded-xl bg-slate-950/70 p-2 text-[10px] text-slate-400">
+        <p className="mt-5 break-all rounded-xl bg-[var(--bg)]/70 p-2 text-[10px] text-[var(--ink3)]">
           {token.slice(0, 120)}…
         </p>
 
@@ -50,9 +50,9 @@ export default function QrOverlay({
                 setTimeout(() => setCopied(false), 2000);
               } catch {}
             }}
-            className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/15 py-3 text-sm font-semibold transition-colors hover:bg-white/5 btn-press"
+            className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[var(--line)]/15 py-3 text-sm font-semibold transition-colors hover:bg-[color-mix(in_srgb,var(--gold)_8%,transparent)]/5 btn-press"
           >
-            {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} className="text-slate-300" />}
+            {copied ? <Check size={16} className="text-[var(--verdigris)]" /> : <Copy size={16} className="text-[var(--ink2)]" />}
             {copied ? "Copied" : "Copy"}
           </button>
           
@@ -67,7 +67,7 @@ export default function QrOverlay({
                 }
               } catch {}
             }}
-            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-amber-300 py-3 text-sm font-bold text-slate-950 transition-transform btn-press"
+            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--gold)] py-3 text-sm font-bold text-[#1c1508] transition-transform btn-press"
           >
             <Share2 size={16} />
             Share

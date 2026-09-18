@@ -27,14 +27,14 @@ const TrustRing: React.FC<TrustRingProps> = ({ score, size = 160, label = 'Trust
     return () => clearTimeout(timer);
   }, [safeScore, circumference]);
 
-  let colorClass = 'text-rose-400';
-  let glowClass = 'drop-shadow-[0_0_8px_rgba(251,113,133,0.5)]'; // rose-400
+  let colorClass = 'text-[var(--wax)]';
+  let glowClass = 'drop-shadow-[0_0_8px_rgba(142,53,39,0.5)]'; // rose-400
   if (safeScore >= 60) {
-    colorClass = 'text-emerald-400';
-    glowClass = 'drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]'; // emerald-400
+    colorClass = 'text-[var(--verdigris)]';
+    glowClass = 'drop-shadow-[0_0_8px_rgba(64,105,90,0.5)]'; // emerald-400
   } else if (safeScore >= 30) {
-    colorClass = 'text-amber-300';
-    glowClass = 'drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]'; // amber-300
+    colorClass = 'text-[var(--gold)]';
+    glowClass = 'drop-shadow-[0_0_8px_rgba(154,116,24,0.5)]'; // amber-300
   }
 
   return (
@@ -48,7 +48,7 @@ const TrustRing: React.FC<TrustRingProps> = ({ score, size = 160, label = 'Trust
           fill="transparent"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-slate-800"
+          className="text-[var(--ink2)]"
         />
         {/* Progress ring */}
         <circle
@@ -66,7 +66,7 @@ const TrustRing: React.FC<TrustRingProps> = ({ score, size = 160, label = 'Trust
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
         <span className={`text-4xl font-bold tnum ${colorClass}`}>{safeScore}</span>
-        {label && <span className="text-xs text-slate-400 mt-1 uppercase tracking-wider">{label}</span>}
+        {label && <span className="text-xs text-[var(--ink3)] mt-1 uppercase tracking-wider">{label}</span>}
       </div>
     </div>
   );

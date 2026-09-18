@@ -13,17 +13,17 @@ interface EmptyStateProps {
 const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, subtitle, action }) => {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      <div className="text-slate-600 mb-4 bg-slate-800/30 p-4 rounded-full border border-white/5">
+      <div className="text-[var(--ink3)] mb-4 bg-[var(--surface2)]/30 p-4 rounded-full border border-[var(--line)]/5">
         {icon}
       </div>
-      <h3 className="text-lg font-semibold text-slate-200 mb-2">{title}</h3>
-      <p className="text-sm text-slate-400 max-w-[280px] mx-auto mb-6">
+      <h3 className="text-lg font-semibold text-[var(--ink)] mb-2">{title}</h3>
+      <p className="text-sm text-[var(--ink3)] max-w-[280px] mx-auto mb-6">
         {subtitle}
       </p>
       {action && (
         <button
           onClick={action.onClick}
-          className="bg-amber-300/10 text-amber-300 border border-amber-300/20 px-6 py-2.5 rounded-xl font-medium hover:bg-amber-300/20 transition-colors"
+          className="bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/20 px-6 py-2.5 rounded-xl font-medium hover:bg-[var(--gold)]/20 transition-colors"
         >
           {action.label}
         </button>

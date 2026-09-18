@@ -12,23 +12,23 @@ export default function ManualVerify({ listingId }: { listingId: string }) {
   const qrData = `manual_req:${listingId}:${accounts[0]}`;
 
   return (
-    <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 text-center">
+    <div className="mt-3 rounded-xl border border-[var(--line)]/10 bg-[var(--bg)]/60 p-3 text-center">
       {!showQr ? (
         <>
-          <p className="text-xs text-slate-400 mb-3">Show this QR code to the creator to get approved.</p>
+          <p className="text-xs text-[var(--ink3)] mb-3">Show this QR code to the creator to get approved.</p>
           <button
             onClick={() => setShowQr(true)}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-sky-400 py-2.5 text-xs font-bold text-slate-950 btn-press"
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-[var(--sky)] py-2.5 text-xs font-bold text-[#1c1508] btn-press"
           >
             <UserCheck size={14} /> Request Approval
           </button>
         </>
       ) : (
         <div className="flex flex-col items-center">
-          <div className="bg-white p-2 rounded-lg mb-2">
+          <div className="bg-[color-mix(in_srgb,var(--gold)_8%,transparent)] p-2 rounded-lg mb-2">
             <QRCode value={qrData} size={150} />
           </div>
-          <p className="text-xs text-amber-400">Waiting for creator to scan...</p>
+          <p className="text-xs text-[var(--gold)]">Waiting for creator to scan...</p>
         </div>
       )}
     </div>

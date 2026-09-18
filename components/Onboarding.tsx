@@ -11,22 +11,22 @@ const steps = [
     title: 'Lock NIM, Borrow Anything',
     description: 'Use your NIM as collateral to safely borrow items from people around you.',
     icon: LockIcon,
-    color: 'text-sky-400',
-    bg: 'bg-sky-400/10',
+    color: 'text-[var(--sky)]',
+    bg: 'bg-[var(--sky)]/10',
   },
   {
     title: 'Earn NIM, Complete Bounties',
     description: 'Verify your location or complete tasks to unlock NIM bounties in the real world.',
     icon: ZapIcon,
-    color: 'text-amber-300',
-    bg: 'bg-amber-300/10',
+    color: 'text-[var(--gold)]',
+    bg: 'bg-[var(--gold)]/10',
   },
   {
     title: 'Build Trust, Pay Less',
     description: 'A higher Trust Score lowers your collateral requirements over time.',
     icon: TrendingUpIcon,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-400/10',
+    color: 'text-[var(--verdigris)]',
+    bg: 'bg-[var(--verdigris)]/10',
   },
 ];
 
@@ -51,10 +51,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-xl flex flex-col items-center justify-center p-6">
+    <div className="app-ink fixed inset-0 z-[100] bg-[var(--bg)]/80 backdrop-blur-xl flex flex-col items-center justify-center p-6">
       <button 
         onClick={handleComplete}
-        className="absolute top-6 right-6 text-sm font-medium text-slate-400 hover:text-slate-200"
+        className="absolute top-6 right-6 text-sm font-medium text-[var(--ink3)] hover:text-[var(--ink)]"
       >
         Skip
       </button>
@@ -76,8 +76,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                 <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-8 ${step.bg}`}>
                   <Icon size={48} className={step.color} />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-100 mb-4">{step.title}</h2>
-                <p className="text-slate-400 text-lg">{step.description}</p>
+                <h2 className="text-2xl font-bold text-[var(--ink)] mb-4">{step.title}</h2>
+                <p className="text-[var(--ink3)] text-lg">{step.description}</p>
               </div>
             );
           })}
@@ -90,7 +90,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
             <div
               key={idx}
               className={`h-2 rounded-full transition-all duration-300 ${
-                idx === currentStep ? 'w-8 bg-amber-300' : 'w-2 bg-slate-700'
+                idx === currentStep ? 'w-8 bg-[var(--gold)]' : 'w-2 bg-[var(--surface2)]'
               }`}
             />
           ))}
@@ -98,7 +98,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
         <button
           onClick={handleNext}
-          className="w-full py-4 bg-amber-300 hover:bg-amber-400 text-slate-900 rounded-xl font-bold text-lg transition-colors"
+          className="w-full py-4 bg-[var(--gold)] hover:bg-[var(--gold)] text-[#1c1508] rounded-xl font-bold text-lg transition-colors"
         >
           {currentStep === steps.length - 1 ? 'Get Started' : 'Next'}
         </button>

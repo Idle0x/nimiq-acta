@@ -112,5 +112,48 @@ export async function settleAct(
   await finalize();
   // 3. The act is recorded last; insertAct also recomputes trust.
   await insertAct({ ...act, txHashOut, settledAt: Date.now() });
+  // 4. Referral drip: the actor's FIRST settled act pays their referrer.
+  //    Best-effort — a treasury hiccup must never fail a settlement.
+  settleReferralReward(act.actorAddress).catch((e) => console.error("referral drip failed:", e));
+  // 5. Sweep the retry queue: past treasury failures get paid now.
+  import("./milestones").then((m) => m.processPendingDrips().catch(() => {}));
   return { ok: true, txHashOut };
+}
+
+const REFERRAL_REWARD_NIM = 30;
+
+/** Pays 30 NIM to referrer AND referee on the referee's first settled act. Once ever. */
+export async function settleReferralReward(referee: string): Promise<void> {
+  const { getSql } = await import("./db");
+  const sql = getSql();
+  if (!sql) return;
+  const settled = await sql`
+    SELECT referral_id, referee FROM referral_settlements WHERE referee = ${referee} LIMIT 1
+  `;
+  if (settled.length === 0) return;
+  const referralId = (settled[0] as any).referral_id as string;
+  const ref = await sql`SELECT referrer FROM referrals WHERE id = ${referralId} LIMIT 1`;
+  const referrer = (ref[0] as any)?.referrer as string | undefined;
+  if (!referrer) return;
+  // Per-side idempotency: a half-paid pair resumes where it stopped.
+  const paidRows = await sql`
+    SELECT proof_json->>'side' AS side FROM acts
+    WHERE type = 'referral' AND proof_json->>'referral_id' = ${referralId}
+  `;
+  const paidSides = new Set((paidRows as unknown as Record<string, unknown>[]).map((r) => String(r.side)));
+  const { notify } = await import("./notify");
+  const { dripTreasury } = await import("./milestones");
+  for (const [to, side] of [[referrer, "referrer"], [referee, "referee"]] as const) {
+    if (paidSides.has(side)) continue;
+    const tx = await dripTreasury(to, REFERRAL_REWARD_NIM, {
+      type: "referral",
+      proof: { referral_id: referralId, side },
+      refId: `${referralId}:${side}`,
+    });
+    if (tx) {
+      await notify(to, "referral", "Referral reward settled",
+        `30 NIM from the treasury — ${side === "referrer" ? "your friend settled their first act" : "your first act settled"}.`,
+        `https://www.nimiqwatch.com/transaction/${tx}`);
+    }
+  }
 }

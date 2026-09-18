@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   if (!address) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!hasDb()) return NextResponse.json({ error: "No DB" }, { status: 500 });
 
-  const { type, id } = (await req.json()) as { type?: string; id?: string };
+  const { type, id, mode } = (await req.json()) as { type?: string; id?: string; mode?: string };
   if (!id || (type !== "listing" && type !== "escrow")) {
     return NextResponse.json({ error: "Missing or invalid parameters" }, { status: 400 });
   }
@@ -26,9 +26,27 @@ export async function POST(req: Request) {
     if (listing.state && listing.state !== "open") {
       return NextResponse.json({ error: "Listing already claimed or closed" }, { status: 400 });
     }
+    // Adult rule: a participant holding a lock cannot be stranded.
+    // Cancel+refund only while nobody has accepted; otherwise close to new accepts.
+    const sql = getSql()!;
+    const held = await sql`SELECT id FROM escrows WHERE listing_id = ${id} AND state = 'locked' LIMIT 1`;
+    const pending = await sql`SELECT id FROM venture_submissions WHERE listing_id = ${id} AND status = 'pending' LIMIT 1`;
+    if (held.length > 0 || pending.length > 0) {
+      if (mode === "close") {
+        await sql`UPDATE listings SET is_active = FALSE, state = 'closed' WHERE id = ${id} AND state = 'open'`;
+        const { notify } = await import("@/lib/notify");
+        await notify(address, "info", "Listing closed to new accepts",
+          `"${listing.title}" takes no new participants. Active contracts run to completion.`);
+        return NextResponse.json({ ok: true, closed: true });
+      }
+      return NextResponse.json({ error: "Someone holds an active lock — cancel is disabled. Close to new accepts instead.", closeable: true }, { status: 409 });
+    }
     try {
       const ok = await cancelListingWithRefund(id, address, listing.collateralNIM);
       if (!ok) return NextResponse.json({ error: "Could not cancel listing" }, { status: 400 });
+      const { notify } = await import("@/lib/notify");
+      await notify(address, "info", "Listing cancelled",
+        `"${listing.title}" closed${listing.txHash ? " and your locked reward was refunded in full" : ""}.`);
       return NextResponse.json({ ok: true });
     } catch (e) {
       console.error("Listing refund failed:", e);
@@ -79,6 +97,17 @@ export async function POST(req: Request) {
     createdAt: Date.now(),
     settledAt: Date.now(),
   });
+  try {
+    const { notify } = await import("@/lib/notify");
+    await notify(address, "info", "Contract cancelled",
+      `"${escrow.title}" — ${escrow.amountNIM.toLocaleString()} NIM refunded in full. No fee charged.`, "/active");
+    const lrows = await getSql()!`SELECT owner FROM listings WHERE id = ${escrow.listingId} LIMIT 1`;
+    const owner = (lrows[0] as any)?.owner as string | undefined;
+    if (owner && owner !== address) {
+      await notify(owner, "info", "A contract was cancelled",
+        `"${escrow.title}" was cancelled by the participant and refunded in full.`);
+    }
+  } catch { /* notifications never block */ }
 
   return NextResponse.json({ ok: true });
 }

@@ -1,18 +1,18 @@
-import { cookies } from "next/headers";
 import * as crypto from "crypto";
+import { cookies } from "next/headers";
 
 const COOKIE = "acta_session";
-// Reuse the existing 32-byte secret. Set ENCRYPTION_KEY in env (it already is).
-const SECRET = process.env.ENCRYPTION_KEY || "fallback_secret_length_32_bytes_xyz";
-const TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const TTL_MS = 7 * 24 * 3600 * 1000;
+// IMPORTANT: set ENCRYPTION_KEY in env (32+ chars). This dev fallback only keeps dev working.
+const SECRET = process.env.ENCRYPTION_KEY || "acta_dev_only_secret_change_before_deploy!!";
 
-function sign(payload: string): string {
+function hmac(payload: string): string {
   return crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
 }
 
-export async function setSession(address: string) {
+export async function setSession(address: string): Promise<void> {
   const payload = JSON.stringify({ address, exp: Date.now() + TTL_MS });
-  const value = `${Buffer.from(payload).toString("base64url")}.${sign(payload)}`;
+  const value = Buffer.from(payload).toString("base64url") + "." + hmac(payload);
   (await cookies()).set(COOKIE, value, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -25,28 +25,28 @@ export async function setSession(address: string) {
 export async function getSessionAddress(): Promise<string | null> {
   const raw = (await cookies()).get(COOKIE)?.value;
   if (!raw) return null;
-  const i = raw.lastIndexOf(".");
-  if (i < 0) return null;
-  const payloadB64 = raw.slice(0, i);
-  const sig = raw.slice(i + 1);
+  const idx = raw.lastIndexOf(".");
+  if (idx <= 0) return null;
+  const payloadB64 = raw.slice(0, idx);
+  const sig = raw.slice(idx + 1);
   let payload: string;
   try {
-    payload = Buffer.from(payloadB64, "base64url").toString("utf8");
+    payload = Buffer.from(payloadB64, "base64url").toString();
   } catch {
     return null;
   }
-  const expected = sign(payload);
-  const a = Buffer.from(sig);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  const expected = Buffer.from(hmac(payload));
+  const given = Buffer.from(sig);
+  if (expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) return null;
   try {
-    const p = JSON.parse(payload);
-    return typeof p.address === "string" && p.exp > Date.now() ? p.address : null;
+    const parsed = JSON.parse(payload);
+    if (typeof parsed.address !== "string" || parsed.exp <= Date.now()) return null;
+    return parsed.address;
   } catch {
     return null;
   }
 }
 
-export async function clearSession() {
+export async function clearSession(): Promise<void> {
   (await cookies()).delete(COOKIE);
 }

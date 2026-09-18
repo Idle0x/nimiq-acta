@@ -26,7 +26,7 @@ export type LenderKey = {
 };
 
 export type EscrowState = "locked" | "settling" | "released" | "cancelled" | "disputed" | "expired";
-export type ListingState = "open" | "settling" | "complete" | "cancelled";
+export type ListingState = "open" | "settling" | "complete" | "cancelled" | "closed";
 export type ActType =
   | "borrow_lock" | "borrow_return" | "bounty" | "checkin" | "scanquest"
   | "creator" | "milestone" | "referral";
@@ -47,6 +47,9 @@ export type Listing = {
   txHash?: string;
   targetLat?: number;
   targetLng?: number;
+  requireLocation?: boolean;
+  contract?: import("./contract").ListingContract | null;
+  expiresAt?: number | null;
 };
 
 export type Escrow = {
@@ -54,14 +57,19 @@ export type Escrow = {
   listingId: string;
   title: string;
   borrower: string; // the one locking funds
+  owner?: string;
+  completer?: string;
   amountNIM: number;
   feeNIM: number;
   yieldNIM: number;
   state: EscrowState;
   txHash: string;
+  txHashOut?: string | null;
   createdAt: number;
   lenderPubkey?: string;
   expiresAt?: number;
+  deadlineAt?: number | null;
+  progress?: string;
   resolvedAt?: number;
   description?: string;
 };
@@ -75,8 +83,14 @@ export type UserProfile = {
 };
 
 export const ESCROW_VAULT = process.env.NEXT_PUBLIC_VAULT_ADDRESS || "NQ86 845N NUJ3 88U4 2V9E DEDF XV8Y CFES 8RKT";
-export const MICRO_FEE_NIM = 0.5;
+export const MICRO_FEE_NIM = 0.0001;
 export const MIN_NETWORK_FEE_NIM = 0.0001;
+/** Retained by the vault on every settlement (user receives gross minus fees). */
+export const VAULT_FEE_NIM = 0.001;
+/** Total taken from a settlement payout (vault retention + network). */
+export const SETTLE_FEE_NIM = VAULT_FEE_NIM + MIN_NETWORK_FEE_NIM;
+/** Dust guard: nothing locks below this. */
+export const MIN_COLLATERAL_NIM = 0.01;
 
 // Trust score -> collateral discount. 0..100 maps to 0..30% off, floor 70%.
 export function discountedCollateral(baseNIM: number, trustScore: number) {

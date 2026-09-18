@@ -1,9 +1,17 @@
-// Drop-in cached auth for the client. Replaces the ensureAuth callback in
-// app/page.tsx — pings the session endpoint first so the wallet signature
-// sheet only appears once per session, not once per action.
+// Cached auth: ping session first so the wallet signature sheet appears
+// once per session, not once per action. Message format MUST match
+// app/api/auth/verify (Acta login + nonce) — server derives the address
+// from the verified pubkey and never trusts client-supplied addresses.
 "use client";
 
 let cachedFor: string | null = null;
+
+function toHex(v: unknown): string {
+  if (typeof v === "string") return v.replace(/^0x/, "");
+  return Array.from(v as Uint8Array)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 export async function ensureAuthed(
   address: string | undefined,
@@ -21,23 +29,22 @@ export async function ensureAuthed(
   try {
     const chal = await fetch("/api/auth/challenge");
     const { nonce } = await chal.json();
-    const sig = await signMessage(nonce);
+    const message = `Acta login\n\nNonce: ${nonce}`;
+    const sig = await signMessage(message);
 
-    const toHex = (v: unknown) =>
-      typeof v === "string"
-        ? v.replace(/^0x/, "")
-        : "0x" +
-          Array.from(v as Uint8Array)
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("");
+    let ref: string | null = null;
+    try {
+      ref = new URLSearchParams(window.location.search).get("ref");
+    } catch { /* non-browser */ }
 
     const res = await fetch("/api/auth/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        publicKeyHex: toHex(sig.publicKey),
-        signatureHex: toHex(sig.signature),
+        publicKey: toHex(sig.publicKey),
+        signature: toHex(sig.signature),
         nonce,
+        ...(ref ? { ref } : {}),
       }),
     });
     if (res.ok) {

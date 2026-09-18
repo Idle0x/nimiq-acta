@@ -4,16 +4,89 @@ import { getSessionAddress } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  if (!hasDb()) return NextResponse.json({ error: "No DB connection" }, { status: 500 });
-  const sql = getSql();
-  if (!sql) return NextResponse.json({ error: "DB Error" }, { status: 500 });
+const ZERO_BREAKDOWN = {
+  completion: 0,
+  volume: 0,
+  tenure: 0,
+  diversity: 0,
+  community: 0,
+  total: 0,
+};
 
-  const address = await getSessionAddress();
-  if (!address) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const address = (await getSessionAddress()) || url.searchParams.get("address");
 
+  if (!address) {
+    return NextResponse.json({
+      breakdown: ZERO_BREAKDOWN,
+      stamps: [],
+      acts: [],
+      streak: [],
+      milestones: [],
+    });
+  }
+
+  if (!hasDb()) {
+    const { getMemStore } = await import("@/lib/db");
+    const { memActs, memEscrows, memListings } = getMemStore();
+    const myActs = memActs.filter(a => a.actorAddress === address);
+    const myCommunity = memEscrows.filter(e => {
+      const listing = memListings.find(l => l.id === e.listingId);
+      return listing?.owner === address && e.state === 'released';
+    });
+
+    const totalActs = myActs.length;
+    const settledActs = myActs.filter(a => a.settledAt != null).length;
+    const volumeNim = myActs.filter(a => a.settledAt != null).reduce((s, a) => s + a.amountNIM, 0);
+    const distinctOracles = new Set(myActs.map(a => a.oracle)).size;
+    const firstActTime = myActs.length > 0 ? Math.min(...myActs.map(a => a.createdAt)) : Date.now();
+
+    let breakdown = { ...ZERO_BREAKDOWN };
+    if (totalActs > 0) {
+      const completionRatio = settledActs / totalActs;
+      const completionPoints = completionRatio * 35;
+      const volumeLog = Math.log10(volumeNim + 1);
+      const volumePoints = Math.min(25, (volumeLog / 5) * 25);
+      const daysSinceFirstAct = (Date.now() - firstActTime) / (1000 * 60 * 60 * 24);
+      const tenurePoints = Math.min(20, (daysSinceFirstAct / 90) * 20);
+      const diversityPoints = Math.min(10, (distinctOracles / 5) * 10);
+      const communityPoints = Math.min(10, (myCommunity.length / 10) * 10);
+
+      breakdown = {
+        completion: Math.round(completionPoints),
+        volume: Math.round(volumePoints),
+        tenure: Math.round(tenurePoints),
+        diversity: Math.round(diversityPoints),
+        community: Math.round(communityPoints),
+        total: Math.max(0, Math.min(100, Math.round(completionPoints + volumePoints + tenurePoints + diversityPoints + communityPoints))),
+      };
+    }
+
+    const stamps = myActs.filter(a => a.settledAt != null).slice(0, 6).map(a => ({
+      id: a.id,
+      type: a.type,
+      oracle: a.oracle,
+      created_at: a.createdAt,
+      amount_nim: a.amountNIM,
+    }));
+
+    const milestones = myActs.filter(a => a.type === 'milestone').map(a => ({
+      m_id: a.proofJson?.milestone_id || "milestone",
+      created_at: a.createdAt,
+    }));
+
+    return NextResponse.json({
+      breakdown,
+      stamps,
+      acts: stamps,
+      streak: [],
+      milestones,
+    });
+  }
+
+  const sql = getSql()!;
   try {
-    // 1. Re-calculate or fetch Trust Breakdown logic natively here so we can return the breakdown
     const actStats = await sql`
       SELECT 
         COUNT(*) as total_acts,
@@ -31,7 +104,7 @@ export async function GET() {
       WHERE l.owner = ${address} AND e.state = 'released'
     `;
 
-    let breakdown = { completion: 0, volume: 0, tenure: 0, diversity: 0, community: 0, total: 0 };
+    let breakdown = { ...ZERO_BREAKDOWN };
     if (actStats && actStats.length > 0 && Number(actStats[0].total_acts) > 0) {
       const stats = actStats[0];
       const totalActs = Number(stats.total_acts);
@@ -56,11 +129,10 @@ export async function GET() {
         tenure: Math.round(tenurePoints),
         diversity: Math.round(diversityPoints),
         community: Math.round(communityPoints),
-        total: Math.max(0, Math.min(100, Math.round(completionPoints + volumePoints + tenurePoints + diversityPoints + communityPoints)))
+        total: Math.max(0, Math.min(100, Math.round(completionPoints + volumePoints + tenurePoints + diversityPoints + communityPoints))),
       };
     }
 
-    // 2. Fetch recent settled acts for stamps (last 6 distinct types/oracles to make stamps)
     const stampsRes = await sql`
       SELECT id, type, oracle, created_at, amount_nim 
       FROM acts 
@@ -68,7 +140,6 @@ export async function GET() {
       ORDER BY settled_at DESC LIMIT 6
     `;
     
-    // 3. Compute Streak (acts settled per day in last 7 days)
     const streakRes = await sql`
       SELECT COUNT(*) as count, date_trunc('day', to_timestamp(settled_at / 1000)) as day 
       FROM acts 
@@ -76,7 +147,6 @@ export async function GET() {
       GROUP BY day ORDER BY day DESC
     `;
     
-    // 4. Milestones
     const milestonesRes = await sql`
       SELECT proof_json->>'milestone_id' as m_id, created_at
       FROM acts 
@@ -87,11 +157,18 @@ export async function GET() {
     return NextResponse.json({
       breakdown,
       stamps: stampsRes,
+      acts: stampsRes,
       streak: streakRes,
-      milestones: milestonesRes
+      milestones: milestonesRes,
     });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Failed to fetch passport data" }, { status: 500 });
+    console.error("Error in /api/passport:", e);
+    return NextResponse.json({
+      breakdown: ZERO_BREAKDOWN,
+      stamps: [],
+      acts: [],
+      streak: [],
+      milestones: [],
+    });
   }
 }

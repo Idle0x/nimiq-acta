@@ -10,12 +10,12 @@ Beyond borrowing, Acta scales into community micro-work with **Bounties**. Creat
 - **ScanQuest (QR):** Discover and scan a cryptographically signed QR token hidden in the physical world.
 - **CheckIn (Geo):** Physically visit a GPS coordinate to unlock funds.
 - **PhotoProof (Vision):** Snap a picture and let advanced AI (Qwen3.6 Vision) verify it.
-- **CreatorVerified:** Perform custom labor and get a manual sign-off via QR scan (or through the Creator Inbox).
+- **Request / Venture (Creator):** Perform custom work, submit proof, and get the sponsor's signed approval (AI pre-screen recommends; the human signs the release). Optional AI scene checks backstop QR/Geo proofs against sharing and spoofing.
 
 Every verified action builds your transparent on-chain **Trust Score v2**, which persistently reduces your future collateral requirements.
 
 ### Treasury Mechanics
-A small network fee (e.g., 0.1 NIM) is levied on every successful action. These fees accumulate in the global **Treasury Vault**. Over time, the protocol distributes these collected funds to highly trusted participants, creating a cyclic token economy.
+A 0.0011 NIM settlement fee applies on every payout (0.001 retained by the treasury so rewards self-sustain, 0.0001 network). Cancel and expiry refunds are always full — no fee. Minimum lock is 0.01 NIM. These fees accumulate in the global **Treasury Vault**. Over time, the protocol distributes these collected funds to highly trusted participants, creating a cyclic token economy.
 
 ## How It Uses Nimiq
 

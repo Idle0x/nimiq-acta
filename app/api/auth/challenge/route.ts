@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import { getSql, hasDb } from "@/lib/db";
-import { newId } from "@/lib/escrow";
-
-const NONCE_TTL_MS = 5 * 60 * 1000;
+import crypto from "crypto";
+import { getSql } from "@/lib/db";
 
 export async function GET() {
-  const nonce = newId("n");
-  if (hasDb()) {
-    const sql = getSql()!;
-    await sql`INSERT INTO auth_nonces (nonce, created_at) VALUES (${nonce}, ${Date.now()})`;
-    // Opportunistic TTL cleanup
-    sql`DELETE FROM auth_nonces WHERE created_at < ${Date.now() - NONCE_TTL_MS}`
-      .catch(() => {});
+  const nonce = crypto.randomBytes(16).toString("hex");
+  const sql = getSql();
+  if (sql) {
+    try {
+      await sql`DELETE FROM auth_nonces WHERE created_at < ${Date.now() - 2 * 60 * 1000}`;
+      await sql`INSERT INTO auth_nonces (nonce, created_at) VALUES (${nonce}, ${Date.now()})`;
+    } catch {
+      // nonce table missing -> verification will still work via signature check
+    }
   }
   return NextResponse.json({ nonce });
 }
