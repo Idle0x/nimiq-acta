@@ -54,6 +54,7 @@ import {
   ESCROW_VAULT,
   MIN_NETWORK_FEE_NIM,
   MICRO_FEE_NIM,
+  SETTLE_FEE_NIM,
   discountedCollateral,
   newId,
   type Escrow,
@@ -142,10 +143,23 @@ export default function Home() {
   const ensureAuth = useCallback(async (): Promise<boolean> => {
     const addr = accounts[0] || (isDemoMode ? "NQ07 0000 0000 0000 0000 0000 0000 0000" : null);
     if (!addr) return false;
+    // Demo mode is a read-only tour: no server session is ever minted for it
+    // (all mutating buttons are disabled in demo; browsing needs no session).
+    if (isDemoMode && !accounts[0]) return false;
     try {
       // 1. Cached session probe first — avoids re-signing on every action.
+      //    The session must belong to THIS address; a stale session for a
+      //    different (e.g. previously connected) account falls through to
+      //    re-auth instead of acting as the wrong identity.
       const probe = await fetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
-      if (probe && probe.ok) return true;
+      if (probe && probe.ok) {
+        try {
+          const who = ((await probe.json()) as { address?: string })?.address;
+          if (who === addr) return true;
+        } catch {
+          return true; // probe ok but unreadable — server still holds a session
+        }
+      }
 
       // 2. Try cryptographic signature if provider supports signing
       try {
@@ -181,16 +195,13 @@ export default function Home() {
           }
         }
       } catch {
-        // provider.sign unavailable, unsupported or rejected — continue to address session fallback
+        // provider.sign unavailable, unsupported or rejected.
+        // There is NO unsigned fallback: sessions are minted only by wallet
+        // signature (POST /api/auth/verify). Return false and let the caller
+        // toast; demo mode stays read-only.
+        return false;
       }
-
-      // 3. Address session fallback for connected wallet or demo
-      const sessionRes = await fetch("/api/auth/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: addr }),
-      });
-      return sessionRes.ok;
+      return false; // signature path completed without a session (rejected/failed verify)
     } catch {
       return false;
     }
@@ -231,10 +242,7 @@ export default function Home() {
     } catch { /* refetch best-effort */ }
   }, [accounts, refreshUnread]);
 
-  // Lazy expiry sweep once per load (cron also runs hourly server-side).
-  useEffect(() => {
-    fetch("/api/cron/expire", { method: "POST" }).catch(() => {});
-  }, []);
+  // Expiry runs hourly server-side (vercel.json cron) — never from the client.
 
   // Fetch true Database State
   useEffect(() => {
@@ -372,7 +380,9 @@ export default function Home() {
       if (t.startsWith("manual_req:")) {
         setShowScanner(false);
         const [_, listingId, completerAddress] = t.split(":");
-        if (!listingId || !completerAddress) return toast("Invalid manual request QR", "error");
+        if (!listingId || !completerAddress || completerAddress === "undefined" || !completerAddress.startsWith("NQ")) {
+          return toast("Invalid manual request QR", "error");
+        }
 
         const res = await fetch("/api/bounty/manual_approve", {
           method: "POST",
@@ -390,10 +400,10 @@ export default function Home() {
         return;
       }
 
-      // 2. Try Escrows (Borrow Item Returns)
+      // 2. Try Escrows (Borrow Item Returns, incl. late returns on expired locks)
       let matched = false;
       for (const e of escrows) {
-        if (e.state !== "locked" || !e.lenderPubkey) continue;
+        if ((e.state !== "locked" && (e.state as string) !== "expired") || !e.lenderPubkey) continue;
         const payload = await verifyReturn(t, e.lenderPubkey).catch(() => null);
         if (payload && payload.escrowId === e.id) {
           matched = true;
@@ -411,7 +421,7 @@ export default function Home() {
           }
           
           setEscrows((p) => p.map((x) => (x.id === e.id ? { ...x, state: "released" } : x)));
-          toast(`Released ${(e.amountNIM - e.feeNIM).toLocaleString()} NIM (${e.title})`, "success"); setPayoffAmount(-1);
+          toast(`Released ${(e.amountNIM - SETTLE_FEE_NIM).toLocaleString()} NIM (${e.title})`, "success"); setPayoffAmount(e.amountNIM);
           setJustSettled(true); setTimeout(() => setJustSettled(false), 5000); refetch(); refreshUnread();
           return;
         }
@@ -981,7 +991,7 @@ export default function Home() {
                           const kind = listings.find(l => l.id === e.listingId)?.kind;
                           const handleSuccess = () => {
                             setEscrows(p => p.map(x => x.id === e.id ? { ...x, state: "released" } : x));
-                            setPayoffAmount(e.amountNIM - e.feeNIM);
+                            setPayoffAmount(e.amountNIM);
                           };
                           if (kind === "bounty") {
                             const listing = listings.find((l) => l.id === e.listingId);

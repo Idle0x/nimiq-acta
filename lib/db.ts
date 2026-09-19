@@ -48,7 +48,7 @@ export async function initDbSchema() {
     CREATE TABLE IF NOT EXISTS users (
       address TEXT PRIMARY KEY,
       trust_score INTEGER DEFAULT 0,
-      total_volume_nim INTEGER DEFAULT 0,
+      total_volume_nim DOUBLE PRECISION DEFAULT 0,
       items_completed INTEGER DEFAULT 0,
       joined_at BIGINT
     );
@@ -58,8 +58,8 @@ export async function initDbSchema() {
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       owner TEXT NOT NULL,
-      collateral_nim INTEGER NOT NULL,
-      yield_nim INTEGER DEFAULT 0,
+      collateral_nim DOUBLE PRECISION NOT NULL,
+      yield_nim DOUBLE PRECISION DEFAULT 0,
       duration_days INTEGER DEFAULT 1,
       kind TEXT NOT NULL,
       category TEXT NOT NULL,
@@ -84,9 +84,9 @@ export async function initDbSchema() {
       borrower TEXT NOT NULL,
       owner TEXT,
       completer TEXT,
-      amount_nim INTEGER NOT NULL,
-      fee_nim INTEGER NOT NULL,
-      yield_nim INTEGER DEFAULT 0,
+      amount_nim DOUBLE PRECISION NOT NULL,
+      fee_nim DOUBLE PRECISION NOT NULL,
+      yield_nim DOUBLE PRECISION DEFAULT 0,
       state TEXT NOT NULL,
       tx_hash TEXT NOT NULL,
       tx_hash_in TEXT,
@@ -109,8 +109,8 @@ export async function initDbSchema() {
       oracle TEXT NOT NULL,
       listing_id TEXT,
       escrow_id TEXT,
-      amount_nim INTEGER NOT NULL,
-      fee_nim INTEGER NOT NULL,
+      amount_nim DOUBLE PRECISION NOT NULL,
+      fee_nim DOUBLE PRECISION NOT NULL,
       proof_json JSONB,
       tx_hash_in TEXT,
       tx_hash_out TEXT,
@@ -551,7 +551,7 @@ export async function cancelListing(id: string): Promise<boolean> {
 export async function cancelEscrow(id: string): Promise<boolean> {
   const sql = getSql();
   if (!sql) {
-    const e = memEscrows.find(x => x.id === id && x.state === 'locked');
+    const e = memEscrows.find(x => x.id === id && (x.state === 'locked' || (x.state as string) === 'settling'));
     if (e) {
       e.state = 'cancelled';
       e.resolvedAt = Date.now();
@@ -559,15 +559,15 @@ export async function cancelEscrow(id: string): Promise<boolean> {
     }
     return false;
   }
-  const res = await sql`UPDATE escrows SET state = 'cancelled', resolved_at = ${Date.now()} WHERE id = ${id} AND state = 'locked' RETURNING id`;
+  const res = await sql`UPDATE escrows SET state = 'cancelled', resolved_at = ${Date.now()} WHERE id = ${id} AND state IN ('locked', 'settling') RETURNING id`;
   return res.length > 0;
 }
 
 export function getMemMe(address: string) {
   const u = memUsers.get(address) || { address, trustScore: 0, totalVolumeNIM: 0, itemsCompleted: 0, joinedAt: Date.now() };
-  const inProgress = memEscrows.filter(e => e.state === 'locked' && (e.borrower === address || e.completer === address));
+  const inProgress = memEscrows.filter(e => (e.state === 'locked' || (e.state as string) === 'expired') && (e.borrower === address || e.completer === address));
   const settled = memEscrows.filter(e => e.state === 'released' && (e.borrower === address || e.completer === address));
-  const refunded = memEscrows.filter(e => ((e.state as string) === 'cancelled' || (e.state as string) === 'expired' || (e.state as string) === 'refunded') && (e.borrower === address || e.completer === address));
+  const refunded = memEscrows.filter(e => (e.state as string) === 'cancelled' && (e.borrower === address || e.completer === address));
   const myListings = memListings.filter(l => l.owner === address);
   const myActs = memActs.filter(a => a.actorAddress === address);
 

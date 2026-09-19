@@ -5,11 +5,24 @@ import QRCode from "react-qr-code";
 import { useNimiq } from "@/lib/nimiq";
 
 export default function ManualVerify({ listingId }: { listingId: string }) {
-  const { accounts } = useNimiq();
+  const { accounts, status } = useNimiq();
   const [showQr, setShowQr] = useState(false);
 
+  // No connected wallet, no QR: encoding "undefined" as the completer would
+  // mint a valid-looking code that pays nobody and confuses the creator.
+  const completer = accounts[0];
+  if (!completer) {
+    return (
+      <div className="mt-3 rounded-xl border border-[var(--line)]/10 bg-[var(--bg)]/60 p-3 text-center">
+        <p className="text-xs text-[var(--ink3)]">
+          {status === "loading" ? "Connecting wallet…" : "Connect your wallet to request approval."}
+        </p>
+      </div>
+    );
+  }
+
   // We simply encode "manual_req:listingId:completerAddress"
-  const qrData = `manual_req:${listingId}:${accounts[0]}`;
+  const qrData = `manual_req:${listingId}:${completer}`;
 
   return (
     <div className="mt-3 rounded-xl border border-[var(--line)]/10 bg-[var(--bg)]/60 p-3 text-center">

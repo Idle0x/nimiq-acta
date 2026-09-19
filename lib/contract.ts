@@ -52,7 +52,7 @@ export function protocolNotes(l: { kind: string; collateralNIM: number }, c?: Pa
       notes.push(
         `${l.collateralNIM.toLocaleString()} NIM sits in the vault, reserved for the first approved submission.`,
         "Submit your proof; the sponsor reviews it from their inbox and approves with one signature.",
-        "Unreviewed submissions auto-refund the sponsor after 48h — nobody's funds sit idle."
+        "Submissions left unreviewed for 48h expire automatically and the sponsor is notified."
       );
       break;
     default:

@@ -20,6 +20,7 @@ async function fetchVaultBalanceLunas(): Promise<number | null> {
         id: 3,
       }),
       next: { revalidate: 30 },
+      signal: AbortSignal.timeout(2000),
     });
     const data = await res.json();
     const bal = data?.result?.data?.balance;

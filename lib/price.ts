@@ -7,7 +7,7 @@ export async function fetchNimUsd(): Promise<number> {
   if (now - lastFetch < 60_000) return cachedPrice;
 
   try {
-    const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=nimiq-2&vs_currencies=usd", { next: { revalidate: 60 } });
+    const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=nimiq-2&vs_currencies=usd", { next: { revalidate: 60 }, signal: AbortSignal.timeout(2000) });
     if (res.ok) {
       const data = await res.json();
       if (data["nimiq-2"]?.usd) {

@@ -29,7 +29,9 @@ export async function POST(req: Request) {
     }
 
     const listing = await fetchListing(body.listingId);
-    if (!listing || !["bounty_geo", "bounty", "bounty_venture"].includes(listing.kind)) {
+    // Venture challenges settle ONLY by creator approval — GPS must never
+    // bypass the human oracle, or any coordinates settle any venture.
+    if (!listing || !["bounty_geo", "bounty"].includes(listing.kind)) {
       return NextResponse.json({ error: "Invalid listing or not a Geo bounty" }, { status: 404 });
     }
     // Plain PhotoProof bounties only accept GPS proof when the sponsor demanded location.
@@ -70,12 +72,16 @@ export async function POST(req: Request) {
     }
 
     // If the creator pinned a target (contract.geo first, legacy columns fallback),
-    // enforce real proximity (haversine).
+    // enforce real proximity (haversine). Geo bounties without any target
+    // would pay anyone standing anywhere — refuse instead of paying blindly.
     const cg = (gContract as { geo?: { lat?: number; lng?: number; radiusM?: number } } | null)?.geo;
     const targetLat = cg?.lat ?? (listing as any).targetLat;
     const targetLng = cg?.lng ?? (listing as any).targetLng;
     const radiusM = cg?.radiusM ?? 150;
-    if (targetLat != null && targetLng != null) {
+    if (targetLat == null || targetLng == null) {
+      return NextResponse.json({ error: "This Geo bounty has no pinned target — the sponsor must set one before it can pay" }, { status: 400 });
+    }
+    {
       const dist = haversineM(body.lat, body.lng, targetLat, targetLng);
       if (dist > radiusM) {
         return NextResponse.json({ pass: false, reason: `You are ${Math.round(dist)}m from the target (within ${radiusM}m)` });

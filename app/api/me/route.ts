@@ -50,9 +50,9 @@ export async function GET(req: Request) {
     txOut: e.tx_hash_out ?? null,
   });
 
-  const inProgress = es.filter((e) => e.state === "locked").map(escrowRow);
+  const inProgress = es.filter((e) => e.state === "locked" || e.state === "expired").map(escrowRow);
   const settled = es.filter((e) => e.state === "released").map(escrowRow);
-  const refunded = es.filter((e) => e.state === "refunded" || e.state === "expired").map(escrowRow);
+  const refunded = es.filter((e) => e.state === "cancelled").map(escrowRow);
 
   const listRow = (l: Record<string, unknown>) => ({
     id: l.id as string,

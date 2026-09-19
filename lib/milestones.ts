@@ -3,6 +3,9 @@ import { executeVaultPayout } from "./backend-nimiq";
 import { newId } from "./escrow";
 
 // One-time welcome. Everything else below recurs forever, slowly.
+// FIRST_CONNECTION used to fire at login — free identities farmed it, so it
+// now fires on the actor's first SETTLED act (funds moved, proof verified).
+// Login only records referral links; money moves only for participation.
 export const MILESTONES = {
   FIRST_CONNECTION: { id: "ms_first_conn", rewardNIM: 10 },
   FIRST_LOCKED: { id: "ms_first_lock", rewardNIM: 1 },
@@ -22,6 +25,27 @@ export const RECURRING = {
 } as const;
 
 export type RecurKind = keyof typeof RECURRING;
+
+/**
+ * Once-ever guard against concurrent double-awards (two logins/settles racing
+ * past the acts check at the same time). First claimant wins; losers stop.
+ * Fail-open if the guard table is missing — the acts check remains as backstop.
+ */
+async function claimOnce(key: string): Promise<boolean> {
+  const sql = getSql();
+  if (!sql) return true;
+  try {
+    const r = await sql`
+      INSERT INTO idempotent_actions (key, kind, payload, created_at)
+      VALUES (${key}, 'milestone-guard', ${JSON.stringify({})}, ${Date.now()})
+      ON CONFLICT (key) DO NOTHING
+      RETURNING key
+    `;
+    return r.length > 0;
+  } catch {
+    return true;
+  }
+}
 
 /**
  * Treasury drip with a persistent retry tail. On vault failure the drip is
@@ -83,7 +107,7 @@ export async function processPendingDrips(limit = 10): Promise<{ paid: number; p
   let paid = 0;
   try {
     const rows = await sql`
-      SELECT * FROM pending_drips ORDER BY created_at ASC LIMIT ${limit}
+      SELECT * FROM pending_drips WHERE attempts < 10 ORDER BY created_at ASC LIMIT ${limit}
     `;
     for (const r of rows as unknown as Record<string, unknown>[]) {
       const id = String(r.id);
@@ -96,7 +120,13 @@ export async function processPendingDrips(limit = 10): Promise<{ paid: number; p
       } catch {
         proof = {};
       }
-      await sql`UPDATE pending_drips SET attempts = ${Number(r.attempts ?? 0) + 1} WHERE id = ${id}`;
+      // Atomic claim: concurrent sweepers race here; exactly one wins.
+      // attempts >= 10 rows are dead-lettered (operator reviews, never auto-paid).
+      const cur = Number(r.attempts ?? 0);
+      const claimed = await sql`
+        UPDATE pending_drips SET attempts = 99 WHERE id = ${id} AND attempts = ${cur} RETURNING id
+      `;
+      if (claimed.length === 0) continue;
       try {
         const retryMsg = (proof as any)?.message || `Acta Treasury: ${kind} reward (+${amount} NIM)`;
         const tx = await executeVaultPayout(address, amount, 0.0001, retryMsg);
@@ -116,6 +146,7 @@ export async function processPendingDrips(limit = 10): Promise<{ paid: number; p
         paid++;
       } catch (e) {
         console.error("pending drip retry failed:", e);
+        await sql`UPDATE pending_drips SET attempts = ${cur + 1} WHERE id = ${id}`;
       }
     }
     const left = await sql`SELECT COUNT(*)::int AS n FROM pending_drips`;
@@ -130,6 +161,7 @@ export async function checkAndAwardMilestone(address: string, milestoneKey: keyo
   if (!sql) return;
 
   const milestone = MILESTONES[milestoneKey];
+  if (!(await claimOnce(`ms:${address}:${milestone.id}`))) return; // lost the race
 
   // Check if this milestone has already been awarded to this address
   const existing = await sql`
@@ -157,10 +189,12 @@ export async function awardRecurring(address: string, kind: RecurKind) {
   let count = 0;
   try {
     if (kind === "lock") {
-      const r = await sql`SELECT COUNT(*)::int AS n FROM escrows WHERE borrower = ${address}`;
+      // Cancelled locks never counted — otherwise lock→cancel×5 prints 1 NIM.
+      const r = await sql`SELECT COUNT(*)::int AS n FROM escrows WHERE borrower = ${address} AND state != 'cancelled'`;
       count = Number((r[0] as any)?.n ?? 0);
     } else if (kind === "listing") {
-      const r = await sql`SELECT COUNT(*)::int AS n FROM listings WHERE owner = ${address}`;
+      // Cancelled listings never counted — creation alone must not mint.
+      const r = await sql`SELECT COUNT(*)::int AS n FROM listings WHERE owner = ${address} AND state != 'cancelled'`;
       count = Number((r[0] as any)?.n ?? 0);
     } else if (kind === "settle") {
       const r = await sql`
@@ -184,6 +218,7 @@ export async function awardRecurring(address: string, kind: RecurKind) {
   const n = Math.floor(count / rule.every);
   if (n < 1) return;
   const milestoneId = `rec_${kind}_${n}`;
+  if (!(await claimOnce(`rec:${address}:${milestoneId}`))) return; // lost the race
   const existing = await sql`
     SELECT id FROM acts
     WHERE actor_address = ${address} AND type = 'milestone' AND proof_json->>'milestone_id' = ${milestoneId}

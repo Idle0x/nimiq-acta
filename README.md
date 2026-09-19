@@ -23,6 +23,7 @@ Acta is a proof-of-action protocol for Nimiq Pay: escrowed borrowing and funded 
 - [Architecture](#architecture)
 - [Security model](#security-model)
 - [Where to look (judging criteria map)](#where-to-look-judging-criteria-map)
+- [Automated test suite](#automated-test-suite)
 - [Tech stack](#tech-stack)
 - [Repository layout](#repository-layout)
 - [Running Acta](#running-acta)
@@ -191,9 +192,41 @@ The full threat model — every attack we considered, its mitigation, and what r
 | **Completeness** | Contracts with deadlines and refunds, inbox, passport dashboard with listings/activity/collection, profiles, referrals, treasury card |
 | **Error Handling** | Oracle errors are retryable 502s (never fake verdicts); wallet rejection gets its own message; init timeout falls back to read-only mode; every async view has a skeleton |
 | **Speed** | Skeleton states, optimistic updates, server-cached session checks, engraved UI with zero blocking fetches on tab switch |
-| **Stability** | Idempotent actions, atomic state transitions, cron-driven expiry, error boundaries — see [`docs/SECURITY.md`](docs/SECURITY.md) |
+| **Stability** | Idempotent actions, atomic state transitions, cron-driven expiry, 154 automated tests across 24 suites (63 unit/UI + 91 database integration) — see [Automated test suite](#automated-test-suite) and [`docs/SECURITY.md`](docs/SECURITY.md) |
 | **Target Audience** | Three-screen onboarding; contracts written in plain language; every screen explains itself in one marginalia line |
 | **Repeat Value** | Trust score that lowers collateral, settled-act streaks, collectible stamps, leaderboard, treasury-funded milestones, referrals |
+
+---
+
+## Automated test suite
+
+Acta includes an automated test suite of **154 tests across 24 files** (63 offline unit/UI tests and 91 real database integration tests) verifying money math, cryptographic nonces, concurrency races, and state machines.
+
+```text
+Test Files  24 passed (24)
+     Tests  154 passed (154)
+```
+
+- **63 Offline Unit & UI tests** (`tests/unit/`, `tests/ui/`): deterministic, fast, zero-dependency suites:
+  - **Ed25519 & QR signatures** ([`tests/unit/lib/qr.test.ts`](tests/unit/lib/qr.test.ts)): signature generation, verification, tamper resistance, expiry windows, and single-use nonce uniqueness.
+  - **Escrow & money math** ([`tests/unit/lib/escrow-math.test.ts`](tests/unit/lib/escrow-math.test.ts)): whole and fractional NIM conversions, fee rounding, and collateral ratios.
+  - **Contract engine** ([`tests/unit/lib/contract.test.ts`](tests/unit/lib/contract.test.ts)): contract schema validation, oracle routing, and 48-hour auto-refund logic.
+  - **Vision oracle** ([`tests/unit/lib/vision.test.ts`](tests/unit/lib/vision.test.ts)): prompt construction, verdict parsing, retryable `OracleError` (502) propagation, and rate limit throttling.
+  - **Vault backend** ([`tests/unit/lib/backend-nimiq.test.ts`](tests/unit/lib/backend-nimiq.test.ts)): balance threshold checks, serialized payout queues, and simulated development fallbacks.
+  - **Session management** ([`tests/unit/lib/session.test.ts`](tests/unit/lib/session.test.ts)): HMAC-SHA256 cookie signing, tamper rejection, expiry checks, and address derivation.
+  - **UI components** ([`tests/ui/manual-verify.test.tsx`](tests/ui/manual-verify.test.tsx)): manual verification guards, QR rendering states, and visual feedback payoffs.
+
+- **91 Real Postgres Database integration tests** (`tests/db/`): route and protocol tests executed against real PostgreSQL (via Neon serverless):
+  - **Fractional column storage** ([`tests/db/columns.test.ts`](tests/db/columns.test.ts)): verifies `DOUBLE PRECISION` columns preserve fractional NIM amounts and fee decimals without rounding truncation.
+  - **The `settleAct` pipeline** ([`tests/db/settle.test.ts`](tests/db/settle.test.ts)): atomic ordering (`claim → payout → finalize → act`), state restoration on payout failure, double-settle rejection, and concurrent settlement isolation.
+  - **Bounty double-claim races** ([`tests/db/double-spend.test.ts`](tests/db/double-spend.test.ts)): verifies that concurrent submissions to the same bounty award exactly one payout, locking out race conditions before money moves.
+  - **Treasury drips & milestones** ([`tests/db/drips-race.test.ts`](tests/db/drips-race.test.ts), [`tests/db/economy.test.ts`](tests/db/economy.test.ts)): atomic sweeper claiming, dead-lettering of failed drips, welcome bonuses awarded on settlement rather than login, and recurring milestone multiples.
+  - **Inbound funding gate** ([`tests/db/inbound.test.ts`](tests/db/inbound.test.ts)): rejects fabricated transaction hashes, enforces minimum locked value, and verifies on-chain transaction proofs.
+  - **QR borrow-return settlement** ([`tests/db/qr-settle.test.ts`](tests/db/qr-settle.test.ts)): cryptographic token exchange, lender-key binding, replay attack prevention, and luna-precise amount matching.
+  - **Authentication & session derivation** ([`tests/db/auth.test.ts`](tests/db/auth.test.ts)): Ed25519 challenge-response handshake, single-use nonce consumption, and referral link binding.
+  - **Spoof regression guards** ([`tests/db/spoof-regression.test.ts`](tests/db/spoof-regression.test.ts)): unauthenticated mutation rejection, cross-account action prevention, and inbox privacy enforcement.
+  - **Trust Score v2** ([`tests/db/trust.test.ts`](tests/db/trust.test.ts)): verifies exact mathematical computation across completion, volume, tenure, and diversity metrics against a live database.
+  - **Cron & expiry** ([`tests/db/cron.test.ts`](tests/db/cron.test.ts)): automated deadline enforcement, cancellation mechanics, and lender-claim grace windows.
 
 ---
 
@@ -207,6 +240,7 @@ The full threat model — every attack we considered, its mitigation, and what r
 | **Database** | [Neon Postgres](https://neon.tech) (serverless) |
 | **AI Oracle** | Qwen3.6 vision via Hetzner Inference (OpenAI-compatible API) |
 | **QR Handshake** | `html5-qrcode`, `react-qr-code`, `qrcode.react` |
+| **Testing & CI** | Vitest, Testing Library, GitHub Actions CI |
 | **Deploy** | Vercel + scheduled cron |
 
 ---
@@ -214,6 +248,8 @@ The full threat model — every attack we considered, its mitigation, and what r
 ## Repository layout
 
 ```text
+.github/
+  workflows/ci.yml          GitHub Actions CI: typecheck, test suite, production build
 app/
   page.tsx                  presentation and marketing landing page
   app/page.tsx              the core Mini App: tabs, wallet state, all user flows
@@ -233,10 +269,15 @@ lib/
   contract.ts               contract model + protocol definitions
   identicon.ts              address-derived SVG avatars
   db.ts, trust.ts, milestones.ts, escrow.ts, settle.ts, notify.ts, idempotency.ts
+tests/                      automated test suite (154 tests across 24 files)
+  unit/lib/                 offline unit suites: math, qr, session, vision, vault
+  ui/                       component rendering and interaction tests
+  db/                       real PostgreSQL integration: settle, inbound, auth, trust
+  helpers/                  deterministic mocks, session minting, DB reset utilities
 docs/
   SECURITY.md               threat model: attack → mitigation → residual
   DEMO.md                   the 60-second script + recording walkthrough
-scripts/                    init-db + migrations (v2–v8)
+scripts/                    init-db + migrations (v2–v9)
 ```
 
 ---
@@ -252,11 +293,25 @@ npm install
 npm run dev
 ```
 
+### Running the tests
+
+```bash
+# Run unit & UI tests (offline, 0 keys / 0 DB required)
+npm run test:unit
+
+# Run real database integration tests (requires DATABASE_URL_TEST)
+DATABASE_URL_TEST="postgresql://..." npm run test:db
+
+# Run full test suite (154 tests)
+DATABASE_URL_TEST="postgresql://..." npm test
+```
+
 ### Environment variables
 
 | Variable | Purpose | Default / Description |
 |---|---|---|
 | `DATABASE_URL` | Neon Postgres connection string | `postgresql://...` |
+| `DATABASE_URL_TEST` | Test database connection string (used by test runner & CI) | `postgresql://...` |
 | `ENCRYPTION_KEY` | HMAC secret for session cookies (32+ chars) | Any strong 32-character secret |
 | `VAULT_SEED_PHRASE` | Vault hot-wallet mnemonic (holds escrowed + treasury NIM) | BIP-39 mnemonic seed phrase |
 | `NEXT_PUBLIC_VAULT_ADDRESS` | Public address of the protocol vault | `NQ86 845N NUJ3 88U4 2V9E DEDF XV8Y CFES 8RKT` |

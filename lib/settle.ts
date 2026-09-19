@@ -9,7 +9,7 @@ export async function claimEscrow(id: string): Promise<boolean> {
   if (!sql) return true; // mock mode
   const res = await sql`
     UPDATE escrows SET state = 'settling'
-    WHERE id = ${id} AND state = 'locked'
+    WHERE id = ${id} AND state IN ('locked', 'expired')
     RETURNING id
   `;
   return res.length > 0;
@@ -27,7 +27,14 @@ export async function finalizeEscrow(id: string) {
 export async function unclaimEscrow(id: string) {
   const sql = getSql();
   if (!sql) return;
-  await sql`UPDATE escrows SET state = 'locked' WHERE id = ${id} AND state = 'settling'`;
+  const now = Date.now();
+  // Restore the pre-claim state: past-deadline rows go back to expired
+  // (the lender-claim window), the rest to locked.
+  await sql`
+    UPDATE escrows
+    SET state = CASE WHEN deadline_at IS NOT NULL AND deadline_at < ${now} THEN 'expired' ELSE 'locked' END
+    WHERE id = ${id} AND state = 'settling'
+  `;
 }
 
 // ---------- Listings: open -> settling -> complete|open ----------
@@ -115,8 +122,12 @@ export async function settleAct(
   await insertAct({ ...act, txHashOut, settledAt: Date.now() });
   // 4. Referral drip: the actor's FIRST settled act pays their referrer.
   //    Best-effort — a treasury hiccup must never fail a settlement.
+  //    Idempotent per side (settleReferralReward skips paid sides), so every
+  //    settlement path funnels through here instead of a single route.
+  await settleReferralReward(act.actorAddress).catch((e) => console.error("referral drip failed:", e));
   // 5. Sweep the retry queue and award first-settlement milestone.
   import("./milestones").then((m) => {
+    m.checkAndAwardMilestone(act.actorAddress, "FIRST_CONNECTION").catch(() => {});
     m.checkAndAwardMilestone(act.actorAddress, "FIRST_SETTLED").catch(() => {});
     m.awardRecurring(act.actorAddress, "settle").catch(() => {});
     m.processPendingDrips().catch(() => {});

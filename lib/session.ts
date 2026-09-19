@@ -3,11 +3,19 @@ import { cookies } from "next/headers";
 
 const COOKIE = "acta_session";
 const TTL_MS = 7 * 24 * 3600 * 1000;
-// IMPORTANT: set ENCRYPTION_KEY in env (32+ chars). This dev fallback only keeps dev working.
-const SECRET = process.env.ENCRYPTION_KEY || "acta_dev_only_secret_change_before_deploy!!";
+function getSecret(): string {
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.ENCRYPTION_KEY &&
+    process.env.NEXT_PHASE !== "phase-production-build"
+  ) {
+    throw new Error("ENCRYPTION_KEY must be set in production (32+ random chars). Refusing to start.");
+  }
+  return process.env.ENCRYPTION_KEY || "acta_dev_only_secret_change_before_deploy!!";
+}
 
 function hmac(payload: string): string {
-  return crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
+  return crypto.createHmac("sha256", getSecret()).update(payload).digest("base64url");
 }
 
 export async function setSession(address: string): Promise<void> {

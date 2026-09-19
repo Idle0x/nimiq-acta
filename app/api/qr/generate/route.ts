@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionAddress } from "@/lib/session";
-import { getLenderKey, setLenderKey, hasDb } from "@/lib/db";
+import { getLenderKey, setLenderKey, hasDb, fetchEscrow, fetchListing } from "@/lib/db";
 import { generateLenderKeypair, createReturnPayload, signReturn } from "@/lib/qr";
 import * as crypto from "crypto";
 
@@ -34,6 +34,19 @@ export async function POST(req: Request) {
   
   const { escrowId, amount, chain } = await req.json();
   if (!escrowId || !amount || !chain) return NextResponse.json({ error: "escrowId, amount, chain required" }, { status: 400 });
+
+  // Ownership binding: a return token is only mintable by the lender/creator
+  // it releases FOR. Without this, any session could mint a valid token for
+  // someone else's escrow and settle it out from under them.
+  const escrow = await fetchEscrow(escrowId);
+  const subjectListing = escrow ? await fetchListing(escrow.listingId) : await fetchListing(escrowId);
+  const subjectOwner = escrow?.owner ?? subjectListing?.owner;
+  if (!escrow && !subjectListing) {
+    return NextResponse.json({ error: "Unknown escrow or listing" }, { status: 404 });
+  }
+  if (subjectOwner !== address) {
+    return NextResponse.json({ error: "Only the lender may mint return tokens" }, { status: 403 });
+  }
 
   let key = await getLenderKey(address);
   let privKeyHex = "";

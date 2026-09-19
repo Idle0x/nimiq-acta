@@ -1,9 +1,5 @@
 import { getSql } from "./db";
 
-// NOTE: also replace `ensureUser` in lib/db.ts with the upsert version at
-// the bottom of this file — first-time users currently never get a row,
-// so their trust score never persists.
-
 export async function computeAndUpdateTrustScore(address: string): Promise<number> {
   const sql = getSql();
   if (!sql) return 0;

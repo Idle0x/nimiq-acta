@@ -13,8 +13,15 @@ export async function POST(req: Request) {
   }
   const sql = getSql();
   if (!sql) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
-  const own = await sql`SELECT owner FROM listings WHERE id = ${listingId} LIMIT 1`;
-  if ((own[0] as any)?.owner === address) {
+  const target = await sql`SELECT owner, kind, state FROM listings WHERE id = ${listingId} LIMIT 1`;
+  if (target.length === 0) {
+    return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  }
+  const tKind = String((target[0] as Record<string, unknown> | undefined)?.kind ?? "");
+  if (tKind !== "bounty_venture" && tKind !== "bounty_manual") {
+    return NextResponse.json({ error: "Text-proof submissions are only for creator-verified challenges" }, { status: 400 });
+  }
+  if (String((target[0] as Record<string, unknown> | undefined)?.owner) === address) {
     return NextResponse.json({ error: "You cannot submit to your own challenge" }, { status: 403 });
   }
 

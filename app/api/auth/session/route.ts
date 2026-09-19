@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionAddress, setSession } from "@/lib/session";
-import { ensureDbSchema, ensureUser } from "@/lib/db";
+import { getSessionAddress } from "@/lib/session";
 
 export async function GET() {
   const address = await getSessionAddress();
@@ -8,19 +7,8 @@ export async function GET() {
   return NextResponse.json({ address });
 }
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json().catch(() => ({}));
-    const address = body?.address;
-    if (!address || typeof address !== "string" || !address.trim().startsWith("NQ")) {
-      return NextResponse.json({ error: "Valid Nimiq address required" }, { status: 400 });
-    }
-    const cleanAddress = address.trim();
-    await ensureDbSchema();
-    await setSession(cleanAddress);
-    await ensureUser(cleanAddress).catch(() => {});
-    return NextResponse.json({ ok: true, address: cleanAddress });
-  } catch (err) {
-    return NextResponse.json({ error: "Failed to establish session" }, { status: 500 });
-  }
-}
+// NOTE: an unsigned POST that minted sessions for any address used to live
+// here. It made every session-gated route spoofable (any public address could
+// be impersonated), so it was removed. Sessions are established ONLY via
+// POST /api/auth/verify with a wallet signature. Demo mode is read-only
+// client state and never receives a server session.

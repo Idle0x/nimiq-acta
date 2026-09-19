@@ -6,7 +6,8 @@ import {
 import type { Escrow, Listing } from "@/lib/escrow";
 import { getSessionAddress } from "@/lib/session";
 import { verifyReturn } from "@/lib/qr";
-import { newId, SETTLE_FEE_NIM, explorerTxUrl } from "@/lib/escrow";
+import { newId, SETTLE_FEE_NIM, explorerTxUrl, sameLunas, ESCROW_VAULT } from "@/lib/escrow";
+import { verifyInboundLock, shouldVerifyInbound } from "@/lib/backend-nimiq";
 import { awardRecurring, checkAndAwardMilestone } from "@/lib/milestones";
 import { claimEscrow, finalizeEscrow, unclaimEscrow, settleAct } from "@/lib/settle";
 
@@ -22,9 +23,10 @@ export async function GET() {
 
 export async function POST(req: Request) {
   await ensureDbSchema();
-  let address = await getSessionAddress();
+  // Identity comes ONLY from the signed session cookie. Client-supplied
+  // addresses are never trusted (they made every route impersonable).
+  const address = await getSessionAddress();
   const data = await req.json().catch(() => ({}));
-  if (!address && data.address) address = data.address;
   if (!address) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const sql = getSql();
   const idemKey: string | undefined = req.headers.get("idempotency-key") ?? data.idempotencyKey;
@@ -68,6 +70,23 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "You cannot accept your own listing" }, { status: 403 });
       }
     } catch { /* best-effort */ }
+
+      // Funding proof: the lock tx must exist on-chain, from the locker, to
+      // the vault, covering the amount. Client-asserted hashes are not money.
+      if (!e.txHash) {
+        return NextResponse.json({ error: "Lock transaction hash required" }, { status: 400 });
+      }
+      if (shouldVerifyInbound()) {
+        const proof = await verifyInboundLock({
+          txHash: e.txHash,
+          expectedSender: address,
+          expectedRecipient: ESCROW_VAULT,
+          minAmountLunas: BigInt(Math.round(e.amountNIM * 100_000)),
+        });
+        if (!proof.ok) {
+          return NextResponse.json({ error: `Lock not funded: ${proof.error}` }, { status: 400 });
+        }
+      }
 
       // Idempotency: a retried lock returns the already-recorded escrow.
       if (idemKey) {
@@ -127,6 +146,29 @@ export async function POST(req: Request) {
     if (!(listing.collateralNIM >= MIN_COL)) {
       return NextResponse.json({ error: `Minimum reward/collateral is ${MIN_COL} NIM (dust guard)` }, { status: 400 });
     }
+    // Bounties are funded at creation: the funding tx must be real, from the
+    // sponsor, to the vault. (Borrow listings lock nothing until accepted.)
+    if (listing.kind.startsWith("bounty")) {
+      if (!data.txHash) {
+        return NextResponse.json({ error: "Bounty funding transaction required" }, { status: 400 });
+      }
+      if (shouldVerifyInbound()) {
+        const { verifyInboundLock: verify } = await import("@/lib/backend-nimiq");
+        const proof = await verify({
+          txHash: data.txHash,
+          expectedSender: address,
+          expectedRecipient: ESCROW_VAULT,
+          minAmountLunas: BigInt(Math.round(listing.collateralNIM * 100_000)),
+        });
+        if (!proof.ok) {
+          return NextResponse.json({ error: `Bounty not funded: ${proof.error}` }, { status: 400 });
+        }
+      }
+    }
+    // Server-side expiry default so listings can never lock funds forever.
+    if (!listing.expiresAt) {
+      listing.expiresAt = Date.now() + 168 * 3600 * 1000;
+    }
 
     if (sql && idemKey) {
       const existing = await sql`SELECT payload FROM idempotent_actions WHERE key = ${idemKey}`;
@@ -169,14 +211,14 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  let address = await getSessionAddress();
+  // Session-only identity (see POST).
+  const address = await getSessionAddress();
   const body = (await req.json().catch(() => ({}))) as {
     id?: string;
     token?: string;
     lenderPubkey?: string;
     address?: string;
   };
-  if (!address && body.address) address = body.address;
   if (!address) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 });
   const sql = getSql();
@@ -210,7 +252,9 @@ export async function PATCH(req: Request) {
   // ---- Cryptographic release via signed QR token ----
   if (body.token) {
     const escrow = await fetchEscrow(body.id);
-    if (!escrow || escrow.state !== "locked") {
+    // Late returns still settle: an expired escrow whose item comes back
+    // releases to the borrower; only the lender-claim window ends that.
+    if (!escrow || (escrow.state !== "locked" && escrow.state !== "expired")) {
       return NextResponse.json({ error: "Invalid escrow state" }, { status: 400 });
     }
     if (!escrow.lenderPubkey) {
@@ -222,10 +266,11 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Invalid QR signature or expired" }, { status: 400 });
     }
     // Bind the token to THIS escrow: id + amount must match what was signed.
+    // Amounts compare as integer lunas — float strict-equality breaks on 2.5.
     if (payload.escrowId !== body.id) {
       return NextResponse.json({ error: "Token does not match this escrow" }, { status: 400 });
     }
-    if (payload.amount !== escrow.amountNIM) {
+    if (!sameLunas(payload.amount, escrow.amountNIM)) {
       return NextResponse.json({ error: "Token amount mismatch" }, { status: 400 });
     }
 
@@ -271,7 +316,7 @@ export async function PATCH(req: Request) {
     try {
       const { notify } = await import("@/lib/notify");
       await notify(escrow.borrower, "released", "Collateral released",
-        `${(escrow.amountNIM - escrow.feeNIM).toLocaleString()} NIM returned to your vault.`,
+        `${(escrow.amountNIM - SETTLE_FEE_NIM).toLocaleString()} NIM returned to your vault.`,
         explorerTxUrl(result.txHashOut));
       if (sql) {
         const lrows = await sql`SELECT owner FROM listings WHERE id = ${escrow.listingId} LIMIT 1`;

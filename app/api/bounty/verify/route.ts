@@ -3,6 +3,7 @@ import { getSql } from "@/lib/db";
 import { getSessionAddress } from "@/lib/session";
 import { verifyBountyPhoto, OracleError } from "@/lib/vision";
 import { executeVaultPayout } from "@/lib/backend-nimiq";
+import { claimListing, finalizeListing, unclaimListing } from "@/lib/settle";
 import { SETTLE_FEE_NIM, explorerTxUrl } from "@/lib/escrow";
 import { notify } from "@/lib/notify";
 import { beginIdempotent } from "@/lib/idempotency";
@@ -59,22 +60,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ pass: false, reason: verdict.reason, model: process.env.VISION_MODEL });
   }
 
-  // 2. Payout first — money moves before any state claims it moved.
-  const feeNIM = SETTLE_FEE_NIM;
-  const txHash = await executeVaultPayout(address, amountNIM - feeNIM, feeNIM, `Acta: AI Vision reward for "${String(l.title)}"`);
+  // 2. Claim FIRST (atomic): exactly one settler proceeds. Everyone else is
+  //    told "already settled" BEFORE any money moves — payout never precedes
+  //    the flip, so concurrent passes cannot double-spend the treasury.
+  if (!(await claimListing(listingId))) {
+    return NextResponse.json({ pass: true, reason: verdict.reason, note: "already settled" });
+  }
 
-  // 3. Atomic transitions. Listing flip is authoritative (bounties are funded
-  // via the listing lock); the per-completer escrow row is best-effort.
+  // 3. Payout. On broadcast failure the claim is released so the bounty stays
+  //    open and retryable instead of stuck in settling.
+  const feeNIM = SETTLE_FEE_NIM;
+  let txHash: string;
+  try {
+    txHash = await executeVaultPayout(address, amountNIM - feeNIM, feeNIM, `Acta: AI Vision reward for "${String(l.title)}"`);
+  } catch (e) {
+    await unclaimListing(listingId);
+    throw e;
+  }
+
+  // 4. Finalize the claimed listing; per-completer escrow row is best-effort.
   try {
     await sql`
       UPDATE escrows SET state = 'released', progress = 'verified', tx_hash_out = ${txHash}
       WHERE listing_id = ${listingId} AND completer = ${address} AND state = 'locked'
     `;
   } catch { /* no escrow row for direct listing locks — listing flip below still settles */ }
-  const listingRows = await sql`UPDATE listings SET is_active = FALSE, state = 'complete' WHERE id = ${listingId} AND is_active = TRUE RETURNING id`;
-  if (listingRows.length === 0) {
-    return NextResponse.json({ pass: true, reason: verdict.reason, txHash, note: "already settled" });
-  }
+  await finalizeListing(listingId);
 
   // 4. Act + trust + notifications.
   const actId = crypto.randomUUID();

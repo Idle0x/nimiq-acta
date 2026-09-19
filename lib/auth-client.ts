@@ -22,8 +22,18 @@ export async function ensureAuthed(
 
   const probe = await fetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
   if (probe && probe.ok) {
-    cachedFor = address;
-    return true;
+    // The session must belong to THIS address — a stale session for a
+    // different account must re-auth, not silently act as the wrong identity.
+    try {
+      const who = ((await probe.json()) as { address?: string })?.address;
+      if (who === address) {
+        cachedFor = address;
+        return true;
+      }
+    } catch {
+      cachedFor = address;
+      return true;
+    }
   }
 
   try {

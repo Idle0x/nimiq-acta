@@ -45,7 +45,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       },
       sponsor: {
         address: owner,
-        trustScore: user?.trustScore ?? 80,
+        // Dev-mem mode has no trust history — 0, never a flattering default.
+        trustScore: user?.trustScore ?? 0,
         joinedAt: user?.joinedAt ?? Date.now() - 86400000 * 14,
         actsCount: ownerActs.length,
         settledVolume: ownerActs.reduce((s, a) => s + (a.amountNIM || 0), 0),

@@ -91,12 +91,22 @@ export const VAULT_FEE_NIM = 0.001;
 export const SETTLE_FEE_NIM = VAULT_FEE_NIM + MIN_NETWORK_FEE_NIM;
 /** Dust guard: nothing locks below this. */
 export const MIN_COLLATERAL_NIM = 0.01;
+/** Grace after an escrow deadline before the lender may claim an unreturned lock. */
+export const LENDER_CLAIM_GRACE_MS = 48 * 3600 * 1000;
 
 // Trust score -> collateral discount. 0..100 maps to 0..30% off, floor 70%.
+// Rounded to whole lunas (never whole NIM — sub-NIM locks are first-class),
+// floored at the dust guard so a discount can never push a lock below minimum.
 export function discountedCollateral(baseNIM: number, trustScore: number) {
   const clamped = Math.max(0, Math.min(100, trustScore));
   const factor = 1 - clamped * 0.003;
-  return Math.max(Math.round(baseNIM * Math.max(0.7, factor)), 1);
+  const raw = baseNIM * Math.max(0.7, factor);
+  return Math.max(Math.round(raw * 100_000) / 100_000, MIN_COLLATERAL_NIM);
+}
+
+/** Compare NIM amounts the way money should be compared: as integer lunas. */
+export function sameLunas(a: number, b: number): boolean {
+  return Math.round(a * 100_000) === Math.round(b * 100_000);
 }
 
 export function newId(prefix: string): string {

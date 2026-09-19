@@ -72,7 +72,11 @@ function deriveVaultKeyPair(): Nimiq.KeyPair {
 
 /** Live vault balance in NIM — used by the dashboard so the treasury card reconciles with the chain. */
 export async function getVaultBalanceNIM(): Promise<number> {
-  if (!process.env.VAULT_SEED_PHRASE) return 42500;
+  if (!process.env.VAULT_SEED_PHRASE) {
+    // Dev only: a placeholder so the treasury card renders. Never a real number.
+    if (process.env.NODE_ENV === "production") return 0;
+    return 42500;
+  }
   try {
     const sender = deriveVaultKeyPair().publicKey.toAddress().toUserFriendlyAddress();
     const balanceLunas = BigInt((await rpcCall("getAccountByAddress", [sender]))?.balance ?? "0");
@@ -90,6 +94,9 @@ export async function executeVaultPayout(
 ): Promise<string> {
   return enqueue(async () => {
     if (!process.env.VAULT_SEED_PHRASE) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("VAULT_SEED_PHRASE not configured — refusing to simulate a settlement in production.");
+      }
       console.warn("VAULT_SEED_PHRASE not set — simulating vault payout for dev/testing");
       return "0x" + Array.from(crypto.getRandomValues(new Uint8Array(32))).map((b) => b.toString(16).padStart(2, "0")).join("");
     }
@@ -133,4 +140,74 @@ export async function executeVaultPayout(
     }
     return txHash;
   });
+}
+
+/**
+ * Whether inbound funding must be proven on-chain before recording.
+ * Always in production. In dev, only when a real vault is configured —
+ * simulated-vault dev mode has no chain to prove against.
+ */
+export function shouldVerifyInbound(): boolean {
+  if (process.env.NODE_ENV === "production") return true;
+  return !!process.env.VAULT_SEED_PHRASE;
+}
+
+/**
+ * Inbound funding verification (read-only RPC, no keys needed).
+ * Before the protocol records a lock or a funded bounty, it MUST prove the
+ * funder actually moved the money: the tx must exist on-chain, come FROM the
+ * claimed locker, go TO the vault, and carry at least the expected lunas.
+ * Without this, anyone can register client-asserted funding and the treasury
+ * later pays out against money that never arrived.
+ */
+export async function verifyInboundLock(args: {
+  txHash: string;
+  expectedSender: string;
+  expectedRecipient: string;
+  minAmountLunas: bigint;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const cleanHash = (args.txHash || "").trim().replace(/^0x/, "");
+  if (!cleanHash) return { ok: false, error: "Missing lock transaction hash" };
+  let tx: unknown;
+  try {
+    tx = await rpcCall("getTransactionByHash", [cleanHash]);
+  } catch (e) {
+    return { ok: false, error: `Lock transaction not found on-chain: ${(e as Error)?.message ?? e}` };
+  }
+  if (!tx || typeof tx !== "object") {
+    return { ok: false, error: "Lock transaction not found on-chain" };
+  }
+  const t = tx as Record<string, unknown>;
+  const norm = (a: unknown) => String(a ?? "").replace(/\s+/g, "").toUpperCase();
+  // Nimiq RPC shape: { hash, from, to, value (lunas, number), networkId,
+  // executionResult }. Aliases kept for RPC-shape drift.
+  const sender = norm(t.sender ?? t.from);
+  const recipient = norm(t.recipient ?? t.to);
+  const hash = norm(t.hash ?? t.transactionHash ?? cleanHash);
+  if (hash !== norm(cleanHash)) {
+    return { ok: false, error: "Lock transaction hash mismatch" };
+  }
+  if (t.executionResult === false) {
+    return { ok: false, error: "Lock transaction failed on-chain" };
+  }
+  const expectedNetwork = parseInt(process.env.NIMIQ_NETWORK_ID || "24", 10);
+  if (typeof t.networkId === "number" && t.networkId !== expectedNetwork) {
+    return { ok: false, error: "Lock transaction is on the wrong network" };
+  }
+  if (sender !== norm(args.expectedSender)) {
+    return { ok: false, error: "Lock transaction was not sent by the locker" };
+  }
+  if (recipient !== norm(args.expectedRecipient)) {
+    return { ok: false, error: "Lock transaction did not pay the protocol vault" };
+  }
+  let valueLunas = BigInt(0);
+  try {
+    valueLunas = BigInt((t.value ?? t.amount ?? 0) as string | number | bigint);
+  } catch {
+    return { ok: false, error: "Lock transaction value unreadable" };
+  }
+  if (valueLunas < args.minAmountLunas) {
+    return { ok: false, error: "Lock transaction value below the locked amount" };
+  }
+  return { ok: true };
 }

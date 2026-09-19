@@ -17,14 +17,10 @@ function dayBefore(day: string): string {
 }
 
 /** Claim today's 1 NIM check-in. One per address per UTC day. */
-export async function POST(req: Request) {
-  let address = await getSessionAddress();
-  if (!address) {
-    try {
-      const body = await req.clone().json().catch(() => ({}));
-      if (body?.address && typeof body.address === "string") address = body.address;
-    } catch { /* ignore */ }
-  }
+export async function POST(_req: Request) {
+  // Session-only: the unsigned body.address fallback let anyone drip treasury
+  // funds to arbitrary addresses with zero proof of identity.
+  const address = await getSessionAddress();
   if (!address) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const sql = getSql();
   const day = utcDay();

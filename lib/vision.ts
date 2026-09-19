@@ -69,6 +69,9 @@ function extractJson<T>(text: string): T | null {
 
 async function callVision(system: string, userText: string, imageUrl?: string): Promise<string> {
   if (!process.env.OPENAI_API_KEY) {
+    if (process.env.NODE_ENV === "production") {
+      throw new OracleError("Vision oracle not configured — proof cannot be judged right now");
+    }
     console.warn("OPENAI_API_KEY not set — providing simulated vision oracle verdict for testing");
     if (system.includes("pre-screener")) {
       return JSON.stringify({ recommendation: "approve", confidence: 92, reason: "Submission clearly matches criteria (test mode)" });
@@ -80,15 +83,22 @@ async function callVision(system: string, userText: string, imageUrl?: string): 
   const client = visionClient();
   const content: any[] = [{ type: "text", text: userText }];
   if (imageUrl) content.push({ type: "image_url", image_url: { url: imageUrl } });
-  const res = await client.chat.completions.create({
-    model: VISION_MODEL,
-    max_tokens: 200,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content },
-    ],
-  });
-  return res.choices[0]?.message?.content?.trim() ?? "";
+  let raw: string;
+  try {
+    const res = await client.chat.completions.create({
+      model: VISION_MODEL,
+      max_tokens: 200,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content },
+      ],
+    });
+    raw = res.choices[0]?.message?.content?.trim() ?? "";
+  } catch (e) {
+    // Transport failure is an oracle ERROR (retryable), never a verdict.
+    throw new OracleError(`Oracle unreachable: ${(e as Error)?.message ?? e}`);
+  }
+  return raw;
 }
 
 /**

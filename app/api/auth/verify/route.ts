@@ -95,7 +95,7 @@ export async function POST(req: Request) {
   }
 
   await setSession(address);
-  const { checkAndAwardMilestone } = await import("@/lib/milestones");
-  checkAndAwardMilestone(address, "FIRST_CONNECTION").catch(() => {});
+  // No milestone drip here: the welcome reward fires on first SETTLEMENT
+  // (settleAct), never on login — logins are free, settlements are not.
   return NextResponse.json({ address });
 }
