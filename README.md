@@ -52,7 +52,7 @@ Every community that pays strangers for outcomes hits the same wall: a streamer 
 
 ## Watch it work
 
-A 60-second recorded demo is the fastest way to see the whole protocol: [Watch the Demo Video](https://youtu.be/eLxVdYTx0Lo) (full script in [`docs/DEMO.md`](docs/DEMO.md)). What to watch for:
+A 60-second recorded demo is the fastest way to see the whole protocol: [Watch the Demo Video](https://youtu.be/eLxVdYTx0Lo) ([`docs/DEMO.md`](docs/DEMO.md)). What to watch for:
 
 1. **Native Nimiq Pay signing:** The wallet initiates locks and claims directly through the `@nimiq/mini-app-sdk`.
 2. **Multi-oracle verification:** Proofs are evaluated in real time (AI vision analysis, Ed25519 QR handshake, Haversine GPS check-in).
@@ -177,7 +177,7 @@ The full threat model — every attack we considered, its mitigation, and what r
 - **Replay protection:** QR and ScanQuest nonces are consumed in the database; tokens are bound to escrow ID, amount, and chain, with a 10-minute expiry ([`lib/qr.ts#L41-L54`](https://github.com/Idle0x/nimiq-acta/blob/main/lib/qr.ts#L41-L54) & [`lib/db.ts#L123`](https://github.com/Idle0x/nimiq-acta/blob/main/lib/db.ts#L123)).
 - **Payout-before-state:** money moves first; the atomic state flip happens after. A failed flip after a successful payout is retryable, never stranded ([`lib/settle.ts#L60-L95`](https://github.com/Idle0x/nimiq-acta/blob/main/lib/settle.ts#L60-L95)).
 - **Idempotency:** clients send an `Idempotency-Key` header per action; retries and double-taps return the original cached result ([`lib/idempotency.ts`](https://github.com/Idle0x/nimiq-acta/blob/main/lib/idempotency.ts)).
-- **Expiry is enforced:** an hourly cron expires open listings — refunding sponsors — and auto-refunds escrows past deadline, notifying both parties ([`app/api/cron/expire/route.ts`](https://github.com/Idle0x/nimiq-acta/blob/main/app/api/cron/expire/route.ts)).
+- **Expiry is enforced:** a daily cron expires open listings — refunding sponsors — and auto-refunds escrows past deadline, notifying both parties ([`app/api/cron/expire/route.ts`](https://github.com/Idle0x/nimiq-acta/blob/main/app/api/cron/expire/route.ts)).
 - **Honest hot wallet:** the vault key lives in an environment variable on the server. Users trust the backend to disburse on verified proof; every disbursement is a public transaction on Albatross ([`lib/backend-nimiq.ts#L87-L136`](https://github.com/Idle0x/nimiq-acta/blob/main/lib/backend-nimiq.ts#L87-L136)).
 
 ---
@@ -192,7 +192,7 @@ The full threat model — every attack we considered, its mitigation, and what r
 | **Completeness** | Contracts with deadlines and refunds, inbox, passport dashboard with listings/activity/collection, profiles, referrals, treasury card |
 | **Error Handling** | Oracle errors are retryable 502s (never fake verdicts); wallet rejection gets its own message; init timeout falls back to read-only mode; every async view has a skeleton |
 | **Speed** | Skeleton states, optimistic updates, server-cached session checks, engraved UI with zero blocking fetches on tab switch |
-| **Stability** | Idempotent actions, atomic state transitions, cron-driven expiry, 154 automated tests across 24 suites (63 unit/UI + 91 database integration) — see [Automated test suite](#automated-test-suite) and [`docs/SECURITY.md`](docs/SECURITY.md) |
+| **Stability** | Idempotent actions, atomic state transitions, cron-driven expiry, 264 automated tests across 27 suites (173 unit/UI + 91 database integration) — see [Automated test suite](#automated-test-suite) and [`docs/SECURITY.md`](docs/SECURITY.md) |
 | **Target Audience** | Three-screen onboarding; contracts written in plain language; every screen explains itself in one marginalia line |
 | **Repeat Value** | Trust score that lowers collateral, settled-act streaks, collectible stamps, leaderboard, treasury-funded milestones, referrals |
 
@@ -200,14 +200,14 @@ The full threat model — every attack we considered, its mitigation, and what r
 
 ## Automated test suite
 
-Acta includes an automated test suite of **154 tests across 24 files** (63 offline unit/UI tests and 91 real database integration tests) verifying money math, cryptographic nonces, concurrency races, and state machines.
+Acta includes an automated test suite of **264 tests across 27 files** (173 offline unit/UI tests and 91 real database integration tests) verifying money math, cryptographic nonces, concurrency races, and state machines.
 
 ```text
-Test Files  24 passed (24)
-     Tests  154 passed (154)
+Test Files  27 passed (27)
+     Tests  264 passed (264)
 ```
 
-- **63 Offline Unit & UI tests** (`tests/unit/`, `tests/ui/`): deterministic, fast, zero-dependency suites:
+- **173 Offline Unit & UI tests** (`tests/unit/`, `tests/ui/`): deterministic, fast, zero-dependency suites:
   - **Ed25519 & QR signatures** ([`tests/unit/lib/qr.test.ts`](tests/unit/lib/qr.test.ts)): signature generation, verification, tamper resistance, expiry windows, and single-use nonce uniqueness.
   - **Escrow & money math** ([`tests/unit/lib/escrow-math.test.ts`](tests/unit/lib/escrow-math.test.ts)): whole and fractional NIM conversions, fee rounding, and collateral ratios.
   - **Contract engine** ([`tests/unit/lib/contract.test.ts`](tests/unit/lib/contract.test.ts)): contract schema validation, oracle routing, and 48-hour auto-refund logic.
@@ -215,6 +215,9 @@ Test Files  24 passed (24)
   - **Vault backend** ([`tests/unit/lib/backend-nimiq.test.ts`](tests/unit/lib/backend-nimiq.test.ts)): balance threshold checks, serialized payout queues, and simulated development fallbacks.
   - **Session management** ([`tests/unit/lib/session.test.ts`](tests/unit/lib/session.test.ts)): HMAC-SHA256 cookie signing, tamper rejection, expiry checks, and address derivation.
   - **UI components** ([`tests/ui/manual-verify.test.tsx`](tests/ui/manual-verify.test.tsx)): manual verification guards, QR rendering states, and visual feedback payoffs.
+  - **Economics & consensus boundaries** ([`tests/unit/lib/phase1-verification.test.ts`](tests/unit/lib/phase1-verification.test.ts)): fractional decimal precision, luna conversion, and strict Nimiq 64-byte UTF-8 consensus message length enforcement across repeated test sweeps.
+  - **Oracle token lifecycles & payloads** ([`tests/unit/lib/phase2-verification.test.ts`](tests/unit/lib/phase2-verification.test.ts)): Ed25519 return token mint/verify cycles, replay prevention, and vision oracle error propagation across repeated test sweeps.
+  - **Stamps, referral linkages & identity keying** ([`tests/unit/lib/phase3-verification.test.ts`](tests/unit/lib/phase3-verification.test.ts)): dual-side referral key uniqueness, stamp verification, and eligibility rules across repeated test sweeps.
 
 - **91 Real Postgres Database integration tests** (`tests/db/`): route and protocol tests executed against real PostgreSQL (via Neon serverless):
   - **Fractional column storage** ([`tests/db/columns.test.ts`](tests/db/columns.test.ts)): verifies `DOUBLE PRECISION` columns preserve fractional NIM amounts and fee decimals without rounding truncation.
@@ -268,15 +271,15 @@ lib/
   session.ts                HMAC-SHA256 session cookies
   contract.ts               contract model + protocol definitions
   identicon.ts              address-derived SVG avatars
-  db.ts, trust.ts, milestones.ts, escrow.ts, settle.ts, notify.ts, idempotency.ts
-tests/                      automated test suite (154 tests across 24 files)
+  db.ts, trust.ts, milestones.ts, escrow.ts, settle.ts, notify.ts, idempotency.ts, image.ts
+tests/                      automated test suite (264 tests across 27 files)
   unit/lib/                 offline unit suites: math, qr, session, vision, vault
   ui/                       component rendering and interaction tests
   db/                       real PostgreSQL integration: settle, inbound, auth, trust
   helpers/                  deterministic mocks, session minting, DB reset utilities
 docs/
   SECURITY.md               threat model: attack → mitigation → residual
-  DEMO.md                   the 60-second script + recording walkthrough
+  DEMO.md                   demo walkthrough + recording guide
 scripts/                    init-db + migrations (v2–v9)
 ```
 
@@ -302,7 +305,7 @@ npm run test:unit
 # Run real database integration tests (requires DATABASE_URL_TEST)
 DATABASE_URL_TEST="postgresql://..." npm run test:db
 
-# Run full test suite (154 tests)
+# Run full test suite (264 tests)
 DATABASE_URL_TEST="postgresql://..." npm test
 ```
 
@@ -322,7 +325,7 @@ DATABASE_URL_TEST="postgresql://..." npm test
 | `NIMIQ_NETWORK_ID` | Nimiq Network ID | `24` (Albatross Testnet) |
 | `CRON_SECRET` | Bearer token guarding `/api/cron/expire` | Custom secret string |
 
-Deploy to Vercel, configure the environment variables, and the hourly expiry cron will be configured automatically by `vercel.json`. For development, fund the vault with testnet NIM and connect Nimiq Pay's testnet.
+Deploy to Vercel, configure the environment variables, and the daily expiry cron will be configured automatically by `vercel.json`. For development, fund the vault with testnet NIM and connect Nimiq Pay's testnet.
 
 ---
 

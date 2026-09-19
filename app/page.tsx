@@ -11,9 +11,62 @@ import {
   Marginalia,
   Kicker,
 } from "@/components/Paper";
-import { Lock, Scan, Unlock, Eye, MapPin, UserCheck, ArrowUpRight } from "lucide-react";
+import { Lock, Scan, Unlock, Eye, MapPin, UserCheck, ArrowUpRight, Calendar, Award, Share2, Coins, History, ShieldCheck } from "lucide-react";
 
 const HEADLINE = ["Money", "moves", "when", "reality", "changes."];
+
+const RITES = [
+  {
+    num: "I",
+    title: "Daily Vigil & Continuous Streaks",
+    tag: "Attestation of Presence",
+    icon: Calendar,
+    summary: "Mark daily physical presence with a single tap to build unbroken calendar streaks.",
+    privilege: "Honors active network participants with compounding streak attestation. Maintaining continuous daily attendance unlocks periodic treasury honorariums and boosts your tenure weight across all protocol calculations.",
+    route: "/app?tab=passport",
+    actionText: "Verify Daily Attendance",
+  },
+  {
+    num: "II",
+    title: "Sovereign Proof Stamps",
+    tag: "Verifiable Deed Insignias",
+    icon: Award,
+    summary: "Mint permanent cryptographic seals directly onto your Acta Passport for verified actions.",
+    privilege: "Every completed deed — from custody returns to vision-judged tasks and quest discoveries — etches an undeniable badge into the ledger. These seals directly elevate your Trust Score, granting up to 50% collateral discounts on future borrowings.",
+    route: "/app?tab=passport",
+    actionText: "Inspect Collection",
+  },
+  {
+    num: "III",
+    title: "Herald's Call & Peer Covenants",
+    tag: "Reciprocal Community Bonds",
+    icon: Share2,
+    summary: "Onboard peers via your unique cryptographic referral covenant link.",
+    privilege: "When an invited peer settles their inaugural deed, the protocol treasury pays autonomous grants to both counterparty wallets simultaneously. A reciprocal pact ensuring collective expansion is mutually endowed.",
+    route: "/app?tab=passport",
+    actionText: "Invite Counterparties",
+  },
+  {
+    num: "IV",
+    title: "Autonomous Milestone Drips",
+    tag: "Treasury Performance Grants",
+    icon: Coins,
+    summary: "Unlock milestone rewards as your covenant volume and track record mature.",
+    privilege: "The protocol fee treasury continuously reinvests in its participants. Achieving career milestones — your first lock, first settlement, volume thresholds, or dispute-free loan records — triggers direct, autonomous grants from the vault reserve.",
+    route: "/app?tab=passport",
+    actionText: "Track Milestones",
+  },
+  {
+    num: "V",
+    title: "The Immutable Deed Scroll",
+    tag: "Mathematical Memory",
+    icon: History,
+    summary: "An undeniable, explorer-linked ledger of every transaction and verdict.",
+    privilege: "No central database can wipe or fabricate your integrity. Every act records its cryptographic nonces, oracle proof JSON, and on-chain transaction hashes. A portable proof-of-action resume valid across the decentralized web.",
+    route: "/app?tab=active",
+    actionText: "Examine Public Registers",
+  },
+];
 
 const ORACLES = [
   {
@@ -72,12 +125,20 @@ const DOCTRINE = [
 
 export default function Landing() {
   const [data, setData] = useState<any>(null);
+  const [activeRite, setActiveRite] = useState<number>(0);
 
   useEffect(() => {
     fetch("/api/dashboard", { cache: "no-store" })
       .then((r) => r.json())
       .then(setData)
       .catch(() => {});
+
+    try {
+      if (typeof window !== "undefined") {
+        const ref = new URLSearchParams(window.location.search).get("ref");
+        if (ref) localStorage.setItem("acta_ref", ref);
+      }
+    } catch {}
   }, []);
 
   const s = data?.stats;
@@ -98,6 +159,7 @@ export default function Landing() {
             <a href="#doctrine" className="hover:text-[var(--gold)] transition-colors">Doctrine</a>
             <a href="#oracles" className="hover:text-[var(--gold)] transition-colors">Oracles</a>
             <a href="#ledger" className="hover:text-[var(--gold)] transition-colors">Ledger</a>
+            <a href="#privileges" className="hover:text-[var(--gold)] transition-colors">Privileges</a>
           </nav>
           <PressLink href="/app" className="!px-5 !py-2.5 !text-xs">
             Enter the Protocol
@@ -314,6 +376,139 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ================= SOVEREIGN PRIVILEGES ================= */}
+      <section id="privileges" className="px-6 py-24 border-t border-[var(--line)] bg-[color-mix(in_srgb,var(--surface)_40%,transparent)]">
+        <div className="mx-auto max-w-5xl">
+          <Reveal>
+            <Kicker index="§ 5">The Sovereign Privileges</Kicker>
+            <h2 className="h-display text-4xl sm:text-5xl mt-4 text-[var(--ink)]">
+              Honorariums of the Perpetual Ledger.
+            </h2>
+            <Marginalia className="mt-4 max-w-xl">
+              Beyond escrow settlements, Acta actively endows continuous participation. The protocol fee treasury autonomously disburses performance grants, streak honorariums, and reputation privileges across five sovereign rites.
+            </Marginalia>
+          </Reveal>
+
+          {/* Interactive Folio Selector */}
+          <div className="mt-12 grid lg:grid-cols-12 gap-8 items-stretch">
+            {/* Left: Illuminated Rite Navigation */}
+            <div className="lg:col-span-5 flex flex-col gap-2.5">
+              {RITES.map((rite, idx) => {
+                const Icon = rite.icon;
+                const isActive = activeRite === idx;
+                return (
+                  <button
+                    key={rite.num}
+                    onClick={() => setActiveRite(idx)}
+                    className={`text-left p-4 rounded-2xl border transition-all duration-300 flex items-start gap-3.5 group ${
+                      isActive
+                        ? "bg-[color-mix(in_srgb,var(--surface)_85%,var(--gold)_15%)] border-[var(--gold)] shadow-[0_4px_20px_rgba(212,175,55,0.12)] translate-x-1"
+                        : "bg-[var(--surface)]/60 border-[var(--line)]/15 hover:border-[var(--line)]/30 hover:bg-[var(--surface)]"
+                    }`}
+                  >
+                    <div
+                      className={`p-2.5 rounded-xl transition-colors ${
+                        isActive
+                          ? "bg-[var(--gold)] text-[#1c1508]"
+                          : "bg-[var(--surface2)] text-[var(--ink3)] group-hover:text-[var(--ink)]"
+                      }`}
+                    >
+                      <Icon size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="caps text-[8.5px] font-bold tracking-wider text-[var(--gold)]">
+                          Rite {rite.num} · {rite.tag}
+                        </span>
+                        {isActive && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
+                        )}
+                      </div>
+                      <h4 className="font-serif text-base font-bold text-[var(--ink)] mt-0.5 truncate">
+                        {rite.title}
+                      </h4>
+                      <p className="text-[11.5px] text-[var(--ink3)] mt-1 line-clamp-1 leading-snug">
+                        {rite.summary}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right: Illuminated Parchment Folio Detail */}
+            <div className="lg:col-span-7 flex">
+              <Plate className="p-6 sm:p-8 flex flex-col justify-between w-full border-[var(--gold)]/30 bg-gradient-to-b from-[var(--surface)] to-[color-mix(in_srgb,var(--surface)_92%,var(--gold)_8%)] relative overflow-hidden">
+                {/* Background Watermark */}
+                <div
+                  className="absolute -right-8 -bottom-8 font-serif text-9xl text-[var(--gold)]/5 select-none pointer-events-none"
+                  aria-hidden
+                >
+                  {RITES[activeRite].num}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-4 border-b border-[var(--line)]/15 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-2xl bg-[var(--gold)]/15 text-[var(--gold)] border border-[var(--gold)]/30">
+                        {(() => {
+                          const ActiveIcon = RITES[activeRite].icon;
+                          return <ActiveIcon size={24} />;
+                        })()}
+                      </div>
+                      <div>
+                        <span className="caps text-[8px] text-[var(--gold)] font-bold tracking-widest block">
+                          Rite {RITES[activeRite].num} · {RITES[activeRite].tag}
+                        </span>
+                        <h3 className="font-display text-2xl font-bold text-[var(--ink)] mt-0.5">
+                          {RITES[activeRite].title}
+                        </h3>
+                      </div>
+                    </div>
+                    <span className="font-mono text-xs text-[var(--gold2)] font-bold px-2.5 py-1 rounded-full bg-[var(--gold)]/10 border border-[var(--gold)]/20">
+                      Treasury Endowed
+                    </span>
+                  </div>
+
+                  <div className="py-6 space-y-4">
+                    <div>
+                      <p className="caps text-[8px] tracking-wider text-[var(--ink3)] font-bold mb-1.5">
+                        Ceremonial Function
+                      </p>
+                      <p className="text-sm font-serif italic leading-relaxed text-[var(--ink2)]">
+                        “{RITES[activeRite].summary}”
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-[color-mix(in_srgb,var(--ink)_4%,transparent)] border-l-2 border-[var(--gold)]">
+                      <p className="caps text-[8px] tracking-wider text-[var(--gold)] font-bold mb-1.5">
+                        Protocol Privilege & Perpetual Reward
+                      </p>
+                      <p className="text-[13px] leading-relaxed text-[var(--ink)]">
+                        {RITES[activeRite].privilege}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-[var(--line)]/15 flex items-center justify-between gap-4 flex-wrap">
+                  <p className="marginalia text-[11px]">
+                    Autonomous disbursals powered by the on-chain vault reserve.
+                  </p>
+                  <a
+                    href={RITES[activeRite].route}
+                    className="press !py-2.5 !px-5 rounded-xl text-xs font-bold inline-flex items-center gap-2"
+                  >
+                    <span>{RITES[activeRite].actionText}</span>
+                    <ArrowUpRight size={13} />
+                  </a>
+                </div>
+              </Plate>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ================= FINAL CTA ================= */}
       <section className="px-6 py-28 text-center border-t border-[var(--line)]">
         <div className="mx-auto max-w-2xl">
@@ -339,7 +534,7 @@ export default function Landing() {
       <section className="px-6 py-32 bg-[color-mix(in_srgb,var(--surface)_30%,transparent)] border-t border-[var(--line)]">
         <div className="mx-auto max-w-5xl">
           <Reveal>
-            <Kicker index="§ 5">Unwrapping the Protocol</Kicker>
+            <Kicker index="§ 6">Unwrapping the Protocol</Kicker>
             <h2 className="h-display text-4xl sm:text-5xl mt-4 text-[var(--ink)] max-w-2xl">
               Nimiq at the core. Reality at the edge.
             </h2>

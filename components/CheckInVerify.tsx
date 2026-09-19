@@ -18,12 +18,8 @@ export default function CheckInVerify({ listingId, onSuccess }: { listingId: str
   }, [listingId]);
 
   async function fileToDataUrl(f: File): Promise<string> {
-    const buf = await f.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    let bin = "";
-    const chunk = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
-    return `data:${f.type || "image/jpeg"};base64,${btoa(bin)}`;
+    const { fileToOptimizedDataUrl } = await import("@/lib/image");
+    return fileToOptimizedDataUrl(f);
   }
 
   async function handleCheckIn() {

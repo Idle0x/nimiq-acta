@@ -119,11 +119,17 @@ export async function executeVaultPayout(
     const blockHeight = await rpcCall("getBlockNumber", []);
     if (typeof blockHeight !== "number") throw new Error("Failed to fetch block number from RPC");
 
-    const cleanMsg = (message?.trim() || "Acta Protocol: Settlement Release").slice(0, 128);
+    const rawMsg = message?.trim() || "Acta Protocol: Settlement Release";
+    const encoder = new TextEncoder();
+    let msgBytes = encoder.encode(rawMsg);
+    if (msgBytes.length > 64) {
+      const decoder = new TextDecoder("utf-8");
+      msgBytes = encoder.encode(decoder.decode(msgBytes.subarray(0, 64)).replace(/\uFFFD/g, ""));
+    }
     const tx = Nimiq.TransactionBuilder.newBasicWithData(
       sender,
       recipient,
-      new TextEncoder().encode(cleanMsg),
+      msgBytes,
       valueLunas,
       feeLunas,
       blockHeight,

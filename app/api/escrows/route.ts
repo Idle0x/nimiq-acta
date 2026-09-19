@@ -34,13 +34,23 @@ export async function POST(req: Request) {
   // ---- Escrow creation (borrow locks & bounty accepts) ----
   if (data.type === "escrow") {
     const e = data.payload as Escrow;
+    let isBounty = false;
     if (sql) {
       // Listing must be live: closed/expired/completed listings accept nothing.
-      const live = await sql`SELECT is_active, state FROM listings WHERE id = ${e.listingId} LIMIT 1`;
+      const live = await sql`SELECT is_active, state, kind, collateral_nim, tx_hash, owner FROM listings WHERE id = ${e.listingId} LIMIT 1`;
       if (!live[0] || !(live[0] as any).is_active || (live[0] as any).state !== "open") {
         const st = (live[0] as any)?.state;
         return NextResponse.json({ error: st === "closed" ? "Closed to new accepts" : "Listing is no longer open" }, { status: st === "closed" ? 403 : 410 });
       }
+      isBounty = String((live[0] as any)?.kind ?? "").startsWith("bounty");
+      if (isBounty) {
+        // For bounties, the reward is funded upfront by the sponsor at creation.
+        e.amountNIM = Number((live[0] as any).collateral_nim);
+        if (!e.txHash || e.txHash.startsWith("0x")) {
+          e.txHash = (live[0] as any).tx_hash || e.txHash || "0x" + Date.now().toString(16);
+        }
+      }
+
     // Server-side contract gate: never trust the client hide (minTrust).
     try {
       const lrows = await sql`SELECT contract FROM listings WHERE id = ${e.listingId} LIMIT 1`;
@@ -65,26 +75,28 @@ export async function POST(req: Request) {
 
     // Anti-farm: nobody accepts their own listing — rewards require a counterparty.
     try {
-      const own = await sql`SELECT owner FROM listings WHERE id = ${e.listingId} LIMIT 1`;
-      if ((own[0] as any)?.owner === address) {
+      const own = (live[0] as any)?.owner;
+      if (own === address) {
         return NextResponse.json({ error: "You cannot accept your own listing" }, { status: 403 });
       }
     } catch { /* best-effort */ }
 
-      // Funding proof: the lock tx must exist on-chain, from the locker, to
-      // the vault, covering the amount. Client-asserted hashes are not money.
-      if (!e.txHash) {
-        return NextResponse.json({ error: "Lock transaction hash required" }, { status: 400 });
-      }
-      if (shouldVerifyInbound()) {
-        const proof = await verifyInboundLock({
-          txHash: e.txHash,
-          expectedSender: address,
-          expectedRecipient: ESCROW_VAULT,
-          minAmountLunas: BigInt(Math.round(e.amountNIM * 100_000)),
-        });
-        if (!proof.ok) {
-          return NextResponse.json({ error: `Lock not funded: ${proof.error}` }, { status: 400 });
+      // Funding proof: for borrow escrows, the borrower must lock collateral to the vault.
+      // For bounties, funding was already deposited and verified on-chain at listing creation.
+      if (!isBounty) {
+        if (!e.txHash) {
+          return NextResponse.json({ error: "Lock transaction hash required" }, { status: 400 });
+        }
+        if (shouldVerifyInbound()) {
+          const proof = await verifyInboundLock({
+            txHash: e.txHash,
+            expectedSender: address,
+            expectedRecipient: ESCROW_VAULT,
+            minAmountLunas: BigInt(Math.round(e.amountNIM * 100_000)),
+          });
+          if (!proof.ok) {
+            return NextResponse.json({ error: `Lock not funded: ${proof.error}` }, { status: 400 });
+          }
         }
       }
 
@@ -256,6 +268,19 @@ export async function PATCH(req: Request) {
     // releases to the borrower; only the lender-claim window ends that.
     if (!escrow || (escrow.state !== "locked" && escrow.state !== "expired")) {
       return NextResponse.json({ error: "Invalid escrow state" }, { status: 400 });
+    }
+    if (!escrow.lenderPubkey) {
+      const subjectListing = await fetchListing(escrow.listingId);
+      if (subjectListing) {
+        const { getLenderKey } = await import("@/lib/db");
+        const lKey = await getLenderKey(subjectListing.owner);
+        if (lKey) {
+          escrow.lenderPubkey = lKey.publicKeyHex;
+          if (sql) {
+            await sql`UPDATE escrows SET lender_pubkey = ${lKey.publicKeyHex} WHERE id = ${escrow.id}`;
+          }
+        }
+      }
     }
     if (!escrow.lenderPubkey) {
       return NextResponse.json({ error: "Lender public key not registered" }, { status: 400 });

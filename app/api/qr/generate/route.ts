@@ -65,6 +65,14 @@ export async function POST(req: Request) {
   
   const payload = createReturnPayload(escrowId, amount, chain);
   const token = await signReturn(payload, privKeyHex);
-  
+
+  if (escrow) {
+    const { getSql } = await import("@/lib/db");
+    const sql = getSql();
+    if (sql) {
+      await sql`UPDATE escrows SET lender_pubkey = ${key.publicKeyHex} WHERE id = ${escrow.id} AND lender_pubkey IS NULL`;
+    }
+  }
+
   return NextResponse.json({ token, publicKeyHex: key.publicKeyHex });
 }

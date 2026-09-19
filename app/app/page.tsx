@@ -179,6 +179,8 @@ export default function Home() {
             let ref: string | null = null;
             try {
               ref = new URLSearchParams(window.location.search).get("ref");
+              if (!ref) ref = localStorage.getItem("acta_ref");
+              else localStorage.setItem("acta_ref", ref);
             } catch { /* non-browser */ }
 
             const authRes = await fetch("/api/auth/verify", {
@@ -191,7 +193,10 @@ export default function Home() {
                 ...(ref ? { ref } : {}),
               }),
             });
-            if (authRes.ok) return true;
+            if (authRes.ok) {
+              try { localStorage.removeItem("acta_ref"); } catch {}
+              return true;
+            }
           }
         }
       } catch {
@@ -402,6 +407,40 @@ export default function Home() {
 
       // 2. Try Escrows (Borrow Item Returns, incl. late returns on expired locks)
       let matched = false;
+      let tokenEscrowId: string | null = null;
+      try {
+        const parts = t.split(".");
+        if (parts.length === 2) {
+          const b64 = parts[0].replace(/-/g, "+").replace(/_/g, "/");
+          const p = JSON.parse(atob(b64));
+          if (p && p.escrowId) tokenEscrowId = String(p.escrowId);
+        }
+      } catch {}
+
+      if (tokenEscrowId) {
+        const targetEscrow = escrows.find((x) => x.id === tokenEscrowId);
+        if (targetEscrow && (targetEscrow.state === "locked" || (targetEscrow.state as string) === "expired")) {
+          matched = true;
+          setShowScanner(false);
+          const res = await fetch("/api/escrows", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: targetEscrow.id, token: t }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json();
+            toast(data.error || "Failed to release", "error");
+            return;
+          }
+
+          setEscrows((p) => p.map((x) => (x.id === targetEscrow.id ? { ...x, state: "released" } : x)));
+          toast(`Released ${(targetEscrow.amountNIM - SETTLE_FEE_NIM).toLocaleString()} NIM (${targetEscrow.title})`, "success"); setPayoffAmount(targetEscrow.amountNIM);
+          setJustSettled(true); setTimeout(() => setJustSettled(false), 5000); refetch(); refreshUnread();
+          return;
+        }
+      }
+
       for (const e of escrows) {
         if ((e.state !== "locked" && (e.state as string) !== "expired") || !e.lenderPubkey) continue;
         const payload = await verifyReturn(t, e.lenderPubkey).catch(() => null);
@@ -413,13 +452,13 @@ export default function Home() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id: e.id, token: t }),
           });
-          
+
           if (!res.ok) {
             const data = await res.json();
             toast(data.error || "Failed to release", "error");
             return;
           }
-          
+
           setEscrows((p) => p.map((x) => (x.id === e.id ? { ...x, state: "released" } : x)));
           toast(`Released ${(e.amountNIM - SETTLE_FEE_NIM).toLocaleString()} NIM (${e.title})`, "success"); setPayoffAmount(e.amountNIM);
           setJustSettled(true); setTimeout(() => setJustSettled(false), 5000); refetch(); refreshUnread();
@@ -809,7 +848,7 @@ export default function Home() {
                   <div className="w-5 h-5 rounded-full bg-[var(--sky)]/20 flex items-center justify-center group-hover:scale-125 group-hover:rotate-90 transition-transform">
                      <PlusIcon size={13} className="text-[var(--sky)] stroke-[3]" />
                   </div>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ink)]">List Asset for Borrowing</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ink)]">List Equipment to Lend</span>
                 </button>
 
                 {loading ? (
@@ -840,7 +879,7 @@ export default function Home() {
                               <LockIcon size={11} className="text-[var(--sky)]" />
                               <span className="font-mono text-xs font-bold text-[var(--sky)] tnum">{l.collateralNIM.toLocaleString()} NIM</span>
                             </div>
-                            <p className="text-[8px] uppercase tracking-wider text-[var(--ink3)] mt-0.5">vault locked collateral</p>
+                            <p className="text-[8px] uppercase tracking-wider text-[var(--ink3)] mt-0.5">Required Collateral</p>
                           </div>
                         </div>
 
@@ -870,15 +909,24 @@ export default function Home() {
                         </div>
 
                         {/* Action button */}
-                        <button
-                          onClick={() => setReviewListingId(l.id)}
-                          disabled={isDemoMode}
-                          className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--sky)] to-[color-mix(in_srgb,var(--sky)_80%,#1e3a8a)] hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_2px_12px_rgba(56,189,248,0.25)] border border-[var(--sky)]/50 active:scale-[0.98] transition-all btn-press disabled:opacity-50"
-                        >
-                          <FileText size={12} />
-                          <span>Review Borrow Covenant</span>
-                          <ChevronRight size={12} strokeWidth={3} />
-                        </button>
+                        {l.owner === borrower ? (
+                          <button
+                            onClick={() => setReviewListingId(l.id)}
+                            className="w-full py-2.5 px-4 bg-[var(--surface2)] text-[var(--ink2)] hover:text-[var(--ink)] font-bold rounded-xl text-xs flex items-center justify-center gap-2 border border-[var(--line)]/10 btn-press"
+                          >
+                            <span>Your Lending Offer (Open to Borrowers)</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setReviewListingId(l.id)}
+                            disabled={isDemoMode}
+                            className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--sky)] to-[color-mix(in_srgb,var(--sky)_80%,#1e3a8a)] hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_2px_12px_rgba(56,189,248,0.25)] border border-[var(--sky)]/50 active:scale-[0.98] transition-all btn-press disabled:opacity-50"
+                          >
+                            <FileText size={12} />
+                            <span>Review & Borrow Asset</span>
+                            <ChevronRight size={12} strokeWidth={3} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1165,11 +1213,8 @@ export default function Home() {
             setPendingScan(null);
             if (!f || !token) return;
             try {
-              const buf = await f.arrayBuffer();
-              const bytes = new Uint8Array(buf);
-              let bin = "";
-              for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-              const imageUrl = `data:${f.type || "image/jpeg"};base64,${btoa(bin)}`;
+              const { fileToOptimizedDataUrl } = await import("@/lib/image");
+              const imageUrl = await fileToOptimizedDataUrl(f);
               const res = await fetch("/api/bounty/scanquest", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

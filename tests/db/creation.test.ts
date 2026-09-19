@@ -86,6 +86,30 @@ dbSuite("creation gates", () => {
     expect((await PATCH(reqJson("http://t/api/escrows", { id: "eb1", lenderPubkey: "bb" }))).status).toBe(409);
   });
 
+  it("bounty acceptance succeeds without participant inbound lock and inherits reward", async () => {
+    const { insertListing, getSql } = await import("@/lib/db");
+    await insertListing({
+      id: "bounty-1", title: "Find Cat", owner: OWNER, collateralNIM: 25.5,
+      kind: "bounty_manual", category: "other", description: "Lost cat",
+      createdAt: Date.now(), isActive: true, state: "open",
+      txHash: "0xfunded", expiresAt: Date.now() + 3600_000,
+    });
+    mintSession(USER);
+    const { POST } = await import("@/app/api/escrows/route");
+    const r = await POST(reqJson("http://t/api/escrows", {
+      type: "escrow",
+      payload: {
+        id: "esc-bounty-1", listingId: "bounty-1", title: "Find Cat",
+        borrower: USER, amountNIM: 0, feeNIM: 0.0001, yieldNIM: 0,
+        state: "locked", txHash: "0xparticipant", createdAt: Date.now(),
+      }
+    }));
+    expect(r.status).toBe(200);
+    const rows = await getSql()!`SELECT amount_nim, tx_hash FROM escrows WHERE id = 'esc-bounty-1'`;
+    expect(rows.length).toBe(1);
+    expect(Number(rows[0].amount_nim)).toBe(25.5);
+  });
+
   it("borrow listing creation stores server-side expiry default", async () => {
     mintSession(OWNER);
     const { POST } = await import("@/app/api/escrows/route");

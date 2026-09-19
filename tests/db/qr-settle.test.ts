@@ -110,6 +110,7 @@ dbSuite("qr borrow-return settlement", () => {
   it("settle without bound lender key rejected", async () => {
     const { getSql } = await import("@/lib/db");
     await getSql()!`UPDATE escrows SET lender_pubkey = NULL WHERE id = 'eq1'`;
+    await getSql()!`DELETE FROM lender_keys WHERE owner_address = ${LENDER}`;
     mintSession(BORROWER);
     const { PATCH } = await import("@/app/api/escrows/route");
     const token = await mint("eq1", 5);
