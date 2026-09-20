@@ -34,7 +34,7 @@ import { SkeletonCard, SkeletonEscrow } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { useToast } from "@/components/Toast";
 import { InfoTooltip } from "@/components/Tooltip";
-import { Coins, Sparkles, QrCode, FileText, ChevronRight, ShieldCheck } from "lucide-react";
+import { Coins, Sparkles, QrCode, FileText, ChevronRight, ShieldCheck, Settings, UserCheck } from "lucide-react";
 import HubApi from "@nimiq/hub-api";
 import {
   RadarIcon,
@@ -117,6 +117,7 @@ export default function Home() {
   const [justSettled, setJustSettled] = useState(false);
   const [activeSeg, setActiveSeg] = useState<"progress" | "awaiting" | "settled" | "refunded">("progress");
   const [awaitingCount, setAwaitingCount] = useState(0);
+  const [seenAwaiting, setSeenAwaiting] = useState(false);
   const [profileAddr, setProfileAddr] = useState<string | null>(null);
   const { unread, refresh: refreshUnread } = useUnread();
 
@@ -166,9 +167,10 @@ export default function Home() {
   const refetch = useCallback(async () => {
     try {
       const q = accounts[0] ? `?address=${encodeURIComponent(accounts[0])}` : "";
-      const [eRes, dRes] = await Promise.all([
+      const [eRes, dRes, sRes] = await Promise.all([
         apiFetch("/api/escrows").then((r) => (r.ok ? r.json() : null)).catch(() => null),
         apiFetch(`/api/dashboard${q}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        apiFetch("/api/bounty/submit").then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       if (eRes) {
         if (Array.isArray(eRes.escrows)) setEscrows(eRes.escrows);
@@ -179,6 +181,9 @@ export default function Home() {
         if (typeof dRes.user?.trustScore === "number") {
           setUserTrustScore(dRes.user.trustScore);
         }
+      }
+      if (sRes && Array.isArray(sRes.submissions)) {
+        setAwaitingCount(sRes.submissions.length);
       }
       refreshUnread();
     } catch { /* refetch best-effort */ }
@@ -199,6 +204,15 @@ export default function Home() {
         }
       }
     }).catch(() => {});
+
+    apiFetch("/api/bounty/submit")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d && Array.isArray(d.submissions)) {
+          setAwaitingCount(d.submissions.length);
+        }
+      })
+      .catch(() => {});
 
     apiFetch("/api/escrows")
       .then((r) => r.json())
@@ -657,16 +671,27 @@ export default function Home() {
 
                         {/* Top Header: Oracle Heraldic Badge & Bounty Purse */}
                         <div className="flex items-start justify-between gap-3 mb-2.5">
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--gold)]/10 border border-[var(--gold)]/30 text-[var(--gold)]">
-                            {l.kind === "bounty_geo" ? (
-                              <><MapPinIcon size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">GPS Check-In</span></>
-                            ) : l.kind === "bounty_qr" ? (
-                              <><QrCode size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">ScanQuest Token</span></>
-                            ) : (l as any).contract?.ai?.primary === "vision" ? (
-                              <><Sparkles size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">Vision Oracle</span></>
-                            ) : (
-                              <><ZapIcon size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">{categoryBadge(l)}</span></>
-                            )}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {l.owner === accounts[0] ? (
+                              <span className="caps text-[8.5px] font-extrabold tracking-wider text-[var(--gold)] bg-[var(--gold)]/15 px-2 py-0.5 rounded-full border border-[var(--gold)]/30">
+                                Your Bounty
+                              </span>
+                            ) : escrows.some(e => e.listingId === l.id && e.borrower === accounts[0] && (e.state === "locked" || (e as any).state === "settling")) ? (
+                              <span className="caps text-[8.5px] font-extrabold tracking-wider text-[var(--sky)] bg-[var(--sky)]/15 px-2 py-0.5 rounded-full border border-[var(--sky)]/30">
+                                In Progress · Accepted
+                              </span>
+                            ) : null}
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--gold)]/10 border border-[var(--gold)]/30 text-[var(--gold)]">
+                              {l.kind === "bounty_geo" ? (
+                                <><MapPinIcon size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">GPS Check-In</span></>
+                              ) : l.kind === "bounty_qr" ? (
+                                <><QrCode size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">ScanQuest Token</span></>
+                              ) : (l as any).contract?.ai?.primary === "vision" ? (
+                                <><Sparkles size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">Vision Oracle</span></>
+                              ) : (
+                                <><ZapIcon size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">{categoryBadge(l)}</span></>
+                              )}
+                            </div>
                           </div>
 
                           <div className="text-right shrink-0">
@@ -701,52 +726,66 @@ export default function Home() {
                         )}
 
                         {/* Action button */}
-                        {l.owner === borrower && l.kind === "bounty_qr" ? (
-                          <button
-                            onClick={async () => {
-                              const res = await apiFetch("/api/qr/generate", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ type: "scan_quest", escrowId: l.id, amount: l.collateralNIM, chain: "nimiq-testnet" }),
-                              });
-                              const data = await res.json();
-                              if (res.ok) setQrToken({ token: data.token, escrow: { title: l.title, amountNIM: l.collateralNIM } as any });
-                              else toast(data.error, "error");
-                            }}
-                            className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--sky)] to-[var(--sky)]/80 text-[#181206] font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all btn-press"
-                          >
-                            <QrCode size={13} />
-                            <span>Show Quest QR</span>
-                          </button>
-                        ) : l.owner === borrower && l.kind === "borrow" ? (
-                          <button
-                            onClick={() => { const full = listings.find((x) => x.id === l.id) ?? l; setWizard(full as any); }}
-                            className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--gold)] to-[var(--gold2)] text-[#181206] font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all btn-press"
-                          >
-                            <LockIcon size={13} />
-                            <span>Borrow & Lock Collateral</span>
-                          </button>
-                        ) : l.owner === borrower ? (
-                          <button disabled className="w-full py-2.5 px-4 bg-[var(--surface2)] text-[var(--ink3)] font-semibold rounded-xl text-xs cursor-not-allowed border border-[var(--line)]/10">
-                            Your Proclamation
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              if (l.kind === "borrow") {
-                                const full = listings.find((x) => x.id === l.id) ?? l;
-                                setWizard(full as any);
-                              } else {
-                                setReviewListingId(l.id);
-                              }
-                            }}
-                            disabled={isDemoMode}
-                            className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--gold)] to-[var(--gold2)] hover:from-[var(--gold2)] hover:to-[var(--gold)] text-[#181206] font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_2px_10px_rgba(212,175,55,0.25)] border border-[var(--gold)] active:scale-[0.98] transition-all btn-press disabled:opacity-50"
-                          >
-                            <span>{l.kind === "borrow" ? "Borrow & Lock Collateral" : "Accept Bounty Challenge"}</span>
-                            <ChevronRight size={13} strokeWidth={3} />
-                          </button>
-                        )}
+                        {(() => {
+                          const isMyBounty = l.owner === accounts[0];
+                          const myActiveEscrow = escrows.find(e => e.listingId === l.id && e.borrower === accounts[0] && (e.state === "locked" || (e as any).state === "settling"));
+
+                          if (isMyBounty && l.kind === "bounty_qr") {
+                            return (
+                              <button
+                                onClick={async () => {
+                                  const res = await apiFetch("/api/qr/generate", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ type: "scan_quest", escrowId: l.id, amount: l.collateralNIM, chain: "nimiq-testnet" }),
+                                  });
+                                  const data = await res.json();
+                                  if (res.ok) setQrToken({ token: data.token, escrow: { title: l.title, amountNIM: l.collateralNIM } as any });
+                                  else toast(data.error, "error");
+                                }}
+                                className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--sky)] to-[var(--sky)]/80 text-[#181206] font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all btn-press"
+                              >
+                                <QrCode size={13} />
+                                <span>Show Quest QR</span>
+                              </button>
+                            );
+                          }
+
+                          if (isMyBounty) {
+                            return (
+                              <button
+                                onClick={() => setReviewListingId(l.id)}
+                                className="w-full py-2.5 px-4 bg-[var(--surface2)] hover:bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/30 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all btn-press"
+                              >
+                                <Settings size={13} />
+                                <span>Manage Your Bounty</span>
+                              </button>
+                            );
+                          }
+
+                          if (myActiveEscrow) {
+                            return (
+                              <button
+                                onClick={() => { setTab("active"); setActiveSeg("progress"); }}
+                                className="w-full py-2.5 px-4 bg-[var(--sky)]/15 hover:bg-[var(--sky)]/25 text-[var(--sky)] border border-[var(--sky)]/35 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all btn-press"
+                              >
+                                <span>In Progress — View in Contracts</span>
+                                <ChevronRight size={13} strokeWidth={3} />
+                              </button>
+                            );
+                          }
+
+                          return (
+                            <button
+                              onClick={() => setReviewListingId(l.id)}
+                              disabled={isDemoMode}
+                              className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--gold)] to-[var(--gold2)] hover:from-[var(--gold2)] hover:to-[var(--gold)] text-[#181206] font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_2px_10px_rgba(212,175,55,0.25)] border border-[var(--gold)] active:scale-[0.98] transition-all btn-press disabled:opacity-50"
+                            >
+                              <span>Accept Bounty Challenge</span>
+                              <ChevronRight size={13} strokeWidth={3} />
+                            </button>
+                          );
+                        })()}
                       </div>
                     ))}
                     </div>
@@ -807,9 +846,20 @@ export default function Home() {
 
                         {/* Top Header: Category Chip & Locked Collateral Purse */}
                         <div className="flex items-start justify-between gap-3 mb-2.5">
-                          <span className="caps text-[8.5px] font-bold tracking-wider text-[var(--sky)] bg-[var(--sky)]/10 px-2.5 py-1 rounded-full border border-[var(--sky)]/25">
-                            {l.category.toUpperCase()} · {l.durationDays || 1}D RETURN COVENANT
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {l.owner === accounts[0] ? (
+                              <span className="caps text-[8.5px] font-extrabold tracking-wider text-[var(--sky)] bg-[var(--sky)]/15 px-2 py-0.5 rounded-full border border-[var(--sky)]/30">
+                                Your Lending Offer
+                              </span>
+                            ) : escrows.some(e => e.listingId === l.id && e.borrower === accounts[0] && (e.state === "locked" || (e as any).state === "settling")) ? (
+                              <span className="caps text-[8.5px] font-extrabold tracking-wider text-[var(--sky)] bg-[var(--sky)]/15 px-2 py-0.5 rounded-full border border-[var(--sky)]/30">
+                                Borrowed · In Progress
+                              </span>
+                            ) : null}
+                            <span className="caps text-[8.5px] font-bold tracking-wider text-[var(--sky)] bg-[var(--sky)]/10 px-2.5 py-1 rounded-full border border-[var(--sky)]/25">
+                              {l.category.toUpperCase()} · {l.durationDays || 1}D RETURN COVENANT
+                            </span>
+                          </div>
 
                           <div className="text-right shrink-0">
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--sky)]/15 border border-[var(--sky)]/40 shadow-sm">
@@ -846,24 +896,46 @@ export default function Home() {
                         </div>
 
                         {/* Action button */}
-                        {l.owner === borrower ? (
-                          <button
-                            onClick={() => setReviewListingId(l.id)}
-                            className="w-full py-2.5 px-4 bg-[var(--surface2)] text-[var(--ink2)] hover:text-[var(--ink)] font-bold rounded-xl text-xs flex items-center justify-center gap-2 border border-[var(--line)]/10 btn-press"
-                          >
-                            <span>Your Lending Offer (Open to Borrowers)</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setReviewListingId(l.id)}
-                            disabled={isDemoMode}
-                            className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--sky)] to-[color-mix(in_srgb,var(--sky)_80%,#1e3a8a)] hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_2px_12px_rgba(56,189,248,0.25)] border border-[var(--sky)]/50 active:scale-[0.98] transition-all btn-press disabled:opacity-50"
-                          >
-                            <FileText size={12} />
-                            <span>Review & Borrow Asset</span>
-                            <ChevronRight size={12} strokeWidth={3} />
-                          </button>
-                        )}
+                        {(() => {
+                          const isMyLending = l.owner === accounts[0];
+                          const myActiveBorrow = escrows.find(e => e.listingId === l.id && e.borrower === accounts[0] && (e.state === "locked" || (e as any).state === "settling"));
+
+                          if (isMyLending) {
+                            return (
+                              <button
+                                onClick={() => setReviewListingId(l.id)}
+                                className="w-full py-2.5 px-4 bg-[var(--surface2)] hover:bg-[var(--sky)]/10 text-[var(--sky)] border border-[var(--sky)]/30 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all btn-press"
+                              >
+                                <Settings size={13} />
+                                <span>Manage Lending Offer</span>
+                              </button>
+                            );
+                          }
+
+                          if (myActiveBorrow) {
+                            return (
+                              <button
+                                onClick={() => { setTab("active"); setActiveSeg("progress"); }}
+                                className="w-full py-2.5 px-4 bg-[var(--sky)]/15 hover:bg-[var(--sky)]/25 text-[var(--sky)] border border-[var(--sky)]/35 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all btn-press"
+                              >
+                                <span>Borrowed — View in Contracts</span>
+                                <ChevronRight size={13} strokeWidth={3} />
+                              </button>
+                            );
+                          }
+
+                          return (
+                            <button
+                              onClick={() => setReviewListingId(l.id)}
+                              disabled={isDemoMode}
+                              className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--sky)] to-[color-mix(in_srgb,var(--sky)_80%,#1e3a8a)] hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_2px_12px_rgba(56,189,248,0.25)] border border-[var(--sky)]/50 active:scale-[0.98] transition-all btn-press disabled:opacity-50"
+                            >
+                              <FileText size={12} />
+                              <span>Review & Borrow Asset</span>
+                              <ChevronRight size={12} strokeWidth={3} />
+                            </button>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>
@@ -907,16 +979,35 @@ export default function Home() {
 
             <div className="px-4 pb-10 animate-fade-in">
               <div className="mb-3 flex gap-1 border-y border-[var(--line)] px-1 py-1.5">
-                {([["progress", "In progress"], ["awaiting", `Awaiting me${awaitingCount > 0 ? ` (${awaitingCount})` : ""}`], ["settled", "Settled"], ["refunded", "Refunded"]] as const).map(([id, label]) => (
-                  <button key={id} onClick={() => setActiveSeg(id)}
-                    className="caps flex-1 rounded-full py-2 text-[8px] transition-all"
-                    style={activeSeg === id ? { background: "var(--gold)", color: "#1c1508", fontWeight: 700 } : { color: "var(--ink3)" }}>
-                    {label}
-                  </button>
-                ))}
+                {[
+                  { id: "progress" as const, label: "In progress" },
+                  { id: "awaiting" as const, label: "Awaiting me", badge: (!seenAwaiting && awaitingCount > 0) ? awaitingCount : null },
+                  { id: "settled" as const, label: "Settled" },
+                  { id: "refunded" as const, label: "Refunded" },
+                ].map((seg) => {
+                  const isSelected = activeSeg === seg.id;
+                  return (
+                    <button
+                      key={seg.id}
+                      onClick={() => {
+                        setActiveSeg(seg.id);
+                        if (seg.id === "awaiting") setSeenAwaiting(true);
+                      }}
+                      className="caps relative flex-1 rounded-full py-2 text-[8px] transition-all flex items-center justify-center gap-1"
+                      style={isSelected ? { background: "var(--gold)", color: "#1c1508", fontWeight: 700 } : { color: "var(--ink3)" }}
+                    >
+                      <span>{seg.label}</span>
+                      {seg.badge ? (
+                        <span className="figure rounded-full bg-[var(--gold)] px-1.5 py-0.2 text-[8px] font-bold text-[#1c1508] shadow-sm animate-pulse">
+                          {seg.badge}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Clear 1-line explanation for each mini-tab in My Queue */}
+              {/* Clear 1-line explanation for each mini-tab in Contracts */}
               <div className="mb-4 px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--ink)_3%,transparent)] border border-[var(--line)]/10 text-center">
                 <p className="text-[11px] text-[var(--ink2)] leading-relaxed">
                   {activeSeg === "progress" && "Active covenants currently locked in escrow awaiting on-chain verification or return proof."}
@@ -925,106 +1016,320 @@ export default function Home() {
                   {activeSeg === "refunded" && "Cancelled or expired escrows where collateral has been returned in full to the depositor."}
                 </p>
               </div>
+
               {activeSeg === "awaiting" ? (
-                <CreatorApprovals onApproved={refetch} onCount={setAwaitingCount} showEmpty onView={setProfileAddr} />
+                <div className="space-y-4">
+                  <CreatorApprovals onApproved={refetch} onCount={setAwaitingCount} showEmpty={false} onView={setProfileAddr} />
+                  {(() => {
+                    const manualAwaiting = escrows.filter((e) => {
+                      const l = listings.find((x) => x.id === e.listingId);
+                      return l?.owner === accounts[0] && l?.kind === "bounty_manual" && e.state === "locked";
+                    });
+                    if (manualAwaiting.length > 0) {
+                      return (
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--gold)] flex items-center gap-1.5">
+                            <UserCheck size={14} /> In-Person Approvals Awaiting Scan ({manualAwaiting.length})
+                          </h4>
+                          {manualAwaiting.map((e) => (
+                            <div key={e.id} className="ledger-entry">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <span className="rounded-md px-1.5 py-0.5 text-[8.5px] font-extrabold tracking-widest uppercase bg-[var(--gold)]/20 text-[var(--gold)] border border-[var(--gold)]/30">
+                                    SPONSOR SCAN REQUIRED
+                                  </span>
+                                  <h4 className="font-bold text-sm text-[var(--ink)] mt-1">{e.title}</h4>
+                                  <p className="tnum text-base font-extrabold text-[var(--ink)]">
+                                    {e.amountNIM.toLocaleString()} <span className="text-xs text-[var(--ink3)]">NIM</span>
+                                  </p>
+                                </div>
+                              </div>
+                              <ManualVerify
+                                listingId={e.listingId}
+                                isOwner={true}
+                                onScan={() => setShowScanner(true)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  {awaitingCount === 0 && escrows.filter(e => {
+                    const l = listings.find(x => x.id === e.listingId);
+                    return l?.owner === accounts[0] && l?.kind === "bounty_manual" && e.state === "locked";
+                  }).length === 0 && (
+                    <div className="py-10 text-center">
+                      <div className="mx-auto w-12 h-12 rounded-full bg-[var(--gold)]/10 border border-[var(--gold)]/20 flex items-center justify-center text-[var(--gold)] mb-3">
+                        <CheckIcon size={24} />
+                      </div>
+                      <h4 className="font-bold text-sm text-[var(--ink)]">All Clear</h4>
+                      <p className="marginalia text-xs text-[var(--ink3)] mt-1 max-w-xs mx-auto">
+                        No submissions or verification requests currently awaiting your approval. Active covenants live in In progress.
+                      </p>
+                    </div>
+                  )}
+                </div>
               ) : loading ? (
                 Array.from({ length: 2 }).map((_, i) => <SkeletonEscrow key={i} />)
-              ) : escrows.length === 0 ? (
-                <EmptyState title="No Contracts" subtitle="No active contracts. Start a task or borrow an item!" icon={<CheckIcon size={32} />} action={{ label: "Browse Radar", onClick: () => setTab("radar") }} />
-              ) : (
-                escrows.filter((e) =>
+              ) : (() => {
+                const filteredEscrows = escrows.filter((e) =>
                   activeSeg === "progress" ? (e.state === "locked" || (e as any).state === "settling") :
                   activeSeg === "settled" ? e.state === "released" :
                   (e.state === "cancelled" || (e as any).state === "expired" || (e as any).state === "refunded")
-                ).map((e) => (
-                  <div key={e.id} className="ledger-entry">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="font-bold text-sm text-[var(--ink)]">{e.title}</h4>
-                        <p className="tnum mt-0.5 text-lg font-extrabold text-[var(--ink)]">
-                          {e.amountNIM.toLocaleString()} <span className="text-xs text-[var(--ink3)]">NIM</span>
-                        </p>
-                      </div>
-                      <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-widest uppercase ${
-                          e.state === "locked" ? "bg-[var(--gold)]/15 text-[var(--gold)]" : "bg-[var(--verdigris)]/15 text-[var(--verdigris)]"
-                        }`}>
-                        {e.state}
-                      </span>
-                    </div>
+                );
 
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--ink3)] uppercase tracking-widest font-semibold">
-                      <span className="tnum">Tx: {e.txHash.slice(0, 16)}...</span>
-                      <span>Fee: {e.feeNIM} NIM</span>
-                      {(e as any).progress ? <span>· {String((e as any).progress).replace(/_/g, " ")}</span> : null}
-                      {(e as any).deadlineAt && e.state === "locked" ? <Countdown deadlineAt={Number((e as any).deadlineAt)} /> : null}
-                    </div>
-                    {(e as any).deadlineAt ? (
-                      <p className="marginalia mt-1 text-[10px]">Due {new Date(Number((e as any).deadlineAt)).toLocaleString()} — then auto-refund, nothing lost.</p>
-                    ) : null}
+                if (filteredEscrows.length === 0) {
+                  if (activeSeg === "progress") {
+                    return (
+                      <EmptyState
+                        title="No Contracts in Progress"
+                        subtitle="No active covenants locked right now. Accept a bounty or borrow an item on Radar!"
+                        icon={<CheckIcon size={32} />}
+                        action={{ label: "Browse Radar", onClick: () => setTab("radar") }}
+                      />
+                    );
+                  }
+                  if (activeSeg === "settled") {
+                    return (
+                      <EmptyState
+                        title="No Settled Contracts"
+                        subtitle="Fulfilled tasks and completed equipment returns will appear here with on-chain payout receipts."
+                        icon={<ShieldCheck size={32} />}
+                        action={{ label: "Browse Radar", onClick: () => setTab("radar") }}
+                      />
+                    );
+                  }
+                  return (
+                    <EmptyState
+                      title="No Refunded Contracts"
+                      subtitle="Cancelled or expired escrows where funds were returned will appear here."
+                      icon={<UnlockIcon size={32} />}
+                    />
+                  );
+                }
 
-                    {e.state === "locked" && (
-                      <>
-                        <div className="mt-3 flex items-center gap-1.5 text-xs text-[var(--ink3)]">
-                          <ClockIcon size={12} />
-                          <span>{timeRemaining(e.expiresAt)}</span>
+                return filteredEscrows.map((e) => {
+                  const listing = listings.find((l) => l.id === e.listingId);
+                  const isSponsor = listing?.owner === accounts[0];
+                  const isHunter = e.borrower === accounts[0];
+                  const kind = listing?.kind || "borrow";
+                  const effectiveDeadline = (e as any).deadlineAt ? Number((e as any).deadlineAt) : e.expiresAt;
+
+                  const handleSuccess = () => {
+                    setEscrows((p) => p.map((x) => (x.id === e.id ? { ...x, state: "released" } : x)));
+                    setPayoffAmount(e.amountNIM);
+                  };
+
+                  return (
+                    <div key={e.id} className="ledger-entry">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1">
+                            {isSponsor ? (
+                              <span className="rounded-md px-1.5 py-0.5 text-[8.5px] font-extrabold tracking-widest uppercase bg-[var(--gold)]/20 text-[var(--gold)] border border-[var(--gold)]/30">
+                                SPONSOR
+                              </span>
+                            ) : (
+                              <span className="rounded-md px-1.5 py-0.5 text-[8.5px] font-extrabold tracking-widest uppercase bg-[var(--sky)]/20 text-[var(--sky)] border border-[var(--sky)]/30">
+                                {kind === "borrow" ? "BORROWER" : "HUNTER"}
+                              </span>
+                            )}
+                            <span
+                              className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-widest uppercase ${
+                                e.state === "locked"
+                                  ? "bg-[var(--gold)]/15 text-[var(--gold)]"
+                                  : e.state === "released"
+                                  ? "bg-[var(--verdigris)]/15 text-[var(--verdigris)]"
+                                  : "bg-[var(--wax)]/15 text-[var(--wax)]"
+                              }`}
+                            >
+                              {e.state}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-sm text-[var(--ink)]">{e.title}</h4>
+                          <p className="tnum mt-0.5 text-lg font-extrabold text-[var(--ink)]">
+                            {e.amountNIM.toLocaleString()} <span className="text-xs text-[var(--ink3)]">NIM</span>
+                          </p>
                         </div>
-                        {e.borrower === accounts[0] && (
-                          <button onClick={() => handleCancel("escrow", e.id)} disabled={isDemoMode} className="mt-2 w-full disabled:opacity-50 py-1.5 bg-[var(--wax)]/10 border border-[var(--wax)]/20 text-[var(--wax)] rounded-md text-[10px] uppercase font-bold hover:bg-[var(--wax)]/20">Cancel & Refund</button>
-                        )}
-                        
-                        {(() => {
-                          const kind = listings.find(l => l.id === e.listingId)?.kind;
-                          const handleSuccess = () => {
-                            setEscrows(p => p.map(x => x.id === e.id ? { ...x, state: "released" } : x));
-                            setPayoffAmount(e.amountNIM);
-                          };
-                          if (kind === "bounty") {
-                            const listing = listings.find((l) => l.id === e.listingId);
-                            if ((listing as any)?.requireLocation) {
+
+                        {/* Counterparty badge / address */}
+                        <div className="text-right">
+                          <p className="text-[9px] text-[var(--ink3)] uppercase tracking-wider font-semibold">
+                            {isSponsor ? "Counterparty" : "Sponsor"}
+                          </p>
+                          <button
+                            onClick={() => setProfileAddr(isSponsor ? e.borrower : (listing?.owner || ""))}
+                            className="font-mono text-[10px] text-[var(--sky)] hover:underline font-semibold"
+                          >
+                            {(isSponsor ? e.borrower : (listing?.owner || "")).slice(0, 10)}…
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--ink3)] uppercase tracking-widest font-semibold">
+                        <span className="tnum">Tx: {e.txHash ? e.txHash.slice(0, 14) + "..." : "Simulated"}</span>
+                        <span>Fee: {e.feeNIM} NIM</span>
+                        {(e as any).progress ? <span>· {String((e as any).progress).replace(/_/g, " ")}</span> : null}
+                      </div>
+
+                      {/* Unified single deadline timer */}
+                      {e.state === "locked" && effectiveDeadline ? (
+                        <div className="mt-2.5 flex items-center justify-between text-xs text-[var(--ink3)] border-t border-[var(--line)]/10 pt-2">
+                          <div className="flex items-center gap-1.5">
+                            <ClockIcon size={12} />
+                            <span>Expires in:</span>
+                            <span className="font-semibold text-[var(--ink)]">{timeRemaining(effectiveDeadline)}</span>
+                          </div>
+                          {(e as any).deadlineAt ? (
+                            <span className="text-[10px] text-[var(--ink3)]">Due {new Date(Number((e as any).deadlineAt)).toLocaleDateString()}</span>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      {/* Role-tailored action panel */}
+                      {e.state === "locked" && (
+                        <>
+                          {e.borrower === accounts[0] && (
+                            <button
+                              onClick={() => handleCancel("escrow", e.id)}
+                              disabled={isDemoMode}
+                              className="mt-2 w-full disabled:opacity-50 py-1.5 bg-[var(--wax)]/10 border border-[var(--wax)]/20 text-[var(--wax)] rounded-md text-[10px] uppercase font-bold hover:bg-[var(--wax)]/20"
+                            >
+                              Cancel & Refund
+                            </button>
+                          )}
+
+                          {(() => {
+                            if (kind === "bounty") {
+                              if (isSponsor) {
+                                return (
+                                  <div className="mt-3 rounded-xl border border-[var(--gold)]/20 bg-[var(--gold)]/5 p-3 text-center">
+                                    <p className="text-xs font-bold text-[var(--gold)] mb-1">Autonomous Vision Oracle</p>
+                                    <p className="text-xs text-[var(--ink2)] leading-relaxed">
+                                      Hunter completes the task and submits photo proof directly to the AI Vision Oracle for cryptographic release.
+                                    </p>
+                                  </div>
+                                );
+                              }
+                              if ((listing as any)?.requireLocation) {
+                                return <CheckInVerify listingId={e.listingId} onSuccess={handleSuccess} />;
+                              }
+                              return <BountyVerify task={e.title} listingId={e.listingId} onSuccess={handleSuccess} />;
+                            } else if (kind === "bounty_venture") {
+                              if (isSponsor) {
+                                return (
+                                  <div className="mt-3 rounded-xl border border-[var(--sky)]/20 bg-[var(--sky)]/5 p-3.5 text-center">
+                                    <p className="text-xs font-bold text-[var(--sky)] mb-1">Venture Challenge In Progress</p>
+                                    <p className="text-xs text-[var(--ink2)] mb-3 leading-relaxed">
+                                      Hunter submits proof online. Submissions appear in your "Awaiting me" tab for review and payout.
+                                    </p>
+                                    <button
+                                      onClick={() => {
+                                        setActiveSeg("awaiting");
+                                        setSeenAwaiting(true);
+                                      }}
+                                      className="w-full py-2 px-3 rounded-lg bg-[var(--sky)]/20 hover:bg-[var(--sky)]/30 text-[var(--sky)] font-bold text-xs transition-all btn-press"
+                                    >
+                                      Check Submissions in Awaiting Me →
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              return <VentureVerify listingId={e.listingId} />;
+                            } else if (kind === "bounty_manual") {
+                              return (
+                                <ManualVerify
+                                  listingId={e.listingId}
+                                  isOwner={isSponsor}
+                                  onScan={() => setShowScanner(true)}
+                                />
+                              );
+                            } else if (kind === "bounty_geo") {
+                              if (isSponsor) {
+                                return (
+                                  <div className="mt-3 rounded-xl border border-[var(--gold)]/20 bg-[var(--gold)]/5 p-3 text-center">
+                                    <p className="text-xs font-bold text-[var(--gold)] mb-1">GPS Location Oracle</p>
+                                    <p className="text-xs text-[var(--ink2)] leading-relaxed">
+                                      Hunter checks in via device GPS coordinates to verify physical location and claim reward.
+                                    </p>
+                                  </div>
+                                );
+                              }
                               return <CheckInVerify listingId={e.listingId} onSuccess={handleSuccess} />;
+                            } else if (kind === "bounty_qr") {
+                              if (isSponsor) {
+                                return (
+                                  <button
+                                    onClick={async () => {
+                                      const res = await apiFetch("/api/qr/generate", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ type: "scan_quest", escrowId: e.listingId, amount: e.amountNIM, chain: "nimiq-testnet" }),
+                                      });
+                                      const data = await res.json();
+                                      if (res.ok) setQrToken({ token: data.token, escrow: e });
+                                      else toast(data.error, "error");
+                                    }}
+                                    className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-[var(--sky)] py-2.5 text-xs font-bold text-[#181206] transition-all btn-press"
+                                  >
+                                    <QrCode size={14} /> Show Quest QR
+                                  </button>
+                                );
+                              }
+                              return (
+                                <button
+                                  onClick={() => setShowScanner(true)}
+                                  disabled={isDemoMode}
+                                  className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-[var(--sky)]/15 px-5 py-3 text-sm font-semibold text-[var(--sky)] transition-all hover:bg-[var(--sky)]/25 btn-press disabled:opacity-50"
+                                >
+                                  <ScanIcon size={14} /> Scan ScanQuest QR
+                                </button>
+                              );
                             }
-                            return <BountyVerify task={e.title} listingId={e.listingId} onSuccess={handleSuccess} />;
-                          } else if (kind === "bounty_venture") {
-                            return <VentureVerify listingId={e.listingId} />;
-                          } else if (kind === "bounty_manual") {
-                            return <ManualVerify listingId={e.listingId} />;
-                          } else if (kind === "bounty_geo") {
-                            return <CheckInVerify listingId={e.listingId} onSuccess={handleSuccess} />;
-                          } else if (kind === "bounty_qr") {
+
+                            // Equipment Borrow / Lend Flow:
+                            if (isSponsor) {
+                              return (
+                                <div className="mt-3 rounded-xl border border-[var(--gold)]/20 bg-[var(--gold)]/5 p-3.5 text-center">
+                                  <p className="text-xs font-bold text-[var(--gold)] mb-1">Lender Custody Flow</p>
+                                  <p className="text-xs text-[var(--ink2)] mb-3 leading-relaxed">
+                                    When the borrower returns your equipment in good condition, show this QR code to release their collateral deposit.
+                                  </p>
+                                  <button
+                                    onClick={() => handleMakeLenderQr(e)}
+                                    disabled={isDemoMode}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-[var(--gold)]/40 bg-[var(--gold)] py-2.5 text-xs font-bold text-[#1c1508] transition-all hover:bg-[var(--gold2)] btn-press disabled:opacity-50 shadow-sm"
+                                  >
+                                    <StarIcon size={14} /> Show Return QR to Borrower
+                                  </button>
+                                </div>
+                              );
+                            }
+
                             return (
-                              <button
-                                onClick={() => setShowScanner(true)}
-                                disabled={isDemoMode}
-                                className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-[var(--sky)]/15 px-5 py-3 text-sm font-semibold text-[var(--sky)] transition-all hover:bg-[var(--sky)]/25 btn-press disabled:opacity-50"
-                              >
-                                <ScanIcon size={14} /> Scan ScanQuest QR
-                              </button>
+                              <div className="mt-3 rounded-xl border border-[var(--sky)]/20 bg-[var(--sky)]/5 p-3.5 text-center">
+                                <p className="text-xs font-bold text-[var(--sky)] mb-1">Borrower Return Flow</p>
+                                <p className="text-xs text-[var(--ink2)] mb-3 leading-relaxed">
+                                  Hand the equipment back to the owner. Once they verify receipt and display their return QR, scan it to reclaim your collateral.
+                                </p>
+                                <button
+                                  onClick={() => setShowScanner(true)}
+                                  disabled={isDemoMode}
+                                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[var(--sky)] py-2.5 text-xs font-bold text-[#1c1508] transition-all hover:opacity-90 btn-press disabled:opacity-50 shadow-sm"
+                                >
+                                  <ScanIcon size={14} /> Scan Lender Return QR
+                                </button>
+                              </div>
                             );
-                          }
-                          return (
-                            <div className="mt-4 flex gap-2">
-                              <button
-                                onClick={() => handleMakeLenderQr(e)}
-                                disabled={isDemoMode}
-                                className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-[var(--gold)]/30 bg-[var(--gold)]/10 py-3 text-sm font-semibold text-[var(--gold)] transition-all hover:bg-[var(--gold)]/20 btn-press disabled:opacity-50"
-                              >
-                                <StarIcon size={14} /> Show return QR
-                              </button>
-                              <button
-                                onClick={() => setShowScanner(true)}
-                                disabled={isDemoMode}
-                                className="flex items-center gap-2 rounded-xl bg-[var(--sky)]/15 px-5 py-3 text-sm font-semibold text-[var(--sky)] transition-all hover:bg-[var(--sky)]/25 btn-press disabled:opacity-50"
-                              >
-                                <ScanIcon size={14} /> Scan
-                              </button>
-                            </div>
-                          );
-                        })()}
-                      </>
-                    )}
-                  </div>
-                ))
-              )}
+                          })()}
+                        </>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           )}
 

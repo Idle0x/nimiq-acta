@@ -81,7 +81,7 @@ export function EngravedTabs({
 }) {
   const items = [
     { id: "radar" as const, label: "Radar", icon: <Radio size={18} strokeWidth={1.75} /> },
-    { id: "active" as const, label: "My Queue", icon: <Shield size={18} strokeWidth={1.75} /> },
+    { id: "active" as const, label: "Contracts", icon: <Shield size={18} strokeWidth={1.75} /> },
     { id: "passport" as const, label: "Passport", icon: <Fingerprint size={18} strokeWidth={1.75} /> },
   ];
   return (
