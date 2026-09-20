@@ -144,76 +144,8 @@ export default function Home() {
     const addr = accounts[0] || (isDemoMode ? "NQ07 0000 0000 0000 0000 0000 0000 0000" : null);
     if (!addr) return false;
     // Demo mode is a read-only tour: no server session is ever minted for it
-    // (all mutating buttons are disabled in demo; browsing needs no session).
     if (isDemoMode && !accounts[0]) return false;
-    try {
-      // 1. Cached session probe first — avoids re-signing on every action.
-      //    The session must belong to THIS address; a stale session for a
-      //    different (e.g. previously connected) account falls through to
-      //    re-auth instead of acting as the wrong identity.
-      const probe = await apiFetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
-      if (probe && probe.ok) {
-        try {
-          const who = ((await probe.json()) as { address?: string })?.address;
-          if (who === addr) return true;
-        } catch {
-          return true; // probe ok but unreadable — server still holds a session
-        }
-      }
-
-      // 2. Try cryptographic signature if provider supports signing
-      try {
-        const res = await apiFetch("/api/auth/challenge", { credentials: "include" });
-        if (res.ok) {
-          const { nonce } = await res.json();
-          const sigRes = await signMessage(`Acta login\n\nNonce: ${nonce}`);
-
-          if (sigRes && typeof sigRes === "object" && "publicKey" in sigRes && "signature" in sigRes) {
-            const toHex = (buf: any) =>
-              buf instanceof Uint8Array
-                ? Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("")
-                : typeof buf === "string"
-                  ? buf.replace(/^0x/, "")
-                  : String(buf);
-
-            let ref: string | null = null;
-            try {
-              ref = new URLSearchParams(window.location.search).get("ref");
-              if (!ref) ref = localStorage.getItem("acta_ref");
-              else localStorage.setItem("acta_ref", ref);
-            } catch { /* non-browser */ }
-
-            const authRes = await apiFetch("/api/auth/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                publicKey: toHex((sigRes as any).publicKey),
-                signature: toHex((sigRes as any).signature),
-                nonce,
-                ...(ref ? { ref } : {}),
-              }),
-            });
-            if (authRes.ok) {
-              try {
-                const data = (await authRes.json()) as { token?: string };
-                if (data?.token) localStorage.setItem("acta_session_token", data.token);
-              } catch { /* body unreadable — cookie path still applies */ }
-              try { localStorage.removeItem("acta_ref"); } catch {}
-              return true;
-            }
-          }
-        }
-      } catch {
-        // provider.sign unavailable, unsupported or rejected.
-        // There is NO unsigned fallback: sessions are minted only by wallet
-        // signature (POST /api/auth/verify). Return false and let the caller
-        // toast; demo mode stays read-only.
-        return false;
-      }
-      return false; // signature path completed without a session (rejected/failed verify)
-    } catch {
-      return false;
-    }
+    return ensureAuthed(addr, signMessage);
   }, [accounts, signMessage, isDemoMode]);
 
   useEffect(() => {

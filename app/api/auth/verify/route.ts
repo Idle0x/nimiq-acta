@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
 import * as Nimiq from "@nimiq/core";
+import crypto from "crypto";
 import { getSql, ensureDbSchema } from "@/lib/db";
 import { setSession } from "@/lib/session";
 import { notify } from "@/lib/notify";
@@ -9,9 +10,39 @@ import { notify } from "@/lib/notify";
 // noble ed25519 v3 (installed 3.2.0) requires sha512 injection via `hashes`.
 (ed as any).hashes.sha512 = sha512;
 
+function parseBytes(val: unknown, expectedLen: number): Uint8Array | null {
+  if (!val) return null;
+  if (val instanceof Uint8Array && val.length === expectedLen) return val;
+  if (Array.isArray(val) && val.length === expectedLen) return Uint8Array.from(val);
+  if (typeof val === "object" && val !== null) {
+    const vals = Object.values(val);
+    if (vals.length === expectedLen && typeof vals[0] === "number") {
+      return Uint8Array.from(vals as number[]);
+    }
+  }
+  if (typeof val === "string") {
+    const clean = val.trim().replace(/^0x/, "");
+    // Try hex
+    if (/^[0-9a-fA-F]+$/.test(clean) && clean.length === expectedLen * 2) {
+      try {
+        const b = Buffer.from(clean, "hex");
+        if (b.length === expectedLen) return Uint8Array.from(b);
+      } catch {}
+    }
+    // Try base64
+    try {
+      const b = Buffer.from(clean, "base64");
+      if (b.length === expectedLen) {
+        return Uint8Array.from(b);
+      }
+    } catch {}
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
   await ensureDbSchema();
-  let body: { publicKey?: string; signature?: string; nonce?: string; ref?: string };
+  let body: { publicKey?: unknown; signature?: unknown; nonce?: string; ref?: string };
   try {
     body = await req.json();
   } catch {
@@ -22,14 +53,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "publicKey, signature and nonce are required" }, { status: 400 });
   }
 
-  let pkBytes: Uint8Array, sigBytes: Uint8Array;
-  try {
-    pkBytes = Uint8Array.from(Buffer.from(publicKey, "hex"));
-    sigBytes = Uint8Array.from(Buffer.from(signature, "hex"));
-  } catch {
-    return NextResponse.json({ error: "Malformed key material" }, { status: 400 });
-  }
-  if (pkBytes.length !== 32 || sigBytes.length !== 64) {
+  const pkBytes = parseBytes(publicKey, 32);
+  const sigBytes = parseBytes(signature, 64);
+  if (!pkBytes || !sigBytes) {
     return NextResponse.json({ error: "Malformed key material" }, { status: 400 });
   }
 
@@ -41,13 +67,45 @@ export async function POST(req: Request) {
     }
   }
 
-  const message = new TextEncoder().encode(`Acta login\n\nNonce: ${nonce}`);
-  let ok = false;
-  try {
-    ok = await (ed as any).verifyAsync(sigBytes, message, pkBytes);
-  } catch {
-    ok = false;
+  const fullText = `Acta login\n\nNonce: ${nonce}`;
+  const MSG_PREFIX = "\x16Nimiq Signed Message:\n";
+
+  const candidates: Uint8Array[] = [];
+  for (const text of [fullText, String(nonce)]) {
+    // 1. Standard Nimiq Keyguard message format: MSG_PREFIX + text.length + text, SHA256 hashed
+    const p1 = MSG_PREFIX + text.length + text;
+    candidates.push(Uint8Array.from(crypto.createHash("sha256").update(Buffer.from(p1, "utf8")).digest()));
+
+    // 2. Standard Nimiq with UTF-8 byte length (if different from character length)
+    const byteLen = Buffer.byteLength(text, "utf8");
+    if (byteLen !== text.length) {
+      const p2 = MSG_PREFIX + byteLen + text;
+      candidates.push(Uint8Array.from(crypto.createHash("sha256").update(Buffer.from(p2, "utf8")).digest()));
+    }
+
+    // 3. Prefix without length, SHA256 hashed
+    const p3 = MSG_PREFIX + text;
+    candidates.push(Uint8Array.from(crypto.createHash("sha256").update(Buffer.from(p3, "utf8")).digest()));
+
+    // 4. Raw SHA256 of text
+    candidates.push(Uint8Array.from(crypto.createHash("sha256").update(Buffer.from(text, "utf8")).digest()));
+
+    // 5. Raw UTF-8 bytes
+    candidates.push(new TextEncoder().encode(text));
   }
+
+  let ok = false;
+  for (const candidate of candidates) {
+    try {
+      if (await (ed as any).verifyAsync(sigBytes, candidate, pkBytes)) {
+        ok = true;
+        break;
+      }
+    } catch {
+      // continue checking other candidates
+    }
+  }
+
   if (!ok) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }

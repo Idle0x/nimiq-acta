@@ -21,6 +21,7 @@ if (process.env.DATABASE_URL_TEST) {
 
 type CookieVal = { value: string };
 const jar = new Map<string, string>();
+const testHeaders = new Map<string, string>();
 
 vi.mock("next/headers", () => ({
   cookies: async () => ({
@@ -33,10 +34,16 @@ vi.mock("next/headers", () => ({
       jar.delete(name);
     },
   }),
+  headers: async () => ({
+    get: (name: string): string | null => testHeaders.get(name.toLowerCase()) ?? null,
+    has: (name: string): boolean => testHeaders.has(name.toLowerCase()),
+  }),
 }));
 
 (globalThis as Record<string, unknown>).__actaCookieJar = jar;
+(globalThis as Record<string, unknown>).__actaHeaders = testHeaders;
 
 beforeAll(() => {
   jar.clear();
+  testHeaders.clear();
 });

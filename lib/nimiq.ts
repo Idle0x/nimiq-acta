@@ -59,8 +59,11 @@ export function useNimiq() {
           const accs = await p.listAccounts();
           if (!cancelled) {
             if (Array.isArray(accs)) {
-              setAccounts(accs);
-            } else if (accs && typeof accs === 'object' && 'error' in accs) {
+              const cleaned = (accs as unknown[])
+                .map((a: unknown) => (typeof a === "string" ? a : (a as any)?.address || (a as any)?.userFriendlyAddress || String(a)))
+                .filter(Boolean) as string[];
+              setAccounts(cleaned);
+            } else {
               setAccounts([]);
             }
           }
@@ -198,9 +201,13 @@ function truncateUtf8(str: string, maxBytes = 64): string {
         throw new Error("Nimiq Pay is not connected");
       }
       const res = await provider.sign(message);
-      if (res && 'publicKey' in res && 'signature' in res) return res as SignatureResult;
+      const pk = (res as any)?.publicKey ?? (res as any)?.signerPublicKey ?? (res as any)?.pubKey;
+      const sig = (res as any)?.signature ?? (res as any)?.sig;
+      if (pk && sig) {
+        return { publicKey: pk, signature: sig } as SignatureResult;
+      }
       throw new Error(
-        `Nimiq sign failed: ${(res as ErrorResponse)?.error?.message ?? "unknown error"}`
+        `Nimiq sign failed: ${(res as ErrorResponse)?.error?.message ?? JSON.stringify(res) ?? "unknown error"}`
       );
     },
     [provider, status]

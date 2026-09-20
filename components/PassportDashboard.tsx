@@ -70,7 +70,7 @@ function Row({
   );
 }
 
-function CheckInPanel({ address }: { address?: string }) {
+function CheckInPanel({ address, onSignIn }: { address?: string; onSignIn?: () => Promise<boolean> }) {
   const [s, setS] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -96,6 +96,13 @@ function CheckInPanel({ address }: { address?: string }) {
     setBusy(true);
     setErr(null);
     try {
+      if (onSignIn) {
+        const ok = await onSignIn();
+        if (!ok) {
+          setErr("Authentication required to check in");
+          return;
+        }
+      }
       const r = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -106,7 +113,23 @@ function CheckInPanel({ address }: { address?: string }) {
         setS((prev: any) => prev ? { ...prev, checkedToday: true } : { checkedToday: true, streak: 1, total: 1, month: new Date().toISOString().slice(0, 7), monthDays: [new Date().toISOString().slice(0, 10)] });
         return;
       }
-      if (!r.ok) throw new Error((d as any).error || "Check-in failed");
+      if (!r.ok) {
+        if (r.status === 401 && onSignIn) {
+          const retried = await onSignIn();
+          if (retried) {
+            const retryRes = await fetch("/api/checkin", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ address }),
+            });
+            if (retryRes.ok) {
+              setS(await retryRes.json());
+              return;
+            }
+          }
+        }
+        throw new Error((d as any).error || "Check-in failed");
+      }
       setS(d);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Check-in failed");
@@ -179,7 +202,7 @@ function CheckInPanel({ address }: { address?: string }) {
   );
 }
 
-function ReferralPanel({ address }: { address?: string }) {
+function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () => Promise<boolean> }) {
   const [code, setCode] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -201,6 +224,9 @@ function ReferralPanel({ address }: { address?: string }) {
   async function generateLink() {
     setBusy(true);
     try {
+      if (onSignIn) {
+        await onSignIn();
+      }
       const r = await fetch("/api/referral", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -494,7 +520,7 @@ export default function PassportDashboard({
       {/* Tab 1: Overview */}
       {seg === "overview" && (
         <div className="px-4 animate-fade-in space-y-4">
-          <CheckInPanel address={displayAddress} />
+          <CheckInPanel address={displayAddress} onSignIn={onSignIn} />
           <div className="rule my-3" aria-hidden>
             <span className="font-display text-[10px] text-[var(--gold)]">❦</span>
           </div>
@@ -657,7 +683,7 @@ export default function PassportDashboard({
       {/* Tab 6: Referral System */}
       {seg === "referrals" && (
         <div className="px-4 animate-fade-in">
-          <ReferralPanel address={displayAddress} />
+          <ReferralPanel address={displayAddress} onSignIn={onSignIn} />
         </div>
       )}
     </div>

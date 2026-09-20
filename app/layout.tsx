@@ -7,6 +7,7 @@ import {
 } from "next/font/google";
 import { ToastProvider } from "@/components/Toast";
 import { Analytics } from "@vercel/analytics/next";
+import AuthInit from "@/components/AuthInit";
 import "./globals.css";
 
 const display = Cormorant_Garamond({
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-dvh bg-[var(--bg)] text-[var(--ink)] overflow-x-hidden overscroll-none">
+        <AuthInit />
         <ToastProvider>{children}</ToastProvider>
         <Analytics />
       </body>
