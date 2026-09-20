@@ -1,5 +1,5 @@
 import * as crypto from "crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 const COOKIE = "acta_session";
 const TTL_MS = 7 * 24 * 3600 * 1000;
@@ -18,21 +18,14 @@ function hmac(payload: string): string {
   return crypto.createHmac("sha256", getSecret()).update(payload).digest("base64url");
 }
 
-export async function setSession(address: string): Promise<void> {
+export function buildSessionToken(address: string): string {
   const payload = JSON.stringify({ address, exp: Date.now() + TTL_MS });
-  const value = Buffer.from(payload).toString("base64url") + "." + hmac(payload);
-  (await cookies()).set(COOKIE, value, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: TTL_MS / 1000,
-  });
+  return Buffer.from(payload).toString("base64url") + "." + hmac(payload);
 }
 
-export async function getSessionAddress(): Promise<string | null> {
-  const raw = (await cookies()).get(COOKIE)?.value;
-  if (!raw) return null;
+export function verifySessionToken(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const raw = token.startsWith("Bearer ") ? token.slice(7) : token;
   const idx = raw.lastIndexOf(".");
   if (idx <= 0) return null;
   const payloadB64 = raw.slice(0, idx);
@@ -50,6 +43,37 @@ export async function getSessionAddress(): Promise<string | null> {
     const parsed = JSON.parse(payload);
     if (typeof parsed.address !== "string" || parsed.exp <= Date.now()) return null;
     return parsed.address;
+  } catch {
+    return null;
+  }
+}
+
+export async function setSession(address: string): Promise<string> {
+  const value = buildSessionToken(address);
+  (await cookies()).set(COOKIE, value, {
+    httpOnly: true,
+    // Nimiq Pay loads the mini app in a cross-origin iframe. SameSite=Lax
+    // cookies are treated as third-party there and silently dropped, so the
+    // session never sticks and every mutating route 401s. SameSite=None +
+    // Secure is required for the cookie to survive in the iframe.
+    secure: true,
+    sameSite: "none",
+    path: "/",
+    maxAge: TTL_MS / 1000,
+  } as { httpOnly: boolean; secure: boolean; sameSite: "none"; path: string; maxAge: number });
+  return value;
+}
+
+export async function getSessionAddress(): Promise<string | null> {
+  // 1. Cookie (normal browsers + iframe with third-party cookies allowed).
+  const raw = (await cookies()).get(COOKIE)?.value;
+  const fromCookie = verifySessionToken(raw);
+  if (fromCookie) return fromCookie;
+  // 2. Authorization: Bearer <token> fallback (iframe with third-party
+  // cookies blocked — client persists the verify() token in localStorage).
+  try {
+    const auth = (await headers()).get("authorization");
+    return verifySessionToken(auth);
   } catch {
     return null;
   }

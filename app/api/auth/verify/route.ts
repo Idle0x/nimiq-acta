@@ -94,8 +94,12 @@ export async function POST(req: Request) {
     }
   }
 
-  await setSession(address);
+  const token = await setSession(address);
   // No milestone drip here: the welcome reward fires on first SETTLEMENT
   // (settleAct), never on login — logins are free, settlements are not.
-  return NextResponse.json({ address });
+  // The token is ALSO returned in the body: Nimiq Pay loads the app in a
+  // cross-origin iframe where third-party cookies can be blocked, so the
+  // client persists it (localStorage) and sends it as
+  // `Authorization: Bearer <token>` on every /api call.
+  return NextResponse.json({ address, token });
 }

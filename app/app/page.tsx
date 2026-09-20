@@ -6,7 +6,7 @@ import BorrowWizard from "@/components/BorrowWizard";
 import BountyVerify from "@/components/BountyVerify";
 import { Leaderboard, ActivityFeed } from "@/components/LivenessLayer";
 import { TreasuryCard } from "@/components/TreasuryCard";
-import { ensureAuthed } from "@/lib/auth-client";
+import { ensureAuthed, apiFetch, installAuthFetchPatch } from "@/lib/auth-client";
 import { humanize } from "@/lib/errors";
 import { AppHeader, EngravedTabs, trustTier } from "@/components/AppChrome";
 import CreatorApprovals from "@/components/CreatorApprovals";
@@ -130,7 +130,7 @@ export default function Home() {
   // Sync trust score as soon as account address is known
   useEffect(() => {
     if (!accounts[0]) return;
-    fetch(`/api/me?address=${encodeURIComponent(accounts[0])}`)
+    apiFetch(`/api/me?address=${encodeURIComponent(accounts[0])}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d && typeof d.trustScore === "number") {
@@ -151,7 +151,7 @@ export default function Home() {
       //    The session must belong to THIS address; a stale session for a
       //    different (e.g. previously connected) account falls through to
       //    re-auth instead of acting as the wrong identity.
-      const probe = await fetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
+      const probe = await apiFetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
       if (probe && probe.ok) {
         try {
           const who = ((await probe.json()) as { address?: string })?.address;
@@ -163,7 +163,7 @@ export default function Home() {
 
       // 2. Try cryptographic signature if provider supports signing
       try {
-        const res = await fetch("/api/auth/challenge");
+        const res = await apiFetch("/api/auth/challenge", { credentials: "include" });
         if (res.ok) {
           const { nonce } = await res.json();
           const sigRes = await signMessage(`Acta login\n\nNonce: ${nonce}`);
@@ -183,7 +183,7 @@ export default function Home() {
               else localStorage.setItem("acta_ref", ref);
             } catch { /* non-browser */ }
 
-            const authRes = await fetch("/api/auth/verify", {
+            const authRes = await apiFetch("/api/auth/verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -194,6 +194,10 @@ export default function Home() {
               }),
             });
             if (authRes.ok) {
+              try {
+                const data = (await authRes.json()) as { token?: string };
+                if (data?.token) localStorage.setItem("acta_session_token", data.token);
+              } catch { /* body unreadable — cookie path still applies */ }
               try { localStorage.removeItem("acta_ref"); } catch {}
               return true;
             }
@@ -219,6 +223,7 @@ export default function Home() {
   }, [accounts, isDemoMode, ensureAuth]);
 
   useEffect(() => {
+    installAuthFetchPatch();
     try {
       if (typeof localStorage !== "undefined" && !localStorage.getItem("acta.onboarded")) {
         setShowOnboarding(true);
@@ -230,8 +235,8 @@ export default function Home() {
     try {
       const q = accounts[0] ? `?address=${encodeURIComponent(accounts[0])}` : "";
       const [eRes, dRes] = await Promise.all([
-        fetch("/api/escrows").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch(`/api/dashboard${q}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        apiFetch("/api/escrows").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        apiFetch(`/api/dashboard${q}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       if (eRes) {
         if (Array.isArray(eRes.escrows)) setEscrows(eRes.escrows);
@@ -254,7 +259,7 @@ export default function Home() {
     let cancelled = false;
     const q = accounts[0] ? `?address=${encodeURIComponent(accounts[0])}` : "";
     
-    fetch(`/api/dashboard${q}`).then(r => r.json()).then(d => {
+    apiFetch(`/api/dashboard${q}`).then(r => r.json()).then(d => {
       if(!cancelled && d.price) {
         setDashboard(d);
         if (typeof d.user?.trustScore === "number") {
@@ -263,7 +268,7 @@ export default function Home() {
       }
     }).catch(() => {});
 
-    fetch("/api/escrows")
+    apiFetch("/api/escrows")
       .then((r) => r.json())
       .then((d: { listings?: Listing[]; escrows?: Escrow[]; shared?: boolean }) => {
         if (cancelled || !d) return;
@@ -317,7 +322,7 @@ export default function Home() {
       };
       
       const idemKey = crypto.randomUUID();
-      const res = await fetch("/api/escrows", {
+      const res = await apiFetch("/api/escrows", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": idemKey },
         body: JSON.stringify({ type: "escrow", payload: e, address: borrower }),
@@ -347,7 +352,7 @@ export default function Home() {
     }
 
     try {
-      const res = await fetch("/api/qr/generate", {
+      const res = await apiFetch("/api/qr/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ escrowId: escrow.id, amount: escrow.amountNIM, chain: "nimiq-testnet" })
@@ -357,7 +362,7 @@ export default function Home() {
       
       setEscrows((p) => p.map((e) => (e.id === escrow.id ? { ...e, lenderPubkey: publicKeyHex } : e)));
       // Also update escrow with the lender's public key
-      await fetch("/api/escrows", {
+      await apiFetch("/api/escrows", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: escrow.id, lenderPubkey: publicKeyHex }),
@@ -389,7 +394,7 @@ export default function Home() {
           return toast("Invalid manual request QR", "error");
         }
 
-        const res = await fetch("/api/bounty/manual_approve", {
+        const res = await apiFetch("/api/bounty/manual_approve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ listingId, completerAddress }),
@@ -422,7 +427,7 @@ export default function Home() {
         if (targetEscrow && (targetEscrow.state === "locked" || (targetEscrow.state as string) === "expired")) {
           matched = true;
           setShowScanner(false);
-          const res = await fetch("/api/escrows", {
+          const res = await apiFetch("/api/escrows", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id: targetEscrow.id, token: t }),
@@ -447,7 +452,7 @@ export default function Home() {
         if (payload && payload.escrowId === e.id) {
           matched = true;
           setShowScanner(false);
-          const res = await fetch("/api/escrows", {
+          const res = await apiFetch("/api/escrows", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id: e.id, token: t }),
@@ -469,7 +474,7 @@ export default function Home() {
       // 3. Try ScanQuest (Creator placed QR, Completer scans it)
       if (!matched && t.split('.').length === 2) {
         setShowScanner(false);
-        const res = await fetch("/api/bounty/scanquest", {
+        const res = await apiFetch("/api/bounty/scanquest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: t }),
@@ -503,7 +508,7 @@ export default function Home() {
   async function handleCancel(type: "listing" | "escrow", id: string) {
     if (!confirm("Are you sure you want to cancel this? Funds will be refunded.")) return;
     try {
-      const res = await fetch("/api/cancel", {
+      const res = await apiFetch("/api/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, id })
@@ -563,7 +568,7 @@ export default function Home() {
 
     try {
       const listingKey = crypto.randomUUID();
-      const res = await fetch("/api/escrows", {
+      const res = await apiFetch("/api/escrows", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": listingKey },
         body: JSON.stringify({ type: "listing", payload: listing, txHash, address: borrower }),
@@ -767,7 +772,7 @@ export default function Home() {
                         {l.owner === borrower && l.kind === "bounty_qr" ? (
                           <button
                             onClick={async () => {
-                              const res = await fetch("/api/qr/generate", {
+                              const res = await apiFetch("/api/qr/generate", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ type: "scan_quest", escrowId: l.id, amount: l.collateralNIM, chain: "nimiq-testnet" }),
@@ -1215,7 +1220,7 @@ export default function Home() {
             try {
               const { fileToOptimizedDataUrl } = await import("@/lib/image");
               const imageUrl = await fileToOptimizedDataUrl(f);
-              const res = await fetch("/api/bounty/scanquest", {
+              const res = await apiFetch("/api/bounty/scanquest", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ token, imageUrl }),
