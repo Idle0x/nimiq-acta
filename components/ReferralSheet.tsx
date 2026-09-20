@@ -49,6 +49,33 @@ export default function ReferralSheet({ open, onClose, address }: { open: boolea
     }
   }
 
+  const [claimCode, setClaimCode] = useState("");
+  const [claiming, setClaiming] = useState(false);
+  const [claimed, setClaimed] = useState(false);
+
+  async function handleClaim() {
+    if (!claimCode.trim()) return;
+    setClaiming(true);
+    try {
+      const res = await fetch("/api/referral/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: claimCode.trim(), address }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setClaimed(true);
+        toast({ type: "success", title: "10 NIM Claimed!", body: "Referral reward sent immediately from the treasury." });
+      } else {
+        toast({ type: "error", title: "Claim failed", body: d?.error || "Could not claim code" });
+      }
+    } catch {
+      toast({ type: "error", title: "Network error", body: "Failed to connect to referral treasury." });
+    } finally {
+      setClaiming(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 backdrop-blur-sm animate-fade-in sm:items-center" onClick={onClose}>
       <div className="plate w-full max-w-[480px] rounded-t-3xl p-6 pb-8 animate-slide-up sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
@@ -61,7 +88,7 @@ export default function ReferralSheet({ open, onClose, address }: { open: boolea
 
         <h3 className="font-display text-xl font-semibold text-[var(--ink)]">You both earn 10 NIM.</h3>
         <p className="marginalia mt-1.5 text-[12.5px]">
-          When their first act settles, the treasury drips 10 NIM to each of you — recorded in the act ledger.
+          Share your link or code. The treasury immediately drips 10 NIM to each of you upon joining, recorded on the Nimiq ledger.
         </p>
 
         <div className="mt-4 rounded-xl border border-[var(--line2)] bg-black/30 p-3">
@@ -77,6 +104,33 @@ export default function ReferralSheet({ open, onClose, address }: { open: boolea
           <button onClick={copy} disabled={!link} className="ghost flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[13px]">
             <Copy size={14} /> Copy link
           </button>
+        </div>
+
+        {/* Claim friend's code */}
+        <div className="mt-5 pt-4 border-t border-[var(--line)] space-y-2">
+          <p className="caps text-[9px] text-[var(--gold)]">Have a friend's referral code?</p>
+          {claimed ? (
+            <div className="rounded-xl bg-[color-mix(in_srgb,var(--verdigris)_15%,transparent)] border border-[var(--verdigris)]/40 p-2.5 text-center text-xs text-[var(--verdigris)] font-semibold">
+              ✓ 10 NIM Referral Bonus Claimed!
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={claimCode}
+                onChange={(e) => setClaimCode(e.target.value.toUpperCase())}
+                placeholder="Enter Code (e.g. 7A1F2C)"
+                className="flex-1 rounded-xl bg-black/40 border border-[var(--line)] px-3 py-2 text-xs font-mono tracking-wider uppercase text-[var(--ink)] placeholder:text-[var(--ink3)]/50 focus:border-[var(--gold)] outline-none"
+              />
+              <button
+                onClick={handleClaim}
+                disabled={claiming || !claimCode.trim()}
+                className="press rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap"
+              >
+                {claiming ? "Claiming…" : "Claim 10 NIM"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

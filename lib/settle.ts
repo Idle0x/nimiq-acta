@@ -137,42 +137,92 @@ export async function settleAct(
 
 const REFERRAL_REWARD_NIM = 10;
 
-/** Pays 10 NIM to referrer AND referee on the referee's first settled act. Once ever. */
-export async function settleReferralReward(referee: string): Promise<void> {
-  const { getSql } = await import("./db");
-  const sql = getSql();
-  if (!sql) return;
-  const settled = await sql`
-    SELECT referral_id, referee FROM referral_settlements WHERE referee = ${referee} LIMIT 1
-  `;
-  if (settled.length === 0) return;
-  const referralId = (settled[0] as any).referral_id as string;
-  const ref = await sql`SELECT referrer FROM referrals WHERE id = ${referralId} LIMIT 1`;
-  const referrer = (ref[0] as any)?.referrer as string | undefined;
-  if (!referrer) return;
-  // Per-side idempotency: a half-paid pair resumes where it stopped.
-  const paidRows = await sql`
-    SELECT proof_json->>'side' AS side FROM acts
-    WHERE type = 'referral' AND proof_json->>'referral_id' = ${referralId}
-  `;
-  const paidSides = new Set((paidRows as unknown as Record<string, unknown>[]).map((r) => String(r.side)));
+/** Pays 10 NIM to both referrer and referee immediately. Idempotent per side. */
+export async function rewardReferralPair(
+  referralId: string,
+  referrer: string,
+  referee: string
+): Promise<{ paidReferrer: boolean; paidReferee: boolean }> {
+  const { getSql, getMemStore } = await import("./db");
   const { notify } = await import("./notify");
   const { dripTreasury } = await import("./milestones");
+  const sql = getSql();
+
+  let paidSides = new Set<string>();
+  if (sql) {
+    const paidRows = await sql`
+      SELECT proof_json->>'side' AS side FROM acts
+      WHERE type = 'referral' AND proof_json->>'referral_id' = ${referralId}
+    `;
+    paidSides = new Set((paidRows as unknown as Record<string, unknown>[]).map((r) => String(r.side)));
+  } else {
+    const { memActs } = getMemStore();
+    for (const a of memActs) {
+      if (a.type === "referral" && (a.proofJson as any)?.referral_id === referralId) {
+        paidSides.add((a.proofJson as any)?.side);
+      }
+    }
+  }
+
+  let paidReferrer = false;
+  let paidReferee = false;
+
   for (const [to, side] of [[referrer, "referrer"], [referee, "referee"]] as const) {
     if (paidSides.has(side)) continue;
     const msg = side === "referrer"
-      ? `Acta Referral: Friend first settlement reward (+10 NIM)`
-      : `Acta Referral: Welcome referral reward (+10 NIM)`;
+      ? `Acta Referral: Friend referral reward (+${REFERRAL_REWARD_NIM} NIM)`
+      : `Acta Referral: Welcome referral reward (+${REFERRAL_REWARD_NIM} NIM)`;
+
     const tx = await dripTreasury(to, REFERRAL_REWARD_NIM, {
       type: "referral",
       proof: { referral_id: referralId, side },
       refId: `${referralId}:${side}`,
       message: msg,
     });
-    if (tx) {
-      await notify(to, "referral", "Referral reward settled",
-        `10 NIM from the treasury — ${side === "referrer" ? "your friend settled their first act" : "your first act settled"}.`,
-        explorerTxUrl(tx));
+
+    if (side === "referrer") paidReferrer = true;
+    if (side === "referee") paidReferee = true;
+
+    await notify(
+      to,
+      "referral",
+      "Referral reward settled",
+      `10 NIM from the treasury — ${side === "referrer" ? "a friend joined through your referral!" : "welcome reward for joining via referral!"}.`,
+      tx ? explorerTxUrl(tx) : undefined
+    ).catch(() => {});
+  }
+
+  return { paidReferrer, paidReferee };
+}
+
+/** Pays 10 NIM to referrer AND referee on the referee's first settled act (fallback / idempotent sweep). Once ever. */
+export async function settleReferralReward(referee: string): Promise<void> {
+  const { getSql, getMemStore } = await import("./db");
+  const sql = getSql();
+  let referralId: string | null = null;
+  let referrer: string | null = null;
+
+  if (sql) {
+    const settled = await sql`
+      SELECT referral_id, referee FROM referral_settlements WHERE referee = ${referee} LIMIT 1
+    `;
+    if (settled.length === 0) return;
+    referralId = (settled[0] as any).referral_id as string;
+    const ref = await sql`SELECT referrer FROM referrals WHERE id = ${referralId} LIMIT 1`;
+    referrer = (ref[0] as any)?.referrer as string | undefined ?? null;
+  } else {
+    const { memReferralSettlements, memReferrals } = getMemStore();
+    const settled = memReferralSettlements.get(referee);
+    if (!settled) return;
+    referralId = settled.referralId;
+    for (const r of memReferrals.values()) {
+      if (r.id === referralId) {
+        referrer = r.referrer;
+        break;
+      }
     }
   }
+
+  if (!referralId || !referrer) return;
+  await rewardReferralPair(referralId, referrer, referee);
 }

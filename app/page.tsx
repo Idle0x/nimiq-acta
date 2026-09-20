@@ -376,6 +376,27 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ================= PROTOCOL INVOCATION CALLOUT ================= */}
+      <section className="px-6 py-10 sm:py-12 text-center border-t border-[var(--line)] bg-[color-mix(in_srgb,var(--surface)_25%,transparent)]">
+        <div className="mx-auto max-w-xl">
+          <Reveal>
+            <div className="flex justify-center mb-3">
+              <Seal size={44} className="!text-lg">A</Seal>
+            </div>
+            <h2 className="h-display text-3xl sm:text-4xl text-[var(--ink)] leading-tight">
+              Put your NIM where<br /><em className="not-italic text-[var(--gold)]">the world is.</em>
+            </h2>
+            <Marginalia className="mt-2 text-xs sm:text-sm">
+              Deeds settle in seconds. Reputation compounds forever.
+            </Marginalia>
+            <div className="mt-5 flex justify-center gap-3 flex-wrap">
+              <PressLink href="/app" className="!px-6 !py-2.5 sm:!px-8 sm:!py-3 !text-xs sm:!text-sm font-semibold">Enter the Protocol</PressLink>
+              <GhostLink href="https://github.com/Idle0x/nimiq-acta" className="!px-6 !py-2.5 sm:!px-8 sm:!py-3 !text-xs sm:!text-sm font-semibold">Read the Code</GhostLink>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       {/* ================= SOVEREIGN PRIVILEGES ================= */}
       <section id="privileges" className="px-6 py-24 border-t border-[var(--line)] bg-[color-mix(in_srgb,var(--surface)_40%,transparent)]">
         <div className="mx-auto max-w-5xl">
@@ -506,27 +527,6 @@ export default function Landing() {
               </Plate>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ================= FINAL CTA ================= */}
-      <section className="px-6 py-28 text-center border-t border-[var(--line)]">
-        <div className="mx-auto max-w-2xl">
-          <Reveal>
-            <div className="flex justify-center mb-8">
-              <Seal size={72} className="!text-2xl">A</Seal>
-            </div>
-            <h2 className="h-display text-5xl sm:text-6xl text-[var(--ink)]">
-              Put your NIM where<br /><em className="not-italic text-[var(--gold)]">the world is.</em>
-            </h2>
-            <Marginalia className="mt-6">
-              Deeds settle in seconds. Reputation compounds forever.
-            </Marginalia>
-            <div className="mt-10 flex justify-center gap-4 flex-wrap">
-              <PressLink href="/app" className="!px-8 !py-4">Enter the Protocol</PressLink>
-              <GhostLink href="https://github.com/Idle0x/nimiq-acta" className="!px-8 !py-4">Read the Code</GhostLink>
-            </div>
-          </Reveal>
         </div>
       </section>
 

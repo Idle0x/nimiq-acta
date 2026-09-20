@@ -25,6 +25,7 @@ import Stamps from "./Stamps";
 import { trustTier } from "./AppChrome";
 import { InfoTooltip } from "./Tooltip";
 import { explorerTxUrl } from "@/lib/escrow";
+import { useToast } from "./Feedback";
 
 const STATE_CHIP: Record<string, { label: string; color: string }> = {
   locked: { label: "In progress", color: "var(--gold)" },
@@ -203,8 +204,15 @@ function CheckInPanel({ address, onSignIn }: { address?: string; onSignIn?: () =
 }
 
 function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () => Promise<boolean> }) {
+  const toast = useToast();
   const [code, setCode] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
+  const [count, setCount] = useState(0);
+  const [earnedNIM, setEarnedNIM] = useState(0);
+  const [alreadyClaimed, setAlreadyClaimed] = useState(false);
+  const [claimedReferrerCode, setClaimedReferrerCode] = useState<string | null>(null);
+  const [claimInput, setClaimInput] = useState("");
+  const [claiming, setClaiming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -217,6 +225,10 @@ function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () 
           setCode(d.code);
           setLink(d.link || `${window.location.origin}/?ref=${d.code}`);
         }
+        if (typeof d?.count === "number") setCount(d.count);
+        if (typeof d?.earnedNIM === "number") setEarnedNIM(d.earnedNIM);
+        if (typeof d?.alreadyClaimed === "boolean") setAlreadyClaimed(d.alreadyClaimed);
+        if (d?.claimedReferrerCode) setClaimedReferrerCode(d.claimedReferrerCode);
       })
       .catch(() => {});
   }, [address]);
@@ -236,13 +248,15 @@ function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () 
         const d = await r.json();
         setCode(d.code);
         setLink(d.link || `${window.location.origin}/?ref=${d.code}`);
+        if (typeof d?.count === "number") setCount(d.count);
+        if (typeof d?.earnedNIM === "number") setEarnedNIM(d.earnedNIM);
       } else {
-        const fallbackCode = (address || "NIMIQ").replace(/[^A-Za-z0-9]/g, "").slice(2, 8);
+        const fallbackCode = (address || "NIMIQ").replace(/[^A-Za-z0-9]/g, "").slice(2, 8).toUpperCase();
         setCode(fallbackCode);
         setLink(`${window.location.origin}/?ref=${fallbackCode}`);
       }
     } catch {
-      const fallbackCode = (address || "NIMIQ").replace(/[^A-Za-z0-9]/g, "").slice(2, 8);
+      const fallbackCode = (address || "NIMIQ").replace(/[^A-Za-z0-9]/g, "").slice(2, 8).toUpperCase();
       setCode(fallbackCode);
       setLink(`${window.location.origin}/?ref=${fallbackCode}`);
     } finally {
@@ -255,6 +269,46 @@ function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () 
     navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    toast({ type: "success", title: "Referral link copied!", body: "Share with peers to earn 10 NIM each." });
+  }
+
+  async function handleClaim() {
+    if (!claimInput.trim()) return;
+    setClaiming(true);
+    try {
+      if (onSignIn) {
+        await onSignIn();
+      }
+      const r = await fetch("/api/referral/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: claimInput.trim(), address }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setAlreadyClaimed(true);
+        setClaimedReferrerCode(claimInput.trim().toUpperCase());
+        toast({
+          type: "success",
+          title: "🎉 10 NIM Claimed!",
+          body: "Referral reward was disbursed directly to your wallet from the treasury.",
+        });
+      } else {
+        toast({
+          type: "error",
+          title: "Claim failed",
+          body: d?.error || "Could not claim referral code",
+        });
+      }
+    } catch {
+      toast({
+        type: "error",
+        title: "Claim failed",
+        body: "Network error connecting to treasury",
+      });
+    } finally {
+      setClaiming(false);
+    }
   }
 
   return (
@@ -265,10 +319,24 @@ function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () 
             <Share2 size={16} className="text-[var(--gold)]" /> Referral Program
           </h4>
           <p className="marginalia text-[11px] mt-1 text-[var(--ink3)]">
-            Invite peers to borrow or complete challenges. You earn <strong className="text-[var(--gold)]">10 NIM</strong> for every act they settle.
+            Invite peers to Acta. You both earn <strong className="text-[var(--gold)]">10 NIM</strong> immediately from the protocol treasury upon joining.
           </p>
         </div>
       </div>
+
+      {/* Referral Stats */}
+      {(count > 0 || earnedNIM > 0) && (
+        <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-black/20 border border-[var(--line)]">
+          <div>
+            <span className="caps text-[8.5px] text-[var(--ink3)] block">Friends Invited</span>
+            <span className="text-base font-bold text-[var(--ink)] font-mono">{count}</span>
+          </div>
+          <div>
+            <span className="caps text-[8.5px] text-[var(--gold)] block">Treasury Earned</span>
+            <span className="text-base font-bold text-[var(--gold)] font-mono">+{earnedNIM} NIM</span>
+          </div>
+        </div>
+      )}
 
       {link ? (
         <div className="space-y-2">
@@ -281,12 +349,12 @@ function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () 
               className="press flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-bold"
             >
               {copied ? <Check size={12} /> : <Copy size={12} />}
-              {copied ? "Copied" : "Copy"}
+              {copied ? "Copied" : "Copy Link"}
             </button>
           </div>
           <div className="flex items-center justify-between text-[10px] text-[var(--ink3)] px-1">
-            <span>Referral Code: <strong className="font-mono text-[var(--ink)]">{code}</strong></span>
-            <span className="text-[var(--verdigris)]">Active & ready</span>
+            <span>Your Code: <strong className="font-mono text-[var(--ink)]">{code}</strong></span>
+            <span className="text-[var(--verdigris)]">10 NIM / referral</span>
           </div>
         </div>
       ) : (
@@ -298,6 +366,33 @@ function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () 
           {busy ? "Generating Link…" : "Create My Referral Link"}
         </button>
       )}
+
+      {/* Redeem friend's referral code */}
+      <div className="pt-3 border-t border-[var(--line)] space-y-2">
+        <span className="caps text-[9px] text-[var(--gold)] block">Redeem a Referral Code</span>
+        {alreadyClaimed ? (
+          <div className="rounded-xl bg-[color-mix(in_srgb,var(--verdigris)_15%,transparent)] border border-[var(--verdigris)]/40 p-2.5 text-center text-xs text-[var(--verdigris)] font-semibold flex items-center justify-center gap-1.5">
+            <Check size={13} /> 10 NIM Referral Bonus Claimed {claimedReferrerCode ? `(Code: ${claimedReferrerCode})` : ""}
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={claimInput}
+              onChange={(e) => setClaimInput(e.target.value.toUpperCase())}
+              placeholder="Enter Friend's Code (e.g. 7A1F2C)"
+              className="flex-1 rounded-xl bg-black/30 border border-[var(--line)] px-3 py-2 text-xs font-mono tracking-wider uppercase text-[var(--ink)] placeholder:text-[var(--ink3)]/50 focus:border-[var(--gold)] outline-none"
+            />
+            <button
+              onClick={handleClaim}
+              disabled={claiming || !claimInput.trim()}
+              className="press rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap"
+            >
+              {claiming ? "Claiming…" : "Claim 10 NIM"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

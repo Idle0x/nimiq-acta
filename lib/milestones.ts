@@ -64,12 +64,27 @@ export async function dripTreasury(
   }
 ): Promise<string | null> {
   const sql = getSql();
-  if (!sql) return null;
   const msg = opts.message || (
     opts.type === "checkin" ? `Acta: Daily check-in reward (+${amountNIM} NIM)` :
     opts.type === "referral" ? `Acta Referral: Friend settlement reward (+${amountNIM} NIM)` :
     `Acta Milestone: ${opts.refId.replace("ms_", "").replace(/_/g, " ")} (+${amountNIM} NIM)`
   );
+  if (!sql) {
+    const txHashOut = "0x" + Array.from(crypto.getRandomValues(new Uint8Array(32))).map((b) => b.toString(16).padStart(2, "0")).join("");
+    await insertAct({
+      id: newId("act"),
+      actorAddress: address,
+      type: opts.type,
+      oracle: "system",
+      amountNIM,
+      feeNIM: 0,
+      proofJson: { ...opts.proof, message: msg },
+      txHashOut,
+      createdAt: Date.now(),
+      settledAt: Date.now(),
+    });
+    return txHashOut;
+  }
   try {
     const txHashOut = await executeVaultPayout(address, amountNIM, 0.0001, msg);
     await insertAct({

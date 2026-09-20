@@ -147,6 +147,23 @@ if (typeof window !== "undefined") {
   installAuthFetchPatch();
 }
 
+async function claimPendingReferral(addr?: string) {
+  try {
+    if (typeof window === "undefined") return;
+    const urlRef = new URLSearchParams(window.location.search).get("ref");
+    const storedRef = localStorage.getItem("acta_ref");
+    const code = urlRef || storedRef;
+    if (code) {
+      await apiFetch("/api/referral/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, address: addr }),
+      }).catch(() => {});
+      localStorage.removeItem("acta_ref");
+    }
+  } catch {}
+}
+
 export async function ensureAuthed(
   address: string | undefined,
   signMessage: (msg: string) => Promise<{ publicKey: unknown; signature: unknown }>
@@ -168,10 +185,12 @@ export async function ensureAuthed(
       const who = ((await probe.json()) as { address?: string })?.address;
       if (normalizeAddress(who) === normAddr) {
         cachedFor = address;
+        claimPendingReferral(address);
         return true;
       }
     } catch {
       cachedFor = address;
+      claimPendingReferral(address);
       return true;
     }
   }
@@ -213,6 +232,7 @@ export async function ensureAuthed(
       } catch { /* body already consumed? still authed */ }
       try { localStorage.removeItem("acta_ref"); } catch {}
       cachedFor = address;
+      claimPendingReferral(address);
       return true;
     }
     return false;

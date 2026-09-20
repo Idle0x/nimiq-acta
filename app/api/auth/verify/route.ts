@@ -3,7 +3,7 @@ import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
 import * as Nimiq from "@nimiq/core";
 import crypto from "crypto";
-import { getSql, ensureDbSchema } from "@/lib/db";
+import { getSql, ensureDbSchema, getMemStore } from "@/lib/db";
 import { setSession } from "@/lib/session";
 import { notify } from "@/lib/notify";
 
@@ -125,10 +125,10 @@ export async function POST(req: Request) {
       ON CONFLICT (address) DO NOTHING
     `;
 
-    // Referral settlement: a friend arrived with ?ref=CODE — pay both on their FIRST session.
+    // Referral settlement: a friend arrived with ?ref=CODE — pay both immediately!
     if (ref && typeof ref === "string") {
       try {
-        const rows = await sql`SELECT * FROM referrals WHERE code = ${ref} LIMIT 1`;
+        const rows = await sql`SELECT * FROM referrals WHERE LOWER(code) = LOWER(${ref.trim()}) LIMIT 1`;
         const referral = rows[0];
         if (referral && referral.referrer !== address) {
           const inserted = await sql`
@@ -138,18 +138,36 @@ export async function POST(req: Request) {
             RETURNING referee
           `;
           if (inserted.length > 0) {
-            await notify(referral.referrer as string, "referral", "A friend joined via your link",
-              "Their first act will settle your 10 NIM referral reward from the treasury.");
-            await notify(address, "referral", "Welcome to Acta",
-              "You joined via a referral link. Settle your first act to earn 10 NIM from the treasury.");
-            // Reward lands at settlement time (settleReferralReward on the
-            // referee's first settled act) — login only records the link.
+            const { rewardReferralPair } = await import("@/lib/settle");
+            await rewardReferralPair(referral.id as string, referral.referrer as string, address);
           }
         }
-      } catch {
-        // referral tables may not exist yet — never block login
+      } catch (err) {
+        console.error("Referral instant reward on auth failed:", err);
       }
     }
+  } else if (!sql && ref && typeof ref === "string") {
+    try {
+      const { memReferrals, memReferralSettlements } = getMemStore();
+      let referral: { id: string; referrer: string; code: string } | undefined;
+      for (const r of memReferrals.values()) {
+        if (r.code.toLowerCase() === ref.trim().toLowerCase()) {
+          referral = r;
+          break;
+        }
+      }
+      if (referral && referral.referrer.toLowerCase() !== address.toLowerCase()) {
+        if (!memReferralSettlements.has(address)) {
+          memReferralSettlements.set(address, {
+            referralId: referral.id,
+            referee: address,
+            settledAt: Date.now(),
+          });
+          const { rewardReferralPair } = await import("@/lib/settle");
+          await rewardReferralPair(referral.id, referral.referrer, address);
+        }
+      }
+    } catch {}
   }
 
   const token = await setSession(address);

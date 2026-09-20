@@ -12,9 +12,10 @@ const memCheckins: Map<string, Set<string>> = new Map();
 const memLenderKeys: Map<string, LenderKey> = new Map();
 const memNonces: Set<string> = new Set();
 const memReferrals: Map<string, { id: string; referrer: string; code: string; createdAt: number }> = new Map();
+const memReferralSettlements: Map<string, { referralId: string; referee: string; settledAt: number }> = new Map();
 
 export function getMemStore() {
-  return { memListings, memEscrows, memActs, memUsers, memCheckins, memLenderKeys, memReferrals };
+  return { memListings, memEscrows, memActs, memUsers, memCheckins, memLenderKeys, memReferrals, memReferralSettlements };
 }
 
 export function getSql() {
