@@ -37,14 +37,15 @@ export async function POST(req: Request) {
     let isBounty = false;
     if (sql) {
       // Listing must be live: closed/expired/completed listings accept nothing.
-      const live = await sql`SELECT is_active, state, kind, collateral_nim, tx_hash, owner FROM listings WHERE id = ${e.listingId} LIMIT 1`;
+      const live = await sql`SELECT is_active, state, kind, collateral_nim, tx_hash, owner, borrow_mode FROM listings WHERE id = ${e.listingId} LIMIT 1`;
       if (!live[0] || !(live[0] as any).is_active || (live[0] as any).state !== "open") {
         const st = (live[0] as any)?.state;
         return NextResponse.json({ error: st === "closed" ? "Closed to new accepts" : "Listing is no longer open" }, { status: st === "closed" ? 403 : 410 });
       }
       isBounty = String((live[0] as any)?.kind ?? "").startsWith("bounty");
-      if (isBounty) {
-        // For bounties, the reward is funded upfront by the sponsor at creation.
+      const isBorrowRent = String((live[0] as any)?.kind ?? "") === "borrow" && (live[0] as any)?.borrow_mode === "rent";
+      if (isBounty || isBorrowRent) {
+        // For bounties and rental requests, the deposit was funded upfront by the sponsor/requester at creation.
         e.amountNIM = Number((live[0] as any).collateral_nim);
         if (!e.txHash || e.txHash.startsWith("0x")) {
           e.txHash = (live[0] as any).tx_hash || e.txHash || "0x" + Date.now().toString(16);
@@ -81,9 +82,9 @@ export async function POST(req: Request) {
       }
     } catch { /* best-effort */ }
 
-      // Funding proof: for borrow escrows, the borrower must lock collateral to the vault.
-      // For bounties, funding was already deposited and verified on-chain at listing creation.
-      if (!isBounty) {
+      // Funding proof: for borrow escrows where someone is renting from a lender, the borrower locks collateral.
+      // For bounties and rental requests, funding was already deposited and verified on-chain at listing creation.
+      if (!isBounty && !isBorrowRent) {
         if (!e.txHash) {
           return NextResponse.json({ error: "Lock transaction hash required" }, { status: 400 });
         }
@@ -158,11 +159,14 @@ export async function POST(req: Request) {
     if (!(listing.collateralNIM >= MIN_COL)) {
       return NextResponse.json({ error: `Minimum reward/collateral is ${MIN_COL} NIM (dust guard)` }, { status: 400 });
     }
-    // Bounties are funded at creation: the funding tx must be real, from the
-    // sponsor, to the vault. (Borrow listings lock nothing until accepted.)
-    if (listing.kind.startsWith("bounty")) {
+    // Bounties and borrow rental requests are funded at creation: the funding tx must be real,
+    // from the sponsor/requester, to the vault. (Lending offers lock nothing until accepted.)
+    const isBorrowRent = listing.kind === "borrow" && (listing as any).borrowMode === "rent";
+    if (listing.kind.startsWith("bounty") || isBorrowRent) {
       if (!data.txHash) {
-        return NextResponse.json({ error: "Bounty funding transaction required" }, { status: 400 });
+        return NextResponse.json({
+          error: isBorrowRent ? "Rental request collateral transaction required" : "Bounty funding transaction required",
+        }, { status: 400 });
       }
       if (shouldVerifyInbound()) {
         const { verifyInboundLock: verify } = await import("@/lib/backend-nimiq");
@@ -173,7 +177,7 @@ export async function POST(req: Request) {
           minAmountLunas: BigInt(Math.round(listing.collateralNIM * 100_000)),
         });
         if (!proof.ok) {
-          return NextResponse.json({ error: `Bounty not funded: ${proof.error}` }, { status: 400 });
+          return NextResponse.json({ error: `Deposit not funded: ${proof.error}` }, { status: 400 });
         }
       }
     }

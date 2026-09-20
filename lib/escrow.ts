@@ -50,6 +50,7 @@ export type Listing = {
   requireLocation?: boolean;
   contract?: import("./contract").ListingContract | null;
   expiresAt?: number | null;
+  borrowMode?: "lend" | "rent";
 };
 
 export type Escrow = {

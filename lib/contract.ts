@@ -29,16 +29,24 @@ export function oracleForKind(kind: string): OracleKind {
 }
 
 /** Short, professional protocol lines — used by the dossier and the contract sheet. */
-export function protocolNotes(l: { kind: string; collateralNIM: number }, c?: Partial<ListingContract> | null): string[] {
+export function protocolNotes(l: { kind: string; collateralNIM: number; borrowMode?: string }, c?: Partial<ListingContract> | null): string[] {
   const fee = "a 0.0011 NIM settlement fee (0.001 retained by the vault, 0.0001 network)";
   const notes: string[] = [];
   switch (l.kind) {
     case "borrow":
-      notes.push(
-        `${l.collateralNIM.toLocaleString()} NIM locks in the protocol vault for the loan period — held by the contract, not the lender.`,
-        `Return the item and have the lender scan your Return Code: the vault releases your collateral minus ${fee}.`,
-        "If the item is not returned, the lender may claim the collateral once the window closes."
-      );
+      if (l.borrowMode === "rent") {
+        notes.push(
+          `${l.collateralNIM.toLocaleString()} NIM was locked by the requester in the protocol vault upon posting — held by the autonomous smart contract until fulfilled.`,
+          `When a lender accepts and physical exchange occurs, collateral remains safely vaulted. Upon return, lender scans Return QR to release collateral minus ${fee}.`,
+          "If the item is not returned or damaged, the lender may claim the vaulted collateral once the dispute window closes."
+        );
+      } else {
+        notes.push(
+          `0 NIM deducted upfront to list as available. ${l.collateralNIM.toLocaleString()} NIM collateral will be locked in the protocol vault by the borrower upon rental acceptance.`,
+          `Return the item and have the lender scan the Return QR code: the vault releases the borrower's collateral minus ${fee}.`,
+          "If the item is not returned within the agreed loan duration, the lender may claim the locked collateral."
+        );
+      }
       break;
     case "bounty_qr":
       notes.push(

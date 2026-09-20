@@ -30,14 +30,15 @@ export default function BorrowWizard({
 }) {
   const [step, setStep] = useState(1);
   const isBounty = listing.kind.startsWith("bounty");
-  const due = isBounty ? 0 : discountedCollateral(listing.collateralNIM, trustScore);
+  const isRentRequest = listing.kind === "borrow" && listing.borrowMode === "rent";
+  const due = (isBounty || isRentRequest) ? 0 : discountedCollateral(listing.collateralNIM, trustScore);
 
   return (
     <div className="app-ink fixed inset-0 z-40 flex items-end justify-center bg-[color-mix(in_srgb,var(--ink)_60%,transparent)] backdrop-blur-sm sm:items-center animate-fade-in">
       <div className="card w-full max-w-[480px] rounded-t-3xl p-5 pb-8 sm:rounded-3xl animate-slide-up">
         <div className="mb-4 flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--ink3)]">
-            Step {step} of 3 · {isBounty ? "Bounty Challenge" : "Equipment Borrow"}
+            Step {step} of 3 · {isBounty ? "Bounty Challenge" : isRentRequest ? "Rental Fulfillment" : "Equipment Borrow"}
           </p>
           <button onClick={onClose} className="text-[var(--ink3)] hover:text-[var(--ink)] transition-colors p-1">
             <X size={18} />
@@ -57,7 +58,7 @@ export default function BorrowWizard({
         {step === 1 && (
           <div className="animate-fade-in">
             <h3 className="text-lg font-bold">
-              {isBounty ? "Review Bounty Challenge" : "Review Collateral Deposit"}
+              {isBounty ? "Review Bounty Challenge" : isRentRequest ? "Review Rental Fulfillment" : "Review Collateral Deposit"}
             </h3>
             <p className="mt-1 text-sm text-[var(--ink3)]">
               {listing.title} · {listing.owner.slice(0, 12)}…
@@ -84,6 +85,22 @@ export default function BorrowWizard({
                     <p className="text-xs italic text-[var(--ink)] font-serif">“{(listing as any).contract.criteria}”</p>
                   </div>
                 )}
+              </div>
+            ) : isRentRequest ? (
+              <div className="mt-4 rounded-2xl border border-[var(--sky)]/30 bg-[var(--sky)]/10 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-[var(--sky)] font-bold">Requester Collateral Vaulted</p>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--verdigris)]/15 text-[var(--verdigris)] font-bold">
+                    0 NIM required from you
+                  </span>
+                </div>
+                <p className="tnum mt-1 text-3xl font-extrabold text-[var(--ink)]">
+                  {listing.collateralNIM.toLocaleString()}{" "}
+                  <span className="text-base font-bold text-[var(--sky)]">NIM</span>
+                </p>
+                <p className="mt-1 text-xs text-[var(--ink2)] leading-relaxed">
+                  The requester already deposited this collateral into the autonomous vault upon posting. You are agreeing to provide the requested equipment.
+                </p>
               </div>
             ) : (
               <div className="mt-4 rounded-2xl border border-[var(--line)]/10 bg-[var(--bg)]/60 p-4">
@@ -118,10 +135,14 @@ export default function BorrowWizard({
         {step === 2 && (
           <div className="animate-fade-in">
             <h3 className="text-lg font-bold">
-              {isBounty ? "Challenge Terms" : "Confirm in Nimiq Pay"}
+              {isBounty ? "Challenge Terms" : isRentRequest ? "Rental Fulfillment Terms" : "Confirm in Nimiq Pay"}
             </h3>
             <p className="mt-1 text-sm text-[var(--ink3)]">
-              {isBounty ? `Challenger: ${borrower.slice(0, 14)}…` : `Borrower: ${borrower}. One signature locks the full amount.`}
+              {isBounty
+                ? `Challenger: ${borrower.slice(0, 14)}…`
+                : isRentRequest
+                ? `Provider/Lender: ${borrower.slice(0, 14)}… Fulfill request with zero collateral required.`
+                : `Borrower: ${borrower}. One signature locks the full amount.`}
             </p>
 
             <div className="mt-4 space-y-2 text-sm">
@@ -137,10 +158,10 @@ export default function BorrowWizard({
                     : `Auto-release on lender Return QR proof (${listing.durationDays || 1} day covenant)`}
                 </span>
               </div>
-              {isBounty && (
+              {(isBounty || isRentRequest) && (
                 <div className="flex items-center gap-2 text-[var(--ink2)]">
-                  <Zap size={16} className="text-[var(--gold)]" />
-                  <span>0 NIM cost to participate · No collateral locked by you</span>
+                  <Zap size={16} className={isBounty ? "text-[var(--gold)]" : "text-[var(--sky)]"} />
+                  <span>0 NIM cost to participate · Collateral already vaulted</span>
                 </div>
               )}
             </div>
@@ -168,11 +189,13 @@ export default function BorrowWizard({
         {step === 3 && (
           <div className="animate-fade-in">
             <h3 className="text-lg font-bold">
-              {isBounty ? "Accept Challenge" : "Sign Contract"}
+              {isBounty ? "Accept Challenge" : isRentRequest ? "Accept Rental Request" : "Sign Contract"}
             </h3>
             <p className="mt-1 text-sm text-[var(--ink3)]">
               {isBounty
                 ? "Tap below to register this challenge in your active Contracts."
+                : isRentRequest
+                ? "Tap below to register fulfillment and begin the covenant."
                 : "Tap below to sign with window.nimiq and lock collateral."}
             </p>
 
@@ -185,7 +208,7 @@ export default function BorrowWizard({
                 <Lock size={28} className="text-[var(--sky)] mb-2" />
               )}
               <p className="text-sm font-medium text-[var(--ink3)]">
-                {isBounty ? "Your Cost to Accept" : "Total Collateral Lock"}
+                {isBounty ? "Your Cost to Accept" : isRentRequest ? "Required from You" : "Total Collateral Lock"}
               </p>
               <p className="tnum mt-1 text-3xl font-extrabold text-[var(--ink)]">
                 {due.toLocaleString()}{" "}
@@ -194,6 +217,10 @@ export default function BorrowWizard({
               {isBounty ? (
                 <p className="text-xs text-[var(--gold2)] font-semibold mt-2">
                   Potential Reward: {listing.collateralNIM.toLocaleString()} NIM upon verified proof
+                </p>
+              ) : isRentRequest ? (
+                <p className="text-xs text-[var(--sky)] font-semibold mt-2">
+                  Vault Secured: {listing.collateralNIM.toLocaleString()} NIM pre-deposited by requester
                 </p>
               ) : (
                 price && <p className="text-sm text-[var(--ink3)] mt-2">~${((due * price).toFixed(2))} USD</p>
@@ -213,8 +240,8 @@ export default function BorrowWizard({
               }`}
             >
               {locking
-                ? isBounty ? "Enrolling…" : "Locking… (confirm in wallet)"
-                : isBounty ? "Accept Challenge & Start" : `Sign & lock ${due.toLocaleString()} NIM`}
+                ? isBounty ? "Enrolling…" : isRentRequest ? "Enrolling…" : "Locking… (confirm in wallet)"
+                : isBounty ? "Accept Challenge & Start" : isRentRequest ? "Accept & Fulfill Rental" : `Sign & lock ${due.toLocaleString()} NIM`}
             </button>
             <button
               onClick={() => setStep(2)}

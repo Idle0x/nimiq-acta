@@ -73,7 +73,8 @@ export async function initDbSchema() {
       target_lng DOUBLE PRECISION,
       require_location BOOLEAN DEFAULT FALSE,
       contract JSONB,
-      expires_at BIGINT
+      expires_at BIGINT,
+      borrow_mode TEXT
     );
   `;
   await sql`
@@ -189,6 +190,7 @@ export async function initDbSchema() {
   await sql`ALTER TABLE listings ADD COLUMN IF NOT EXISTS contract JSONB;`;
   await sql`ALTER TABLE listings ADD COLUMN IF NOT EXISTS expires_at BIGINT;`;
   await sql`ALTER TABLE listings ADD COLUMN IF NOT EXISTS require_location BOOLEAN DEFAULT FALSE;`;
+  await sql`ALTER TABLE listings ADD COLUMN IF NOT EXISTS borrow_mode TEXT;`;
   await sql`ALTER TABLE escrows ADD COLUMN IF NOT EXISTS deadline_at BIGINT;`;
   await sql`ALTER TABLE escrows ADD COLUMN IF NOT EXISTS progress TEXT NOT NULL DEFAULT 'awaiting_proof';`;
   await sql`ALTER TABLE escrows ADD COLUMN IF NOT EXISTS completer TEXT;`;
@@ -344,10 +346,15 @@ export async function insertAct(act: Act) {
 // -- Listings --
 export async function fetchListings(): Promise<Listing[]> {
   const sql = getSql();
+  const now = Date.now();
   if (!sql) {
-    return memListings.filter(l => l.isActive);
+    return memListings.filter(l => l.isActive && (!l.expiresAt || l.expiresAt > now));
   }
-  const rows = await sql`SELECT * FROM listings WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 50`;
+  const rows = await sql`
+    SELECT * FROM listings 
+    WHERE is_active = TRUE AND (expires_at IS NULL OR expires_at > ${now}) 
+    ORDER BY created_at DESC LIMIT 50
+  `;
   return rows.map((r: any) => ({
     id: r.id,
     title: r.title,
@@ -367,6 +374,7 @@ export async function fetchListings(): Promise<Listing[]> {
     requireLocation: r.require_location ?? false,
     contract: r.contract ?? null,
     expiresAt: r.expires_at != null ? Number(r.expires_at) : null,
+    borrowMode: r.borrow_mode ?? (r.contract?.borrowMode || null),
   }));
 }
 
@@ -381,11 +389,12 @@ export async function insertListing(l: Listing) {
   const contract = (l as any).contract ?? null;
   const expiresAt = (l as any).expiresAt ?? null;
   const requireLocation = (l as any).requireLocation ?? false;
+  const borrowMode = (l as any).borrowMode ?? null;
   await sql`
     INSERT INTO listings (
-      id, title, owner, collateral_nim, yield_nim, duration_days, kind, category, description, created_at, is_active, tx_hash, state, target_lat, target_lng, require_location, contract, expires_at
+      id, title, owner, collateral_nim, yield_nim, duration_days, kind, category, description, created_at, is_active, tx_hash, state, target_lat, target_lng, require_location, contract, expires_at, borrow_mode
     ) VALUES (
-      ${l.id}, ${l.title}, ${l.owner}, ${l.collateralNIM}, ${l.yieldNIM || 0}, ${l.durationDays || 1}, ${l.kind}, ${l.category}, ${l.description}, ${l.createdAt}, ${l.isActive}, ${l.txHash || null}, ${l.state || 'open'}, ${l.targetLat || null}, ${l.targetLng || null}, ${requireLocation}, ${contract ? JSON.stringify(contract) : null}, ${expiresAt}
+      ${l.id}, ${l.title}, ${l.owner}, ${l.collateralNIM}, ${l.yieldNIM || 0}, ${l.durationDays || 1}, ${l.kind}, ${l.category}, ${l.description}, ${l.createdAt}, ${l.isActive}, ${l.txHash || null}, ${l.state || 'open'}, ${l.targetLat || null}, ${l.targetLng || null}, ${requireLocation}, ${contract ? JSON.stringify(contract) : null}, ${expiresAt}, ${borrowMode}
     )
   `;
 }
@@ -510,6 +519,7 @@ export async function fetchListing(id: string): Promise<Listing | null> {
     requireLocation: r.require_location ?? false,
     contract: r.contract ?? null,
     expiresAt: r.expires_at != null ? Number(r.expires_at) : null,
+    borrowMode: r.borrow_mode ?? (r.contract?.borrowMode || null),
   };
 }
 

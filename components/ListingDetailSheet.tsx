@@ -33,7 +33,7 @@ import { trustTier } from "./AppChrome";
 import { useToast } from "./Feedback";
 import { format, formatDistanceToNow } from "date-fns";
 
-export function getListingMeta(kind: string, contract?: any) {
+export function getListingMeta(kind: string, contract?: any, borrowMode?: string) {
   if (kind === "bounty_geo") {
     return {
       type: "bounty_geo",
@@ -44,9 +44,9 @@ export function getListingMeta(kind: string, contract?: any) {
       badgeColor: "text-[var(--gold)]",
       badgeBg: "bg-[var(--gold)]/10 border-[var(--gold)]/30",
       accentBorder: "border-[var(--gold)]",
-      oracleName: "Hardware GPS Geofence",
+      oracleName: "GPS Sensor Geofence",
       oracleExplanation:
-        "The protocol queries your device's high-accuracy hardware GPS coordinates via secure browser API, calculating cryptographic geodesic distance to the target coordinates. You must be physically within the designated perimeter to check in.",
+        "Acta reads the challenger's authenticated mobile device GPS coordinates to verify physical presence within the designated target perimeter.",
       howItVerifies:
         "Acta reads the device's authenticated GPS sensor coordinates. Once your location confirms within the allowed radius, the smart contract vault triggers the payout immediately. If presence check is enabled, a live camera photo of the scene is also inspected.",
       mustDo:
@@ -88,7 +88,7 @@ export function getListingMeta(kind: string, contract?: any) {
       howItVerifies:
         "After you submit evidence or meet the sponsor, the sponsor reviews the submission in their Acta inbox and cryptographically signs approval from their wallet, triggering immediate vault payout.",
       mustDo:
-        "Complete the task according to instructions, provide evidence or meet the sponsor, and submit your completion claim.",
+        "Complete the specified task, coordinate with the sponsor in person or via inbox, and obtain the sponsor's cryptographic sign-off.",
     };
   }
   if (kind === "bounty_venture") {
@@ -96,37 +96,40 @@ export function getListingMeta(kind: string, contract?: any) {
       type: "bounty_venture",
       isBounty: true,
       label: "Online Venture",
-      subtitle: "Milestone & Deliverable Proof",
+      subtitle: "Milestone & Digital Review",
       Icon: Compass,
       badgeColor: "text-[var(--gold)]",
       badgeBg: "bg-[var(--gold)]/10 border-[var(--gold)]/30",
       accentBorder: "border-[var(--gold)]",
-      oracleName: "AI Pre-Screened Creator Review",
+      oracleName: "AI-Assisted Milestone Review",
       oracleExplanation:
-        "Digital deliverables (links, code, designs, or documents) are pre-screened by Acta AI for criteria satisfaction, then finalized by sponsor wallet sign-off.",
+        "Challengers submit deliverables, code repositories, or campaign proof. Gemini AI pre-screens the submission for completeness, then the sponsor executes final milestone release.",
       howItVerifies:
-        "Submit your work link or proof text in your Contracts tab. Acta AI evaluates your deliverable against criteria and recommends a verdict. The sponsor confirms the payout with a single cryptographic signature.",
+        "Submissions are evaluated by AI for relevance and adherence to criteria, then presented to the sponsor with an AI recommendation. Sponsor signs off to release bounty.",
       mustDo:
         "Produce the requested digital deliverable or milestone, enter the submission details and proof links in your Contracts tab, and await the sponsor's review.",
     };
   }
   if (kind === "borrow") {
+    const isRent = borrowMode === "rent";
     return {
       type: "borrow",
       isBounty: false,
-      label: "Equipment Loan",
-      subtitle: "Collateralized Escrow Covenant",
+      label: isRent ? "Rental Request" : "Equipment Loan",
+      subtitle: isRent ? "Requester Collateral Vault" : "Collateralized Escrow Covenant",
       Icon: Lock,
       badgeColor: "text-[var(--sky)]",
       badgeBg: "bg-[var(--sky)]/10 border-[var(--sky)]/30",
       accentBorder: "border-[var(--sky)]",
       oracleName: "Mutual Return QR Protocol",
-      oracleExplanation:
-        "Borrower locks collateral into the vault. Upon physical return of the item, lender scans borrower's one-time cryptographic Return QR to release 100% of collateral.",
+      oracleExplanation: isRent
+        ? "Requester has pre-funded and locked collateral into the vault upon listing. When the gear is returned, you scan the borrower's Return QR to release 100% of collateral back to them."
+        : "Borrower locks collateral into the vault upon rental acceptance. Upon physical return of the item, lender scans borrower's one-time cryptographic Return QR to release 100% of collateral.",
       howItVerifies:
         "Collateral is held safely in the autonomous smart vault during the loan. Upon returning the asset, borrower displays their Return Code; lender scans it with Acta to trigger immediate collateral refund.",
-      mustDo:
-        "Lock the collateral deposit in the vault, coordinate pickup with the lender, use the asset responsibly, and present your Return QR code upon returning the asset.",
+      mustDo: isRent
+        ? "Accept request, arrange equipment handoff with requester, inspect item upon return, and scan borrower's Return QR code."
+        : "Lock the collateral deposit in the vault, coordinate pickup with the lender, use the asset responsibly, and present your Return QR code upon returning the asset.",
     };
   }
   // Default bounty (vision)
@@ -366,12 +369,15 @@ function ProtocolDossier({
 
   const durationLabel = listing.durationDays ? `${listing.durationDays} days` : "1 day";
   const deadlineHours = contract?.deadlineHours || 72;
+  const isRentRequest = listing.kind === "borrow" && listing.borrowMode === "rent";
 
   const faqs = [
     {
       q: "What happens next if I accept?",
       a: meta.isBounty
         ? `Your Nimiq address is enrolled as an active challenger for this bounty. Your personal countdown timer (${deadlineHours} hours) begins. The prize reward (${listing.collateralNIM.toLocaleString()} NIM) remains safely locked in the protocol's autonomous smart vault. The listing remains open until the first valid submission is completed and verified.`
+        : isRentRequest
+        ? `You accept the requester's call to provide equipment. Since the requester already locked ${listing.collateralNIM.toLocaleString()} NIM collateral into the autonomous smart vault upon posting, you deposit 0 NIM. You coordinate asset handoff and inspect the gear upon return.`
         : `Your collateral deposit (${listing.collateralNIM.toLocaleString()} NIM) is locked into the protocol's autonomous escrow vault. The lender is alerted to prepare the equipment and arrange handover. Your rental covenant period (${durationLabel}) begins upon handover.`,
     },
     {
@@ -383,9 +389,11 @@ function ProtocolDossier({
       a: "Acta is a decentralized protocol running non-custodial smart escrow on the Nimiq blockchain. The platform never takes custody of funds, cannot seize deposits, and cannot arbitrarily freeze user balances. All settlements and refunds are executed programmatically through autonomous smart contracts.",
     },
     {
-      q: "What does the counterparty (sponsor/lender) do?",
+      q: "What does the counterparty (sponsor/lender/requester) do?",
       a: meta.isBounty
         ? "The sponsor has already funded 100% of the prize upfront into the escrow vault. For automated oracles (Vision, GPS, QR), the sponsor has no ability to withhold payout once your proof validates. For manual review contracts, the sponsor must review submissions within 48 hours or the contract triggers automatic review escalation."
+        : isRentRequest
+        ? "The requester has already locked 100% of the collateral into the smart vault upfront. When they return your asset in good order, you scan their Return QR code to unlock and return their collateral."
         : "The lender provides the listed asset. Upon receiving the asset back in satisfactory condition, the lender scans your dynamic Return QR code, triggering an instant release of your collateral back to your wallet.",
     },
     {
@@ -400,12 +408,14 @@ function ProtocolDossier({
       q: "How many people can participate?",
       a: meta.isBounty
         ? "Standard bounties are winner-takes-all: the first verified submission to pass the oracle wins the bounty and concludes the listing. Active challengers can work on the task simultaneously until a valid proof is settled."
-        : "Exclusive 1-on-1 rental. Only one borrower holds the asset during the covenant period.",
+        : "Exclusive 1-on-1 rental. Only one counterparty holds the asset during the covenant period.",
     },
     {
       q: "How will I be charged or will I be charged anything and why?",
       a: meta.isBounty
         ? "ZERO CHARGES FOR CHALLENGERS. Joining, accepting, and submitting proofs is 100% FREE. You never lock collateral, and failing a check costs 0 NIM. When you win, the vault transfers the reward to you minus the standard 0.0011 NIM protocol settlement & network gas fee."
+        : isRentRequest
+        ? "0 NIM CHARGED TO ACCEPT. As the provider supplying gear to a requester whose collateral is already securely held in the protocol vault, you do not deposit collateral. When the gear is returned and you scan the Return QR, settlement is executed without deducting your funds."
         : "You lock the required collateral into escrow. When you return the asset, 100% of your collateral is unlocked and returned to you, minus the minimal 0.0011 NIM settlement/network fee.",
     },
   ];
@@ -580,7 +590,7 @@ export default function ListingDetailSheet({
   const notes = l ? protocolNotes(l, contract) : [];
   const lockedOut = Boolean(contract && contract.minTrust > viewerTrust && !data?.viewer?.isOwner);
 
-  const meta = l ? getListingMeta(l.kind, contract) : getListingMeta("bounty");
+  const meta = l ? getListingMeta(l.kind, contract, l.borrowMode) : getListingMeta("bounty");
   const createdDateStr = l?.createdAt ? format(new Date(Number(l.createdAt)), "PPp") : null;
   const createdRelStr = l?.createdAt ? formatDistanceToNow(new Date(Number(l.createdAt)), { addSuffix: true }) : null;
   const expiresDateStr = l?.expiresAt ? format(new Date(Number(l.expiresAt)), "PPp") : null;
@@ -892,48 +902,61 @@ export default function ListingDetailSheet({
         </div>
 
         {/* Sticky Action Footer */}
-        {l && !data.viewer?.escrow && !data.viewer?.isOwner && (
-          <div className="border-t border-[var(--line)] p-4 bg-[var(--surface)] space-y-2">
-            <p className="marginalia text-center text-[11px]">
-              {meta.isBounty
-                ? `Reward: ${l.collateralNIM.toLocaleString()} NIM · 0 NIM to accept · ${contract?.deadlineHours ? `${contract.deadlineHours}h window` : "No expiry"} · Judged by ${meta.oracleName}`
-                : `Locks ${l.collateralNIM.toLocaleString()} NIM · 100% refundable · ${l.durationDays || 1} day covenant · Judged by mutual return scan`}
-            </p>
+        {l && !data.viewer?.escrow && !data.viewer?.isOwner && (() => {
+          const isRentReq = l.kind === "borrow" && l.borrowMode === "rent";
+          return (
+            <div className="border-t border-[var(--line)] p-4 bg-[var(--surface)] space-y-2">
+              <p className="marginalia text-center text-[11px]">
+                {meta.isBounty
+                  ? `Reward: ${l.collateralNIM.toLocaleString()} NIM · 0 NIM to accept · ${contract?.deadlineHours ? `${contract.deadlineHours}h window` : "No expiry"} · Judged by ${meta.oracleName}`
+                  : isRentReq
+                  ? `Vault collateral: ${l.collateralNIM.toLocaleString()} NIM pre-locked by requester · 0 NIM to fulfill · ${l.durationDays || 1} day covenant`
+                  : `Locks ${l.collateralNIM.toLocaleString()} NIM · 100% refundable · ${l.durationDays || 1} day covenant · Judged by mutual return scan`}
+              </p>
 
-            <button
-              disabled={lockedOut}
-              onClick={() => {
-                onAccept(l);
-                onClose();
-              }}
-              className={`press flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[14px] font-bold shadow-md transition-all ${
-                meta.isBounty
-                  ? "bg-gradient-to-r from-[var(--gold)] to-[var(--gold2)] text-[#181206]"
-                  : "bg-gradient-to-r from-[var(--sky)] to-[color-mix(in_srgb,var(--sky)_80%,#1e3a8a)] text-white"
-              }`}
-            >
-              {meta.isBounty ? (
-                <>
-                  <Zap size={15} className="fill-current" />
-                  <span>Accept Bounty Challenge</span>
-                  <ArrowRight size={14} />
-                </>
-              ) : (
-                <>
-                  <Lock size={15} />
-                  <span>Review & Lock Collateral ({l.collateralNIM.toLocaleString()} NIM)</span>
-                  <ArrowRight size={14} />
-                </>
-              )}
-            </button>
+              <button
+                disabled={lockedOut}
+                onClick={() => {
+                  onAccept(l);
+                  onClose();
+                }}
+                className={`press flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[14px] font-bold shadow-md transition-all ${
+                  meta.isBounty
+                    ? "bg-gradient-to-r from-[var(--gold)] to-[var(--gold2)] text-[#181206]"
+                    : "bg-gradient-to-r from-[var(--sky)] to-[color-mix(in_srgb,var(--sky)_80%,#1e3a8a)] text-white"
+                }`}
+              >
+                {meta.isBounty ? (
+                  <>
+                    <Zap size={15} className="fill-current" />
+                    <span>Accept Bounty Challenge</span>
+                    <ArrowRight size={14} />
+                  </>
+                ) : isRentReq ? (
+                  <>
+                    <Lock size={15} />
+                    <span>Accept & Fulfill Rental Request</span>
+                    <ArrowRight size={14} />
+                  </>
+                ) : (
+                  <>
+                    <Lock size={15} />
+                    <span>Review & Lock Collateral ({l.collateralNIM.toLocaleString()} NIM)</span>
+                    <ArrowRight size={14} />
+                  </>
+                )}
+              </button>
 
-            <p className="marginalia text-center text-[10.5px]">
-              {meta.isBounty
-                ? "Free to accept. No collateral or payment required. Funds are pre-locked in the protocol vault."
-                : "Collateral moves to the autonomous smart contract vault, not to the lender."}
-            </p>
-          </div>
-        )}
+              <p className="marginalia text-center text-[10.5px]">
+                {meta.isBounty
+                  ? "Free to accept. No collateral or payment required. Funds are pre-locked in the protocol vault."
+                  : isRentReq
+                  ? "Free to accept. Requester's collateral is already vaulted. Mutual Return QR scan settles exchange."
+                  : "Collateral moves to the autonomous smart contract vault, not to the lender."}
+              </p>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

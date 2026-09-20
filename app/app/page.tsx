@@ -89,6 +89,10 @@ function timeRemaining(expiresAt: number | undefined) {
   return `${mins} mins left`;
 }
 
+function isLiveListing(l: Listing) {
+  return l.isActive !== false && (!l.expiresAt || l.expiresAt > Date.now());
+}
+
 export default function Home() {
   const { status, accounts, sendLock, signMessage } = useNimiq();
   const { toast } = useToast();
@@ -247,8 +251,9 @@ export default function Home() {
     setLocking(true);
     try {
       let txHash = "0x" + Date.now().toString(16);
+      const isRentRequest = listing.kind === "borrow" && listing.borrowMode === "rent";
       
-      if (!listing.kind.startsWith("bounty")) {
+      if (!listing.kind.startsWith("bounty") && !isRentRequest) {
         const shortTitle = listing.title.length > 25 ? listing.title.slice(0, 22) + "..." : listing.title;
         txHash = await sendLock({
           recipient: ESCROW_VAULT,
@@ -256,14 +261,17 @@ export default function Home() {
           fee: 10,
           data: `Acta: Escrow "${shortTitle}"`,
         });
+      } else if (isRentRequest && listing.txHash) {
+        txHash = listing.txHash;
       }
 
       const e: Escrow = {
         id: newId("esc"),
         listingId: listing.id,
         title: listing.title,
-        borrower,
-        amountNIM,
+        borrower: isRentRequest ? listing.owner : borrower,
+        owner: isRentRequest ? borrower : listing.owner,
+        amountNIM: isRentRequest ? listing.collateralNIM : amountNIM,
         feeNIM: MICRO_FEE_NIM,
         yieldNIM: listing.yieldNIM || 0,
         state: "locked",
@@ -286,7 +294,7 @@ export default function Home() {
 
       setEscrows((p) => [e, ...p]);
       setTab("active");
-      toast(`Locked ${amountNIM.toLocaleString()} NIM for ${listing.title}`, "success"); 
+      toast(isRentRequest ? `Accepted rental request for ${listing.title}` : `Locked ${amountNIM.toLocaleString()} NIM for ${listing.title}`, "success"); 
       return e;
     } catch (err) {
       toast(humanize(err), "error");
@@ -486,17 +494,19 @@ export default function Home() {
     }
 
     let txHash: string | undefined;
-    if (data.kind.startsWith("bounty")) {
+    const isBorrowRent = data.kind === "borrow" && data.borrowMode === "rent";
+    if (data.kind.startsWith("bounty") || isBorrowRent) {
       try {
         const shortTitle = data.title.length > 25 ? data.title.slice(0, 22) + "..." : data.title;
+        const memo = isBorrowRent ? `Acta: Rent Request "${shortTitle}"` : `Acta: Bounty "${shortTitle}"`;
         txHash = await sendLock({
           recipient: ESCROW_VAULT,
           value: Math.round(data.collateralNIM * 100_000),
           fee: Math.max(10, MIN_NETWORK_FEE_NIM * 100_000), // network minimum fee
-          data: `Acta: Bounty "${shortTitle}"`,
+          data: memo,
         });
       } catch (err) {
-        toast(humanize("Failed to fund bounty: " + (err instanceof Error ? err.message : "unknown")), "error");
+        toast(humanize((isBorrowRent ? "Failed to fund rental request: " : "Failed to fund bounty: ") + (err instanceof Error ? err.message : "unknown")), "error");
         return;
       }
     }
@@ -513,6 +523,8 @@ export default function Home() {
       description: data.description,
       createdAt: Date.now(),
       isActive: true,
+      ...(data.borrowMode ? { borrowMode: data.borrowMode } : {}),
+      ...(txHash ? { txHash } : {}),
       ...(data.contract ? { contract: data.contract } : {}),
       ...(data.expiresAt ? { expiresAt: data.expiresAt } : {}),
       ...(typeof data.requireLocation === "boolean" ? { requireLocation: data.requireLocation } : {}),
@@ -656,19 +668,19 @@ export default function Home() {
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ink)]">Deploy Protocol Bounty</span>
                 </button>
 
-                {showMap && <div className="pb-4 mb-2"><MapRadar listings={listings.filter(l => l.kind.startsWith("bounty"))} /></div>}
+                {showMap && <div className="pb-4 mb-2"><MapRadar listings={listings.filter(l => isLiveListing(l) && l.kind.startsWith("bounty"))} /></div>}
                 {!showMap && (
                   loading ? (
                     <div className="space-y-3 pr-1">
                       {Array.from({ length: 2 }).map((_, i) => <SkeletonCard key={i} />)}
                     </div>
-                  ) : listings.filter(l => l.kind.startsWith("bounty")).length === 0 ? (
+                  ) : listings.filter(l => isLiveListing(l) && l.kind.startsWith("bounty")).length === 0 ? (
                     <div className="py-2">
                       <EmptyState title="No Bounties" subtitle="No bounties available. Create one!" icon={<ZapIcon size={32} />} />
                     </div>
                   ) : (
                     <div className="max-h-[440px] overflow-y-auto custom-parchment-scrollbar pr-1 space-y-3">
-                      {listings.filter(l => l.kind.startsWith("bounty")).map(l => (
+                      {listings.filter(l => isLiveListing(l) && l.kind.startsWith("bounty")).map(l => (
                       <div key={l.id} className="group relative rounded-2xl border border-[var(--gold)]/35 bg-gradient-to-b from-[var(--surface)] via-[var(--surface)] to-[color-mix(in_srgb,var(--surface)_90%,var(--gold2)_10%)] p-4 shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:border-[var(--gold)]/60 hover:shadow-[0_6px_20px_rgba(212,175,55,0.12)] transition-all overflow-hidden">
                         {/* Background Watermark Fleuron */}
                         <div className="absolute -bottom-5 -right-4 text-6xl font-serif text-[var(--gold)]/5 pointer-events-none select-none" aria-hidden="true">
@@ -842,128 +854,137 @@ export default function Home() {
                   <div className="w-5 h-5 rounded-full bg-[var(--sky)]/20 flex items-center justify-center group-hover:scale-125 group-hover:rotate-90 transition-transform">
                      <PlusIcon size={13} className="text-[var(--sky)] stroke-[3]" />
                   </div>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ink)]">List Equipment to Lend</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ink)]">List or Request Equipment</span>
                 </button>
 
                 {loading ? (
                   <div className="space-y-3 pr-1">
                     {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
                   </div>
-                ) : listings.filter(l => l.kind === "borrow").length === 0 ? (
+                ) : listings.filter(l => isLiveListing(l) && l.kind === "borrow").length === 0 ? (
                   <div className="py-2">
-                    <EmptyState title="No Items" subtitle="No items available to borrow." icon={<MapPinIcon size={32} />} />
+                    <EmptyState title="No Items" subtitle="No items available to borrow or rent." icon={<MapPinIcon size={32} />} />
                   </div>
                 ) : (
                   <div className="max-h-[440px] overflow-y-auto custom-parchment-scrollbar pr-1 space-y-3">
-                    {listings.filter(l => l.kind === "borrow").map((l) => (
-                      <div key={l.id} className="group relative rounded-2xl border border-[var(--sky)]/35 bg-gradient-to-b from-[var(--surface)] via-[var(--surface)] to-[color-mix(in_srgb,var(--surface)_90%,var(--sky)_10%)] p-4 shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:border-[var(--sky)]/60 hover:shadow-[0_6px_20px_rgba(56,189,248,0.12)] transition-all overflow-hidden">
-                        {/* Background Watermark */}
-                        <div className="absolute -bottom-5 -right-4 text-6xl font-serif text-[var(--sky)]/5 pointer-events-none select-none" aria-hidden="true">
-                          ⚑
-                        </div>
+                    {listings.filter(l => isLiveListing(l) && l.kind === "borrow").map((l) => {
+                      const isRentRequest = l.borrowMode === "rent";
+                      const isOwner = l.owner === accounts[0];
+                      const myActiveBorrow = escrows.find(e => e.listingId === l.id && e.borrower === accounts[0] && (e.state === "locked" || (e as any).state === "settling"));
 
-                        {/* Top Header: Category Chip & Locked Collateral Purse */}
-                        <div className="flex items-start justify-between gap-3 mb-2.5">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {l.owner === accounts[0] ? (
-                              <span className="caps text-[8.5px] font-extrabold tracking-wider text-[var(--sky)] bg-[var(--sky)]/15 px-2 py-0.5 rounded-full border border-[var(--sky)]/30">
-                                Your Lending Offer
-                              </span>
-                            ) : escrows.some(e => e.listingId === l.id && e.borrower === accounts[0] && (e.state === "locked" || (e as any).state === "settling")) ? (
-                              <span className="caps text-[8.5px] font-extrabold tracking-wider text-[var(--sky)] bg-[var(--sky)]/15 px-2 py-0.5 rounded-full border border-[var(--sky)]/30">
-                                Borrowed · In Progress
-                              </span>
-                            ) : null}
-                            <span className="caps text-[8.5px] font-bold tracking-wider text-[var(--sky)] bg-[var(--sky)]/10 px-2.5 py-1 rounded-full border border-[var(--sky)]/25">
-                              {l.category.toUpperCase()} · {l.durationDays || 1}D RETURN COVENANT
-                            </span>
+                      return (
+                        <div key={l.id} className="group relative rounded-2xl border border-[var(--sky)]/35 bg-gradient-to-b from-[var(--surface)] via-[var(--surface)] to-[color-mix(in_srgb,var(--surface)_90%,var(--sky)_10%)] p-4 shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:border-[var(--sky)]/60 hover:shadow-[0_6px_20px_rgba(56,189,248,0.12)] transition-all overflow-hidden">
+                          {/* Background Watermark */}
+                          <div className="absolute -bottom-5 -right-4 text-6xl font-serif text-[var(--sky)]/5 pointer-events-none select-none" aria-hidden="true">
+                            ⚑
                           </div>
 
-                          <div className="text-right shrink-0">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--sky)]/15 border border-[var(--sky)]/40 shadow-sm">
-                              <LockIcon size={11} className="text-[var(--sky)]" />
-                              <span className="font-mono text-xs font-bold text-[var(--sky)] tnum">{l.collateralNIM.toLocaleString()} NIM</span>
+                          {/* Top Header: Category Chip & Locked Collateral Purse */}
+                          <div className="flex items-start justify-between gap-3 mb-2.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {isOwner ? (
+                                <span className="caps text-[8.5px] font-extrabold tracking-wider text-[var(--sky)] bg-[var(--sky)]/15 px-2 py-0.5 rounded-full border border-[var(--sky)]/30">
+                                  {isRentRequest ? "Your Rental Request" : "Your Lending Offer"}
+                                </span>
+                              ) : myActiveBorrow ? (
+                                <span className="caps text-[8.5px] font-extrabold tracking-wider text-[var(--sky)] bg-[var(--sky)]/15 px-2 py-0.5 rounded-full border border-[var(--sky)]/30">
+                                  In Progress · Accepted
+                                </span>
+                              ) : (
+                                <span className="caps text-[8.5px] font-bold tracking-wider text-[var(--sky)] bg-[var(--sky)]/10 px-2 py-0.5 rounded-full border border-[var(--sky)]/25">
+                                  {isRentRequest ? "Rental Request" : "Available to Lend"}
+                                </span>
+                              )}
+                              <span className="caps text-[8.5px] font-bold tracking-wider text-[var(--sky)] bg-[var(--sky)]/10 px-2.5 py-1 rounded-full border border-[var(--sky)]/25">
+                                {l.category.toUpperCase()} · {l.durationDays || 1}D RETURN COVENANT
+                              </span>
                             </div>
-                            <p className="text-[8px] uppercase tracking-wider text-[var(--ink3)] mt-0.5">Required Collateral</p>
+
+                            <div className="text-right shrink-0">
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--sky)]/15 border border-[var(--sky)]/40 shadow-sm">
+                                <LockIcon size={11} className="text-[var(--sky)]" />
+                                <span className="font-mono text-xs font-bold text-[var(--sky)] tnum">{l.collateralNIM.toLocaleString()} NIM</span>
+                              </div>
+                              <p className="text-[8px] uppercase tracking-wider text-[var(--ink3)] mt-0.5">
+                                {isRentRequest ? "Vault Collateral" : "Required Collateral"}
+                              </p>
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Title & Description */}
-                        <h4 className="font-serif text-base font-bold text-[var(--ink)] leading-snug mb-1 group-hover:text-[var(--sky)] transition-colors">
-                          {l.title}
-                        </h4>
+                          {/* Title & Description */}
+                          <h4 className="font-serif text-base font-bold text-[var(--ink)] leading-snug mb-1 group-hover:text-[var(--sky)] transition-colors">
+                            {l.title}
+                          </h4>
 
-                        <div className="flex items-center gap-2 mb-2 text-[10px] text-[var(--ink3)]">
-                          <span className="marginalia">lender:</span>
-                          <button onClick={() => setProfileAddr(l.owner)} className="font-mono text-[10px] text-[var(--sky)] hover:underline font-semibold">{l.owner.slice(0, 11)}…</button>
-                          {(l as any).createdAt ? (
-                            <span className="text-[9px] text-[var(--ink3)]/80">· listed {formatDistanceToNow(new Date(Number((l as any).createdAt)), { addSuffix: true })}</span>
-                          ) : null}
-                        </div>
-
-                        <p className="text-xs leading-relaxed text-[var(--ink2)] mb-3 line-clamp-2">{l.description}</p>
-
-                        {/* Notarial Covenant Terms Grid (3 Columns) */}
-                        <div className="mb-3 grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--ink)_5%,transparent)] border border-[var(--line)]/15 divide-x divide-[var(--line)]/10 text-center">
-                          <div className="pr-1">
-                            <p className="caps text-[7.5px] text-[var(--ink3)]">Lender</p>
-                            <button onClick={() => setProfileAddr(l.owner)} className="font-mono text-[10px] font-semibold text-[var(--sky)] hover:underline truncate max-w-full block mx-auto mt-0.5">
-                              {l.owner.slice(0, 8)}…
-                            </button>
+                          <div className="flex items-center gap-2 mb-2 text-[10px] text-[var(--ink3)]">
+                            <span className="marginalia">{isRentRequest ? "requester:" : "lender:"}</span>
+                            <button onClick={() => setProfileAddr(l.owner)} className="font-mono text-[10px] text-[var(--sky)] hover:underline font-semibold">{l.owner.slice(0, 11)}…</button>
+                            {(l as any).createdAt ? (
+                              <span className="text-[9px] text-[var(--ink3)]/80">· listed {formatDistanceToNow(new Date(Number((l as any).createdAt)), { addSuffix: true })}</span>
+                            ) : null}
                           </div>
-                          <div className="px-1">
-                            <p className="caps text-[7.5px] text-[var(--ink3)]">Duration</p>
-                            <p className="font-mono text-[10px] font-semibold text-[var(--ink)] mt-0.5">{l.durationDays || 1} Days</p>
-                          </div>
-                          <div className="pl-1">
-                            <p className="caps text-[7.5px] text-[var(--ink3)]">Yield</p>
-                            <p className="font-mono text-[10px] font-bold text-[var(--verdigris)] tnum mt-0.5">+{l.yieldNIM || 0} NIM</p>
-                          </div>
-                        </div>
 
-                        {/* Action button */}
-                        {(() => {
-                          const isMyLending = l.owner === accounts[0];
-                          const myActiveBorrow = escrows.find(e => e.listingId === l.id && e.borrower === accounts[0] && (e.state === "locked" || (e as any).state === "settling"));
+                          <p className="text-xs leading-relaxed text-[var(--ink2)] mb-3 line-clamp-2">{l.description}</p>
 
-                          if (isMyLending) {
+                          {/* Notarial Covenant Terms Grid (3 Columns) */}
+                          <div className="mb-3 grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--ink)_5%,transparent)] border border-[var(--line)]/15 divide-x divide-[var(--line)]/10 text-center">
+                            <div className="pr-1">
+                              <p className="caps text-[7.5px] text-[var(--ink3)]">{isRentRequest ? "Requester" : "Lender"}</p>
+                              <button onClick={() => setProfileAddr(l.owner)} className="font-mono text-[10px] font-semibold text-[var(--sky)] hover:underline truncate max-w-full block mx-auto mt-0.5">
+                                {l.owner.slice(0, 8)}…
+                              </button>
+                            </div>
+                            <div className="px-1">
+                              <p className="caps text-[7.5px] text-[var(--ink3)]">Duration</p>
+                              <p className="font-mono text-[10px] font-semibold text-[var(--ink)] mt-0.5">{l.durationDays || 1} Days</p>
+                            </div>
+                            <div className="pl-1">
+                              <p className="caps text-[7.5px] text-[var(--ink3)]">Yield</p>
+                              <p className="font-mono text-[10px] font-bold text-[var(--verdigris)] tnum mt-0.5">+{l.yieldNIM || 0} NIM</p>
+                            </div>
+                          </div>
+
+                          {/* Action button */}
+                          {(() => {
+                            if (isOwner) {
+                              return (
+                                <button
+                                  onClick={() => setReviewListingId(l.id)}
+                                  className="w-full py-2.5 px-4 bg-[var(--surface2)] hover:bg-[var(--sky)]/10 text-[var(--sky)] border border-[var(--sky)]/30 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all btn-press"
+                                >
+                                  <Settings size={13} />
+                                  <span>{isRentRequest ? "Manage Rental Request" : "Manage Lending Offer"}</span>
+                                </button>
+                              );
+                            }
+
+                            if (myActiveBorrow) {
+                              return (
+                                <button
+                                  onClick={() => { setTab("active"); setActiveSeg("progress"); }}
+                                  className="w-full py-2.5 px-4 bg-[var(--sky)]/15 hover:bg-[var(--sky)]/25 text-[var(--sky)] border border-[var(--sky)]/35 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all btn-press"
+                                >
+                                  <span>Active Covenant — View in Contracts</span>
+                                  <ChevronRight size={13} strokeWidth={3} />
+                                </button>
+                              );
+                            }
+
                             return (
                               <button
                                 onClick={() => setReviewListingId(l.id)}
-                                className="w-full py-2.5 px-4 bg-[var(--surface2)] hover:bg-[var(--sky)]/10 text-[var(--sky)] border border-[var(--sky)]/30 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all btn-press"
+                                disabled={isDemoMode}
+                                className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--sky)] to-[color-mix(in_srgb,var(--sky)_80%,#1e3a8a)] hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_2px_12px_rgba(56,189,248,0.25)] border border-[var(--sky)]/50 active:scale-[0.98] transition-all btn-press disabled:opacity-50"
                               >
-                                <Settings size={13} />
-                                <span>Manage Lending Offer</span>
+                                <FileText size={12} />
+                                <span>{isRentRequest ? "Review & Fulfill Rental" : "Review & Borrow Asset"}</span>
+                                <ChevronRight size={12} strokeWidth={3} />
                               </button>
                             );
-                          }
-
-                          if (myActiveBorrow) {
-                            return (
-                              <button
-                                onClick={() => { setTab("active"); setActiveSeg("progress"); }}
-                                className="w-full py-2.5 px-4 bg-[var(--sky)]/15 hover:bg-[var(--sky)]/25 text-[var(--sky)] border border-[var(--sky)]/35 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all btn-press"
-                              >
-                                <span>Borrowed — View in Contracts</span>
-                                <ChevronRight size={13} strokeWidth={3} />
-                              </button>
-                            );
-                          }
-
-                          return (
-                            <button
-                              onClick={() => setReviewListingId(l.id)}
-                              disabled={isDemoMode}
-                              className="w-full py-2.5 px-4 bg-gradient-to-r from-[var(--sky)] to-[color-mix(in_srgb,var(--sky)_80%,#1e3a8a)] hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_2px_12px_rgba(56,189,248,0.25)] border border-[var(--sky)]/50 active:scale-[0.98] transition-all btn-press disabled:opacity-50"
-                            >
-                              <FileText size={12} />
-                              <span>Review & Borrow Asset</span>
-                              <ChevronRight size={12} strokeWidth={3} />
-                            </button>
-                          );
-                        })()}
-                      </div>
-                    ))}
+                          })()}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </section>
