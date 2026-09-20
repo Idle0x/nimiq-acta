@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Clock, X } from "lucide-react";
+import { Lock, Clock, X, Zap, Sparkles, ShieldCheck } from "lucide-react";
 import {
   ESCROW_VAULT,
   SETTLE_FEE_NIM,
@@ -29,14 +29,15 @@ export default function BorrowWizard({
   onClose: () => void;
 }) {
   const [step, setStep] = useState(1);
-  const due = listing.kind.startsWith("bounty") ? 0 : discountedCollateral(listing.collateralNIM, trustScore);
+  const isBounty = listing.kind.startsWith("bounty");
+  const due = isBounty ? 0 : discountedCollateral(listing.collateralNIM, trustScore);
 
   return (
     <div className="app-ink fixed inset-0 z-40 flex items-end justify-center bg-[color-mix(in_srgb,var(--ink)_60%,transparent)] backdrop-blur-sm sm:items-center animate-fade-in">
       <div className="card w-full max-w-[480px] rounded-t-3xl p-5 pb-8 sm:rounded-3xl animate-slide-up">
         <div className="mb-4 flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--ink3)]">
-            Step {step} of 3
+            Step {step} of 3 · {isBounty ? "Bounty Challenge" : "Equipment Borrow"}
           </p>
           <button onClick={onClose} className="text-[var(--ink3)] hover:text-[var(--ink)] transition-colors p-1">
             <X size={18} />
@@ -47,55 +48,103 @@ export default function BorrowWizard({
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i <= step ? "bg-[var(--gold)]" : "bg-[color-mix(in_srgb,var(--gold)_8%,transparent)]/10"}`}
+              className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i <= step ? (isBounty ? "bg-[var(--gold)]" : "bg-[var(--sky)]") : "bg-[color-mix(in_srgb,var(--gold)_8%,transparent)]/10"}`}
             />
           ))}
         </div>
 
+        {/* STEP 1 */}
         {step === 1 && (
           <div className="animate-fade-in">
-            <h3 className="text-lg font-bold">Review collateral</h3>
+            <h3 className="text-lg font-bold">
+              {isBounty ? "Review Bounty Challenge" : "Review Collateral Deposit"}
+            </h3>
             <p className="mt-1 text-sm text-[var(--ink3)]">
-              {listing.title} · {listing.owner}
+              {listing.title} · {listing.owner.slice(0, 12)}…
             </p>
-            <div className="mt-4 rounded-2xl border border-[var(--line)]/10 bg-[var(--bg)]/60 p-4">
-              <p className="text-xs text-[var(--ink3)]">Locked to {ESCROW_VAULT}</p>
-              <p className="tnum mt-1 text-3xl font-extrabold text-[var(--ink)]">
-                {due.toLocaleString()}{" "}
-                <span className="text-base font-bold text-[var(--gold)]">NIM</span>
-              </p>
-              <p className="tnum mt-1 text-xs text-[var(--ink3)]">
-                {nimToLunas(due).toLocaleString()} lunas · {SETTLE_FEE_NIM} NIM settlement fee on release (0.001 to the vault, 0.0001 network)
-              </p>
-              {due < listing.collateralNIM && (
-                <p className="mt-2 text-xs font-semibold text-[var(--verdigris)]">
-                  Trust discount applied (−{(listing.collateralNIM - due).toLocaleString()} NIM)
+
+            {isBounty ? (
+              <div className="mt-4 rounded-2xl border border-[var(--gold)]/30 bg-[var(--gold)]/10 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-[var(--gold)] font-bold">Funded in Escrow Vault</p>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--verdigris)]/15 text-[var(--verdigris)] font-bold">
+                    0 NIM required from you
+                  </span>
+                </div>
+                <p className="tnum mt-1 text-3xl font-extrabold text-[var(--ink)]">
+                  {listing.collateralNIM.toLocaleString()}{" "}
+                  <span className="text-base font-bold text-[var(--gold)]">NIM</span>
                 </p>
-              )}
-            </div>
+                <p className="mt-1 text-xs text-[var(--ink2)] leading-relaxed">
+                  The sponsor already locked this reward into the autonomous vault. Accepting is 100% free and places this challenge into your active Contracts tab.
+                </p>
+                {(listing as any).contract?.criteria && (
+                  <div className="mt-3 pt-2.5 border-t border-[var(--gold)]/20">
+                    <span className="caps text-[7.5px] text-[var(--gold)] font-bold block mb-0.5">Proof Criteria:</span>
+                    <p className="text-xs italic text-[var(--ink)] font-serif">“{(listing as any).contract.criteria}”</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-[var(--line)]/10 bg-[var(--bg)]/60 p-4">
+                <p className="text-xs text-[var(--ink3)]">Locked to {ESCROW_VAULT}</p>
+                <p className="tnum mt-1 text-3xl font-extrabold text-[var(--ink)]">
+                  {due.toLocaleString()}{" "}
+                  <span className="text-base font-bold text-[var(--sky)]">NIM</span>
+                </p>
+                <p className="tnum mt-1 text-xs text-[var(--ink3)]">
+                  {nimToLunas(due).toLocaleString()} lunas · {SETTLE_FEE_NIM} NIM settlement fee on release (0.001 to the vault, 0.0001 network)
+                </p>
+                {due < listing.collateralNIM && (
+                  <p className="mt-2 text-xs font-semibold text-[var(--verdigris)]">
+                    Trust discount applied (−{(listing.collateralNIM - due).toLocaleString()} NIM)
+                  </p>
+                )}
+              </div>
+            )}
+
             <button
               onClick={() => setStep(2)}
-              className="mt-5 w-full rounded-2xl bg-[var(--gold)] py-3.5 font-bold text-[#1c1508] transition-transform btn-press"
+              className={`mt-5 w-full rounded-2xl py-3.5 font-bold transition-transform btn-press ${
+                isBounty ? "bg-[var(--gold)] text-[#1c1508]" : "bg-[var(--sky)] text-[#1c1508]"
+              }`}
             >
               Continue
             </button>
           </div>
         )}
 
+        {/* STEP 2 */}
         {step === 2 && (
           <div className="animate-fade-in">
-            <h3 className="text-lg font-bold">Confirm in Nimiq Pay</h3>
+            <h3 className="text-lg font-bold">
+              {isBounty ? "Challenge Terms" : "Confirm in Nimiq Pay"}
+            </h3>
             <p className="mt-1 text-sm text-[var(--ink3)]">
-              Borrower {borrower}. One signature locks the full amount. No marketplace custody.
+              {isBounty ? `Challenger: ${borrower.slice(0, 14)}…` : `Borrower: ${borrower}. One signature locks the full amount.`}
             </p>
+
             <div className="mt-4 space-y-2 text-sm">
               <div className="flex items-center gap-2 text-[var(--ink2)]">
-                <Lock size={16} className="text-[var(--gold)]" /> Collateral held in escrow vault
+                <ShieldCheck size={16} className={isBounty ? "text-[var(--gold)]" : "text-[var(--sky)]"} />
+                <span>Autonomous Smart Vault holds all escrow funds</span>
               </div>
               <div className="flex items-center gap-2 text-[var(--ink2)]">
-                <Clock size={16} className="text-[var(--sky)]" /> Auto-release on lender QR proof
+                <Clock size={16} className="text-[var(--sky)]" />
+                <span>
+                  {isBounty
+                    ? `${(listing as any).contract?.deadlineHours ? `${(listing as any).contract.deadlineHours}h window once accepted` : "Valid until claimed"}`
+                    : `Auto-release on lender Return QR proof (${listing.durationDays || 1} day covenant)`}
+                </span>
               </div>
+              {isBounty && (
+                <div className="flex items-center gap-2 text-[var(--ink2)]">
+                  <Zap size={16} className="text-[var(--gold)]" />
+                  <span>0 NIM cost to participate · No collateral locked by you</span>
+                </div>
+              )}
             </div>
+
             <div className="mt-5 flex gap-2">
               <button
                 onClick={() => setStep(1)}
@@ -105,30 +154,50 @@ export default function BorrowWizard({
               </button>
               <button
                 onClick={() => setStep(3)}
-                className="flex-1 rounded-2xl bg-[var(--sky)] py-3.5 font-bold text-[#1c1508] transition-transform btn-press"
+                className={`flex-1 rounded-2xl py-3.5 font-bold text-[#1c1508] transition-transform btn-press ${
+                  isBounty ? "bg-[var(--gold)]" : "bg-[var(--sky)]"
+                }`}
               >
-                Review terms
+                Review & Accept
               </button>
             </div>
           </div>
         )}
 
+        {/* STEP 3 */}
         {step === 3 && (
           <div className="animate-fade-in">
-            <h3 className="text-lg font-bold">Sign Contract</h3>
+            <h3 className="text-lg font-bold">
+              {isBounty ? "Accept Challenge" : "Sign Contract"}
+            </h3>
             <p className="mt-1 text-sm text-[var(--ink3)]">
-              Tap below to sign with window.nimiq. Skeleton state masks chain latency.
+              {isBounty
+                ? "Tap below to register this challenge in your active Contracts."
+                : "Tap below to sign with window.nimiq and lock collateral."}
             </p>
-            
-            <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border-[2px] border-[var(--gold)]/40 bg-[var(--bg)]/60 py-6 animate-pulse-border">
-              <Lock size={28} className="text-[var(--gold)] mb-2" />
+
+            <div className={`mt-4 flex flex-col items-center justify-center rounded-2xl border-[2px] p-6 ${
+              isBounty ? "border-[var(--gold)]/40 bg-[var(--gold)]/5" : "border-[var(--sky)]/40 bg-[var(--sky)]/5"
+            }`}>
+              {isBounty ? (
+                <Zap size={28} className="text-[var(--gold)] mb-2 fill-current" />
+              ) : (
+                <Lock size={28} className="text-[var(--sky)] mb-2" />
+              )}
               <p className="text-sm font-medium text-[var(--ink3)]">
-                {listing.kind.startsWith("bounty") ? "Required Collateral" : "Total Lock Amount"}
+                {isBounty ? "Your Cost to Accept" : "Total Collateral Lock"}
               </p>
               <p className="tnum mt-1 text-3xl font-extrabold text-[var(--ink)]">
-                {due.toLocaleString()} <span className="text-[var(--gold)]">NIM</span>
+                {due.toLocaleString()}{" "}
+                <span className={isBounty ? "text-[var(--gold)]" : "text-[var(--sky)]"}>NIM</span>
               </p>
-              {price && <p className="text-sm text-[var(--ink3)] mt-2">~${((due * price).toFixed(2))} USD</p>}
+              {isBounty ? (
+                <p className="text-xs text-[var(--gold2)] font-semibold mt-2">
+                  Potential Reward: {listing.collateralNIM.toLocaleString()} NIM upon verified proof
+                </p>
+              ) : (
+                price && <p className="text-sm text-[var(--ink3)] mt-2">~${((due * price).toFixed(2))} USD</p>
+              )}
             </div>
 
             <button
@@ -137,9 +206,15 @@ export default function BorrowWizard({
                 const e = await onLock(listing, due);
                 if (e) onClose();
               }}
-              className="tnum mt-5 w-full rounded-2xl bg-gradient-to-r from-[var(--gold2)] to-[var(--gold)] shadow-[0_0_15px_rgba(154,116,24,0.3)] py-4 text-lg font-extrabold text-[#1c1508] transition-all hover:shadow-[0_0_20px_rgba(154,116,24,0.5)] disabled:opacity-60 disabled:shadow-none btn-press"
+              className={`tnum mt-5 w-full rounded-2xl shadow-md py-4 text-base font-extrabold text-[#1c1508] transition-all disabled:opacity-60 disabled:shadow-none btn-press ${
+                isBounty
+                  ? "bg-gradient-to-r from-[var(--gold2)] to-[var(--gold)] shadow-[0_0_15px_rgba(154,116,24,0.3)]"
+                  : "bg-gradient-to-r from-[var(--sky)] to-[color-mix(in_srgb,var(--sky)_80%,#1e3a8a)] text-white shadow-[0_0_15px_rgba(56,189,248,0.3)]"
+              }`}
             >
-              {locking ? "Locking… (confirm in wallet)" : listing.kind.startsWith("bounty") ? "Accept Challenge" : `Sign & lock ${due.toLocaleString()} NIM`}
+              {locking
+                ? isBounty ? "Enrolling…" : "Locking… (confirm in wallet)"
+                : isBounty ? "Accept Challenge & Start" : `Sign & lock ${due.toLocaleString()} NIM`}
             </button>
             <button
               onClick={() => setStep(2)}

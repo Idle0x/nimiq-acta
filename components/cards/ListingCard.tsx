@@ -19,6 +19,7 @@ export interface ListingLike {
 const KIND_META: Record<string, { label: string; color: string; Icon: any }> = {
   borrow: { label: "Borrow", color: "var(--sky)", Icon: Lock },
   bounty: { label: "PhotoProof", color: "var(--gold)", Icon: Camera },
+  bounty_geo: { label: "GPS Check-In", color: "var(--gold)", Icon: MapPin },
   bounty_qr: { label: "ScanQuest", color: "var(--verdigris)", Icon: QrCode },
   bounty_manual: { label: "Request", color: "var(--wax)", Icon: UserCheck },
   bounty_venture: { label: "Venture", color: "var(--verdigris)", Icon: MapPin },

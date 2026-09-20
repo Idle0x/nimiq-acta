@@ -34,7 +34,8 @@ import { SkeletonCard, SkeletonEscrow } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { useToast } from "@/components/Toast";
 import { InfoTooltip } from "@/components/Tooltip";
-import { Coins, Sparkles, QrCode, FileText, ChevronRight, ShieldCheck, Settings, UserCheck } from "lucide-react";
+import { Coins, Sparkles, QrCode, FileText, ChevronRight, ShieldCheck, Settings, UserCheck, Compass } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import HubApi from "@nimiq/hub-api";
 import {
   RadarIcon,
@@ -691,12 +692,21 @@ export default function Home() {
                                 <><MapPinIcon size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">GPS Check-In</span></>
                               ) : l.kind === "bounty_qr" ? (
                                 <><QrCode size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">ScanQuest Token</span></>
-                              ) : (l as any).contract?.ai?.primary === "vision" ? (
+                              ) : l.kind === "bounty_manual" ? (
+                                <><UserCheck size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">In-Person Verification</span></>
+                              ) : l.kind === "bounty_venture" ? (
+                                <><Compass size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">Online Venture</span></>
+                              ) : l.kind === "bounty" || (l as any).contract?.ai?.primary === "vision" ? (
                                 <><Sparkles size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">Vision Oracle</span></>
                               ) : (
                                 <><ZapIcon size={11} className="text-[var(--gold)]" /><span className="caps text-[8.5px] font-bold tracking-wider">{categoryBadge(l)}</span></>
                               )}
                             </div>
+                            {Boolean(l.requireLocation || (l as any).targetLat != null) && (
+                              <span className="caps text-[8px] font-bold tracking-wider text-[var(--sky)] bg-[var(--sky)]/10 px-2 py-0.5 rounded-full border border-[var(--sky)]/25">
+                                📍 GPS Required
+                              </span>
+                            )}
                           </div>
 
                           <div className="text-right shrink-0">
@@ -713,11 +723,14 @@ export default function Home() {
                           {l.title}
                         </h4>
 
-                        <div className="flex items-center gap-2 mb-2 text-[10px] text-[var(--ink3)]">
+                        <div className="flex flex-wrap items-center gap-2 mb-2 text-[10px] text-[var(--ink3)]">
                           <span className="marginalia">patron:</span>
                           <button onClick={() => setProfileAddr(l.owner)} className="font-mono text-[10px] text-[var(--sky)] hover:underline font-semibold">{l.owner.slice(0, 11)}…</button>
+                          {(l as any).createdAt ? (
+                            <span className="text-[9px] text-[var(--ink3)]/80">· listed {formatDistanceToNow(new Date(Number((l as any).createdAt)), { addSuffix: true })}</span>
+                          ) : null}
                           {(l as any).expiresAt ? (
-                            <span className="text-[9px] text-[var(--ink3)]/80">· ⏱ open until {new Date(Number((l as any).expiresAt)).toLocaleDateString()}</span>
+                            <span className="text-[9px] font-semibold text-[var(--gold)]/90">· ⏱ {timeRemaining((l as any).expiresAt)}</span>
                           ) : null}
                         </div>
 
@@ -879,6 +892,14 @@ export default function Home() {
                         <h4 className="font-serif text-base font-bold text-[var(--ink)] leading-snug mb-1 group-hover:text-[var(--sky)] transition-colors">
                           {l.title}
                         </h4>
+
+                        <div className="flex items-center gap-2 mb-2 text-[10px] text-[var(--ink3)]">
+                          <span className="marginalia">lender:</span>
+                          <button onClick={() => setProfileAddr(l.owner)} className="font-mono text-[10px] text-[var(--sky)] hover:underline font-semibold">{l.owner.slice(0, 11)}…</button>
+                          {(l as any).createdAt ? (
+                            <span className="text-[9px] text-[var(--ink3)]/80">· listed {formatDistanceToNow(new Date(Number((l as any).createdAt)), { addSuffix: true })}</span>
+                          ) : null}
+                        </div>
 
                         <p className="text-xs leading-relaxed text-[var(--ink2)] mb-3 line-clamp-2">{l.description}</p>
 
@@ -1451,6 +1472,7 @@ export default function Home() {
           viewerTrust={trustScore}
           onAccept={(l) => { const full = listings.find((x) => x.id === l.id) ?? l; setWizard(full as any); }}
           onClose={() => setReviewListingId(null)}
+          onShowQr={(token, escrow) => setQrToken({ token, escrow })}
         />
 
         {wizard && (
