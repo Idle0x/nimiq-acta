@@ -117,7 +117,12 @@ export default function Home() {
   const [justSettled, setJustSettled] = useState(false);
   const [activeSeg, setActiveSeg] = useState<"progress" | "awaiting" | "settled" | "refunded">("progress");
   const [awaitingCount, setAwaitingCount] = useState(0);
-  const [seenAwaiting, setSeenAwaiting] = useState(false);
+  const [seenTabs, setSeenTabs] = useState<Record<string, boolean>>({
+    progress: true,
+    awaiting: false,
+    settled: false,
+    refunded: false,
+  });
   const [profileAddr, setProfileAddr] = useState<string | null>(null);
   const { unread, refresh: refreshUnread } = useUnread();
 
@@ -978,34 +983,50 @@ export default function Home() {
           {tab === "active" && (
 
             <div className="px-4 pb-10 animate-fade-in">
-              <div className="mb-3 flex gap-1 border-y border-[var(--line)] px-1 py-1.5">
-                {[
-                  { id: "progress" as const, label: "In progress" },
-                  { id: "awaiting" as const, label: "Awaiting me", badge: (!seenAwaiting && awaitingCount > 0) ? awaitingCount : null },
-                  { id: "settled" as const, label: "Settled" },
-                  { id: "refunded" as const, label: "Refunded" },
-                ].map((seg) => {
-                  const isSelected = activeSeg === seg.id;
-                  return (
-                    <button
-                      key={seg.id}
-                      onClick={() => {
-                        setActiveSeg(seg.id);
-                        if (seg.id === "awaiting") setSeenAwaiting(true);
-                      }}
-                      className="caps relative flex-1 rounded-full py-2 text-[8px] transition-all flex items-center justify-center gap-1"
-                      style={isSelected ? { background: "var(--gold)", color: "#1c1508", fontWeight: 700 } : { color: "var(--ink3)" }}
-                    >
-                      <span>{seg.label}</span>
-                      {seg.badge ? (
-                        <span className="figure rounded-full bg-[var(--gold)] px-1.5 py-0.2 text-[8px] font-bold text-[#1c1508] shadow-sm animate-pulse">
-                          {seg.badge}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
+              {(() => {
+                const progressCount = escrows.filter((e) => e.state === "locked" || (e as any).state === "settling").length;
+                const manualAwaitingCount = escrows.filter((e) => {
+                  const l = listings.find((x) => x.id === e.listingId);
+                  return l?.owner === accounts[0] && l?.kind === "bounty_manual" && e.state === "locked";
+                }).length;
+                const totalAwaitingCount = awaitingCount + manualAwaitingCount;
+                const settledCount = escrows.filter((e) => e.state === "released").length;
+                const refundedCount = escrows.filter((e) => e.state === "cancelled" || (e as any).state === "expired" || (e as any).state === "refunded").length;
+
+                const segs = [
+                  { id: "progress" as const, label: "In progress", count: progressCount },
+                  { id: "awaiting" as const, label: "Awaiting me", count: totalAwaitingCount },
+                  { id: "settled" as const, label: "Settled", count: settledCount },
+                  { id: "refunded" as const, label: "Refunded", count: refundedCount },
+                ];
+
+                return (
+                  <div className="mb-3 flex gap-1 border-y border-[var(--line)] px-1 py-1.5">
+                    {segs.map((seg) => {
+                      const isSelected = activeSeg === seg.id;
+                      const showBadge = seg.count > 0 && !seenTabs[seg.id] && !isSelected;
+                      return (
+                        <button
+                          key={seg.id}
+                          onClick={() => {
+                            setActiveSeg(seg.id);
+                            setSeenTabs((p) => ({ ...p, [seg.id]: true }));
+                          }}
+                          className="caps relative flex-1 rounded-full py-2 text-[8px] transition-all flex items-center justify-center gap-1"
+                          style={isSelected ? { background: "var(--gold)", color: "#1c1508", fontWeight: 700 } : { color: "var(--ink3)" }}
+                        >
+                          <span>{seg.label}</span>
+                          {showBadge ? (
+                            <span className="figure rounded-full bg-[var(--gold)] px-1.5 py-0.2 text-[8px] font-bold text-[#1c1508] shadow-sm animate-pulse">
+                              {seg.count}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
               {/* Clear 1-line explanation for each mini-tab in Contracts */}
               <div className="mb-4 px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--ink)_3%,transparent)] border border-[var(--line)]/10 text-center">
@@ -1228,7 +1249,7 @@ export default function Home() {
                                     <button
                                       onClick={() => {
                                         setActiveSeg("awaiting");
-                                        setSeenAwaiting(true);
+                                        setSeenTabs((p) => ({ ...p, awaiting: true }));
                                       }}
                                       className="w-full py-2 px-3 rounded-lg bg-[var(--sky)]/20 hover:bg-[var(--sky)]/30 text-[var(--sky)] font-bold text-xs transition-all btn-press"
                                     >
