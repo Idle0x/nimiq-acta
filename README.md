@@ -52,7 +52,7 @@ Every community that pays strangers for outcomes hits the same wall: a streamer 
 
 ## Watch it work
 
-A 60-second recorded demo is the fastest way to see the whole protocol: [Watch the Demo Video](https://youtu.be/eLxVdYTx0Lo) ([`docs/DEMO.md`](docs/DEMO.md)). What to watch for:
+The recorded demo is the fastest way to see the whole protocol: [Watch the Demo Video](https://youtu.be/eLxVdYTx0Lo) ([`docs/DEMO.md`](docs/DEMO.md)). What to watch for:
 
 1. **Native Nimiq Pay signing:** The wallet initiates locks and claims directly through the `@nimiq/mini-app-sdk`.
 2. **Multi-oracle verification:** Proofs are evaluated in real time (AI vision analysis, Ed25519 QR handshake, Haversine GPS check-in).
