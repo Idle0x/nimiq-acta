@@ -1541,6 +1541,7 @@ export default function Home() {
                 isConnected={status === "connected" && !!accounts[0]}
                 onSignIn={ensureAuth}
                 onScoreLoaded={(score) => setUserTrustScore(score)}
+                onViewProfile={setProfileAddr}
               />
               <FolioRule />
               <div className="px-4"><PassportDetails address={accounts[0]} /></div>

@@ -19,6 +19,8 @@ import {
   LogIn,
   Layers,
   History as HistoryIcon,
+  Users,
+  ChevronRight,
 } from "lucide-react";
 import Identicon from "./Identicon";
 import Stamps from "./Stamps";
@@ -26,6 +28,7 @@ import { trustTier } from "./AppChrome";
 import { InfoTooltip } from "./Tooltip";
 import { explorerTxUrl } from "@/lib/escrow";
 import { useToast } from "./Feedback";
+import ProfileSheet from "./ProfileSheet";
 
 const STATE_CHIP: Record<string, { label: string; color: string }> = {
   locked: { label: "In progress", color: "var(--gold)" },
@@ -203,7 +206,15 @@ function CheckInPanel({ address, onSignIn }: { address?: string; onSignIn?: () =
   );
 }
 
-function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () => Promise<boolean> }) {
+function ReferralPanel({
+  address,
+  onSignIn,
+  onViewProfile,
+}: {
+  address?: string;
+  onSignIn?: () => Promise<boolean>;
+  onViewProfile?: (address: string) => void;
+}) {
   const toast = useToast();
   const [code, setCode] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
@@ -211,6 +222,14 @@ function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () 
   const [earnedNIM, setEarnedNIM] = useState(0);
   const [alreadyClaimed, setAlreadyClaimed] = useState(false);
   const [claimedReferrerCode, setClaimedReferrerCode] = useState<string | null>(null);
+  const [referredUsers, setReferredUsers] = useState<
+    Array<{
+      referee: string;
+      settledAt: number;
+      trustScore?: number;
+      itemsCompleted?: number;
+    }>
+  >([]);
   const [claimInput, setClaimInput] = useState("");
   const [claiming, setClaiming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -229,6 +248,7 @@ function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () 
         if (typeof d?.earnedNIM === "number") setEarnedNIM(d.earnedNIM);
         if (typeof d?.alreadyClaimed === "boolean") setAlreadyClaimed(d.alreadyClaimed);
         if (d?.claimedReferrerCode) setClaimedReferrerCode(d.claimedReferrerCode);
+        if (Array.isArray(d?.referredUsers)) setReferredUsers(d.referredUsers);
       })
       .catch(() => {});
   }, [address]);
@@ -250,6 +270,7 @@ function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () 
         setLink(d.link || `${window.location.origin}/?ref=${d.code}`);
         if (typeof d?.count === "number") setCount(d.count);
         if (typeof d?.earnedNIM === "number") setEarnedNIM(d.earnedNIM);
+        if (Array.isArray(d?.referredUsers)) setReferredUsers(d.referredUsers);
       } else {
         const fallbackCode = (address || "NIMIQ").replace(/[^A-Za-z0-9]/g, "").slice(2, 8).toUpperCase();
         setCode(fallbackCode);
@@ -367,6 +388,64 @@ function ReferralPanel({ address, onSignIn }: { address?: string; onSignIn?: () 
         </button>
       )}
 
+      {/* Compact List View of Referred Users */}
+      <div className="pt-3 border-t border-[var(--line)] space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="caps text-[9px] text-[var(--gold)] font-bold flex items-center gap-1.5">
+            <Users size={12} /> Referred Citizens ({referredUsers.length})
+          </span>
+          {referredUsers.length > 0 && (
+            <span className="marginalia text-[9.5px] text-[var(--ink3)]">Tap user to inspect dossier</span>
+          )}
+        </div>
+
+        {referredUsers.length === 0 ? (
+          <div className="rounded-2xl border border-[var(--line)]/50 bg-black/20 p-3.5 text-center">
+            <p className="marginalia text-[11px] text-[var(--ink3)]">
+              No citizens onboarded yet. Once a peer joins through your link, they appear here and both wallets receive 10 NIM.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1.5 max-h-[220px] overflow-y-auto custom-parchment-scrollbar pr-0.5">
+            {referredUsers.map((u) => {
+              const tier = trustTier(u.trustScore ?? 0);
+              return (
+                <button
+                  key={u.referee}
+                  type="button"
+                  onClick={() => onViewProfile?.(u.referee)}
+                  title={`Inspect public record for ${u.referee}`}
+                  className="w-full text-left rounded-xl p-2.5 bg-black/25 hover:bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] border border-[var(--line)]/60 hover:border-[var(--gold)]/40 transition-all flex items-center justify-between gap-2.5 group cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Identicon address={u.referee} size={28} ring={tier.color} />
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-[11.5px] font-semibold text-[var(--ink)] group-hover:text-[var(--gold)] transition-colors">
+                        {u.referee.slice(0, 15)}…{u.referee.slice(-4)}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[9.5px] text-[var(--ink3)] mt-0.5">
+                        <span>{formatDistanceToNow(u.settledAt, { addSuffix: true })}</span>
+                        <span>·</span>
+                        <span className="caps font-semibold" style={{ color: tier.color }}>
+                          {tier.name} · trust {u.trustScore ?? 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono text-[10px] font-bold text-[var(--gold)] bg-[var(--gold-dim)] px-2 py-0.5 rounded-full border border-[var(--gold)]/30">
+                      +10 NIM
+                    </span>
+                    <ChevronRight size={13} className="text-[var(--ink3)] group-hover:text-[var(--gold)] group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Redeem friend's referral code */}
       <div className="pt-3 border-t border-[var(--line)] space-y-2">
         <span className="caps text-[9px] text-[var(--gold)] block">Redeem a Referral Code</span>
@@ -436,17 +515,28 @@ export default function PassportDashboard({
   isConnected,
   onSignIn,
   onScoreLoaded,
+  onViewProfile,
 }: {
   address?: string | null;
   isConnected?: boolean;
   onSignIn?: () => Promise<boolean>;
   onScoreLoaded?: (score: number) => void;
+  onViewProfile?: (address: string) => void;
 }) {
   const [me, setMe] = useState<any>(null);
+  const [localProfileAddr, setLocalProfileAddr] = useState<string | null>(null);
   const [seg, setSeg] = useState<
     "overview" | "trades" | "listings" | "settlements" | "collection" | "referrals"
   >("overview");
   const [signingIn, setSigningIn] = useState(false);
+
+  const handleViewProfile = (addr: string) => {
+    if (onViewProfile) {
+      onViewProfile(addr);
+    } else {
+      setLocalProfileAddr(addr);
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -778,8 +868,17 @@ export default function PassportDashboard({
       {/* Tab 6: Referral System */}
       {seg === "referrals" && (
         <div className="px-4 animate-fade-in">
-          <ReferralPanel address={displayAddress} onSignIn={onSignIn} />
+          <ReferralPanel
+            address={displayAddress}
+            onSignIn={onSignIn}
+            onViewProfile={handleViewProfile}
+          />
         </div>
+      )}
+
+      {/* Fallback Profile Sheet if no parent onViewProfile callback was passed */}
+      {!onViewProfile && localProfileAddr && (
+        <ProfileSheet address={localProfileAddr} onClose={() => setLocalProfileAddr(null)} />
       )}
     </div>
   );

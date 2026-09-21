@@ -19,14 +19,30 @@ export async function GET(req: Request) {
 
   const sql = getSql();
   if (!sql) {
-    const { memReferrals, memReferralSettlements } = getMemStore();
+    const { memReferrals, memReferralSettlements, memUsers } = getMemStore();
     const existing = memReferrals.get(address);
     const code = existing?.code ?? `${address.replace(/[^A-Z0-9]/gi, "").slice(2, 8)}7a`;
     let count = 0;
+    const referredUsers: Array<{
+      referee: string;
+      settledAt: number;
+      trustScore: number;
+      itemsCompleted: number;
+    }> = [];
     if (existing) {
       for (const s of memReferralSettlements.values()) {
-        if (s.referralId === existing.id) count++;
+        if (s.referralId === existing.id) {
+          count++;
+          const u = memUsers?.get(s.referee);
+          referredUsers.push({
+            referee: s.referee,
+            settledAt: s.settledAt,
+            trustScore: u?.trustScore ?? 0,
+            itemsCompleted: u?.itemsCompleted ?? 0,
+          });
+        }
       }
+      referredUsers.sort((a, b) => b.settledAt - a.settledAt);
     }
     const alreadyClaimed = memReferralSettlements.has(address);
     return NextResponse.json({
@@ -35,6 +51,7 @@ export async function GET(req: Request) {
       count,
       earnedNIM: count * 10,
       alreadyClaimed,
+      referredUsers,
     });
   }
 
@@ -45,11 +62,31 @@ export async function GET(req: Request) {
     const code = (refRows[0]?.code as string) ?? null;
 
     let count = 0;
+    let referredUsers: Array<{
+      referee: string;
+      settledAt: number;
+      trustScore: number;
+      itemsCompleted: number;
+    }> = [];
     if (referralId) {
-      const countRes = await sql`
-        SELECT COUNT(*) AS count FROM referral_settlements WHERE referral_id = ${referralId}
+      const rows = await sql`
+        SELECT 
+          rs.referee, 
+          rs.settled_at,
+          COALESCE(u.trust_score, 0) AS trust_score,
+          COALESCE(u.items_completed, 0) AS items_completed
+        FROM referral_settlements rs
+        LEFT JOIN users u ON u.address = rs.referee
+        WHERE rs.referral_id = ${referralId}
+        ORDER BY rs.settled_at DESC
       `;
-      count = Number(countRes[0]?.count ?? 0);
+      count = rows.length;
+      referredUsers = rows.map((r: any) => ({
+        referee: r.referee as string,
+        settledAt: Number(r.settled_at),
+        trustScore: Number(r.trust_score ?? 0),
+        itemsCompleted: Number(r.items_completed ?? 0),
+      }));
     }
 
     const claimedRes = await sql`
@@ -69,6 +106,7 @@ export async function GET(req: Request) {
       earnedNIM: count * 10,
       alreadyClaimed,
       claimedReferrerCode,
+      referredUsers,
     });
   } catch (err) {
     console.error("Referral GET error:", err);
@@ -82,7 +120,7 @@ export async function POST(req: Request) {
   const sql = getSql();
 
   if (!sql) {
-    const { memReferrals, memReferralSettlements } = getMemStore();
+    const { memReferrals, memReferralSettlements, memUsers } = getMemStore();
     let existing = memReferrals.get(address);
     if (!existing) {
       const code = `${address.replace(/[^A-Z0-9]/gi, "").slice(2, 8)}${crypto.randomBytes(2).toString("hex")}`.toUpperCase();
@@ -90,15 +128,32 @@ export async function POST(req: Request) {
       memReferrals.set(address, existing);
     }
     let count = 0;
+    const referredUsers: Array<{
+      referee: string;
+      settledAt: number;
+      trustScore: number;
+      itemsCompleted: number;
+    }> = [];
     for (const s of memReferralSettlements.values()) {
-      if (s.referralId === existing.id) count++;
+      if (s.referralId === existing.id) {
+        count++;
+        const u = memUsers?.get(s.referee);
+        referredUsers.push({
+          referee: s.referee,
+          settledAt: s.settledAt,
+          trustScore: u?.trustScore ?? 0,
+          itemsCompleted: u?.itemsCompleted ?? 0,
+        });
+      }
     }
+    referredUsers.sort((a, b) => b.settledAt - a.settledAt);
     return NextResponse.json({
       code: existing.code,
       link: buildLink(req, existing.code),
       count,
       earnedNIM: count * 10,
       alreadyClaimed: memReferralSettlements.has(address),
+      referredUsers,
     });
   }
 
@@ -130,11 +185,31 @@ export async function POST(req: Request) {
     if (!code) throw new Error("Referral code creation failed");
 
     let count = 0;
+    let referredUsers: Array<{
+      referee: string;
+      settledAt: number;
+      trustScore: number;
+      itemsCompleted: number;
+    }> = [];
     if (referralId) {
-      const countRes = await sql`
-        SELECT COUNT(*) AS count FROM referral_settlements WHERE referral_id = ${referralId}
+      const rows = await sql`
+        SELECT 
+          rs.referee, 
+          rs.settled_at,
+          COALESCE(u.trust_score, 0) AS trust_score,
+          COALESCE(u.items_completed, 0) AS items_completed
+        FROM referral_settlements rs
+        LEFT JOIN users u ON u.address = rs.referee
+        WHERE rs.referral_id = ${referralId}
+        ORDER BY rs.settled_at DESC
       `;
-      count = Number(countRes[0]?.count ?? 0);
+      count = rows.length;
+      referredUsers = rows.map((r: any) => ({
+        referee: r.referee as string,
+        settledAt: Number(r.settled_at),
+        trustScore: Number(r.trust_score ?? 0),
+        itemsCompleted: Number(r.items_completed ?? 0),
+      }));
     }
 
     const claimedRes = await sql`
@@ -152,6 +227,7 @@ export async function POST(req: Request) {
       earnedNIM: count * 10,
       alreadyClaimed: claimedRes.length > 0,
       claimedReferrerCode: (claimedRes[0]?.referrer_code as string) ?? null,
+      referredUsers,
     });
   } catch (err) {
     console.error("Referral POST error:", err);
