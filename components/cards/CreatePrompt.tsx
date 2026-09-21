@@ -23,22 +23,18 @@ export function CreatePrompt({
       }}
     >
       <span
-        className="relative flex h-9 w-9 flex-none items-center justify-center rounded-full transition-transform duration-500 group-hover:rotate-90 group-hover:scale-110 overflow-visible"
+        className="relative flex h-8 w-8 flex-none items-center justify-center rounded-full transition-transform duration-500 group-hover:rotate-90 group-hover:scale-105 overflow-visible"
         style={{
           background: `color-mix(in srgb, ${c} 16%, transparent)`,
           color: c,
-          boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${c} 40%, transparent)`,
+          boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${c} 30%, transparent)`,
         }}
       >
         <span
           className="radar-scan-ping absolute inline-flex h-full w-full rounded-full pointer-events-none"
-          style={{ background: c, opacity: 0.5 }}
+          style={{ background: c }}
         />
-        <span
-          className="radar-scan-sweep absolute -inset-1 rounded-full border-t-2 pointer-events-none"
-          style={{ borderColor: c, opacity: 0.85 }}
-        />
-        <Plus size={17} strokeWidth={2.5} className="radar-scan-glow relative" />
+        <Plus size={15} strokeWidth={2.5} className="relative" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[13px] font-semibold text-[var(--ink)]">{title}</span>

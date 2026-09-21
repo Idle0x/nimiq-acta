@@ -34,9 +34,9 @@ import { SkeletonCard, SkeletonEscrow } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { useToast } from "@/components/Toast";
 import { InfoTooltip } from "@/components/Tooltip";
-import { Coins, Sparkles, QrCode, FileText, ChevronRight, ShieldCheck, Settings, UserCheck, Compass, BookOpen, ExternalLink } from "lucide-react";
-import { Seal } from "@/components/Paper";
+import { Coins, Sparkles, QrCode, FileText, ChevronRight, ShieldCheck, Settings, UserCheck, Compass, BookOpen, ExternalLink, SlidersHorizontal, X as XClose } from "lucide-react";
 import { GitHubIcon } from "@/components/docs/SourceLink";
+import { Seal } from "@/components/Paper";
 import { formatDistanceToNow } from "date-fns";
 import HubApi from "@nimiq/hub-api";
 import {
@@ -132,6 +132,20 @@ export default function Home() {
   });
   const [profileAddr, setProfileAddr] = useState<string | null>(null);
   const { unread, refresh: refreshUnread } = useUnread();
+
+  // Radar Bounty Filter States
+  const [showBountyFilters, setShowBountyFilters] = useState(false);
+  const [bountyOracleFilter, setBountyOracleFilter] = useState<"all" | "vision" | "geo" | "qr" | "manual" | "venture">("all");
+  const [bountyLocFilter, setBountyLocFilter] = useState<"all" | "required" | "none">("all");
+  const [bountyExpiryFilter, setBountyExpiryFilter] = useState<"all" | "24h" | "3d">("all");
+  const [bountyRewardFilter, setBountyRewardFilter] = useState<"all" | "10" | "50" | "100">("all");
+
+  // Radar Lend & Borrow Filter States
+  const [borrowModeTab, setBorrowModeTab] = useState<"all" | "lend" | "rent">("all");
+  const [showBorrowFilters, setShowBorrowFilters] = useState(false);
+  const [borrowLocFilter, setBorrowLocFilter] = useState<"all" | "required" | "none">("all");
+  const [borrowExpiryFilter, setBorrowExpiryFilter] = useState<"all" | "24h" | "7d">("all");
+  const [borrowCollateralFilter, setBorrowCollateralFilter] = useState<"all" | "50" | "200" | "200plus">("all");
 
   const borrower = accounts[0] ?? "Anonymous";
   const isConnected = status === "connected" || isDemoMode;
@@ -242,6 +256,109 @@ export default function Home() {
   }, [accounts]);
 
   const activeCount = escrows.filter((e) => e.state === "locked").length;
+
+  // Bounty Filters Calculations
+  const bountyFilterCount =
+    (bountyOracleFilter !== "all" ? 1 : 0) +
+    (bountyLocFilter !== "all" ? 1 : 0) +
+    (bountyExpiryFilter !== "all" ? 1 : 0) +
+    (bountyRewardFilter !== "all" ? 1 : 0);
+
+  const resetBountyFilters = () => {
+    setBountyOracleFilter("all");
+    setBountyLocFilter("all");
+    setBountyExpiryFilter("all");
+    setBountyRewardFilter("all");
+  };
+
+  const allLiveBounties = useMemo(() => {
+    return listings.filter((l) => isLiveListing(l) && l.kind.startsWith("bounty"));
+  }, [listings]);
+
+  const filteredBounties = useMemo(() => {
+    return allLiveBounties.filter((l) => {
+      // Oracle Filter
+      if (bountyOracleFilter !== "all") {
+        const oracle = (l as any).oracleType || (l.kind === "bounty_geo" ? "geo" : l.kind === "bounty_qr" ? "qr" : l.kind === "bounty_manual" ? "manual" : l.kind === "bounty_venture" ? "venture" : "vision");
+        if (oracle !== bountyOracleFilter) return false;
+      }
+
+      // Location Filter
+      const hasLoc = Boolean((l as any).location || l.requireLocation || l.targetLat != null);
+      if (bountyLocFilter === "required" && !hasLoc) return false;
+      if (bountyLocFilter === "none" && hasLoc) return false;
+
+      // Expiry Filter
+      if (bountyExpiryFilter === "24h") {
+        if (!l.expiresAt || l.expiresAt - Date.now() > 24 * 3600 * 1000) return false;
+      } else if (bountyExpiryFilter === "3d") {
+        if (!l.expiresAt || l.expiresAt - Date.now() > 3 * 24 * 3600 * 1000) return false;
+      }
+
+      // Reward Filter
+      const reward = (l as any).bountyReward ?? l.yieldNIM ?? l.collateralNIM ?? 0;
+      if (bountyRewardFilter === "10" && reward >= 50) return false;
+      if (bountyRewardFilter === "50" && (reward < 50 || reward > 200)) return false;
+      if (bountyRewardFilter === "100" && reward <= 200) return false;
+
+      return true;
+    });
+  }, [allLiveBounties, bountyOracleFilter, bountyLocFilter, bountyExpiryFilter, bountyRewardFilter]);
+
+  // Borrow & Lend Filters Calculations
+  const borrowFilterCount =
+    (borrowLocFilter !== "all" ? 1 : 0) +
+    (borrowExpiryFilter !== "all" ? 1 : 0) +
+    (borrowCollateralFilter !== "all" ? 1 : 0);
+
+  const resetBorrowFilters = () => {
+    setBorrowLocFilter("all");
+    setBorrowExpiryFilter("all");
+    setBorrowCollateralFilter("all");
+  };
+
+  const allLiveBorrows = useMemo(() => {
+    return listings.filter((l) => isLiveListing(l) && l.kind === "borrow");
+  }, [listings]);
+
+  const totalLendsCount = useMemo(() => {
+    return allLiveBorrows.filter((l) => !l.borrowMode || l.borrowMode === "lend").length;
+  }, [allLiveBorrows]);
+
+  const totalRentsCount = useMemo(() => {
+    return allLiveBorrows.filter((l) => l.borrowMode === "rent").length;
+  }, [allLiveBorrows]);
+
+  const filteredBorrows = useMemo(() => {
+    return allLiveBorrows.filter((l) => {
+      // Role / Mode Tab: 'all' | 'lend' | 'rent'
+      if (borrowModeTab === "lend") {
+        if (l.borrowMode && l.borrowMode !== "lend") return false;
+      } else if (borrowModeTab === "rent") {
+        if (l.borrowMode !== "rent") return false;
+      }
+
+      // Location Filter
+      const hasLoc = Boolean((l as any).location || l.requireLocation || l.targetLat != null);
+      if (borrowLocFilter === "required" && !hasLoc) return false;
+      if (borrowLocFilter === "none" && hasLoc) return false;
+
+      // Expiry / Duration Filter
+      if (borrowExpiryFilter === "24h") {
+        if (!l.expiresAt || l.expiresAt - Date.now() > 24 * 3600 * 1000) return false;
+      } else if (borrowExpiryFilter === "7d") {
+        if (!l.expiresAt || l.expiresAt - Date.now() > 7 * 24 * 3600 * 1000) return false;
+      }
+
+      // Collateral Filter
+      const col = l.collateralNIM ?? 0;
+      if (borrowCollateralFilter === "50" && col >= 50) return false;
+      if (borrowCollateralFilter === "200" && (col < 50 || col > 200)) return false;
+      if (borrowCollateralFilter === "200plus" && col <= 200) return false;
+
+      return true;
+    });
+  }, [allLiveBorrows, borrowModeTab, borrowLocFilter, borrowExpiryFilter, borrowCollateralFilter]);
 
   async function handleLock(listing: Listing, amountNIM: number) {
     const isAuthed = await ensureAuth();
@@ -648,45 +765,198 @@ export default function Home() {
                       content="Patrons lock full NIM rewards into the protocol vault upfront. Performers complete real-world deeds and submit verifiable proof (AI vision inspection, GPS check-in, or ScanQuest tokens). Upon verification, locked funds release directly to your wallet."
                     />
                   </div>
-                  <button onClick={() => setShowMap(!showMap)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--line)]/10 text-xs transition-colors ${showMap ? "bg-[var(--gold)]/20 text-[var(--gold)]" : "bg-[var(--surface)] text-[var(--ink3)] hover:text-[var(--ink)]"}`}>
-                    <MapPinIcon size={12} /> {showMap ? "List View" : "Map View"}
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setShowBountyFilters(!showBountyFilters)}
+                      aria-label="Filter bounties"
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs transition-colors ${
+                        bountyFilterCount > 0 || showBountyFilters
+                          ? "border-[var(--gold)]/40 bg-[var(--gold)]/15 text-[var(--gold)]"
+                          : "border-[var(--line)]/10 bg-[var(--surface)] text-[var(--ink3)] hover:text-[var(--ink)]"
+                      }`}
+                    >
+                      <SlidersHorizontal size={11} />
+                      <span className="font-medium text-[11px]">Filter</span>
+                      {bountyFilterCount > 0 && (
+                        <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[9px] font-extrabold text-[#181206]">
+                          {bountyFilterCount}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setShowMap(!showMap)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-[var(--line)]/10 text-xs transition-colors ${
+                        showMap ? "bg-[var(--gold)]/20 text-[var(--gold)]" : "bg-[var(--surface)] text-[var(--ink3)] hover:text-[var(--ink)]"
+                      }`}
+                    >
+                      <MapPinIcon size={11} />
+                      <span className="text-[11px]">{showMap ? "List" : "Map"}</span>
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-[var(--ink3)] leading-relaxed mb-3">
                   Complete real-world tasks and verified deeds to earn instant NIM rewards funded upfront by patrons.
                 </p>
+
+                {/* Collapsible Bounty Filters */}
+                {showBountyFilters && (
+                  <div className="mb-3 rounded-xl border border-[var(--gold)]/25 bg-[color-mix(in_srgb,var(--surface)_94%,var(--gold)_6%)] p-3 space-y-2.5 text-xs animate-fade-in">
+                    <div className="flex items-center justify-between pb-1 border-b border-[var(--gold)]/15">
+                      <span className="caps text-[9px] font-extrabold tracking-wider text-[var(--gold)]">Filter Bounties</span>
+                      {bountyFilterCount > 0 && (
+                        <button
+                          onClick={resetBountyFilters}
+                          className="flex items-center gap-1 text-[10px] text-[var(--ink3)] hover:text-[var(--gold)] transition-colors"
+                        >
+                          <XClose size={11} /> Reset filters
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Verification Method / Oracle */}
+                    <div>
+                      <span className="text-[10px] text-[var(--ink3)] block mb-1 font-medium">Verification Oracle</span>
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          { id: "all", label: "All" },
+                          { id: "vision", label: "Vision AI" },
+                          { id: "geo", label: "GPS Check-In" },
+                          { id: "qr", label: "ScanQuest QR" },
+                          { id: "manual", label: "In-Person" },
+                          { id: "venture", label: "Online Venture" },
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => setBountyOracleFilter(item.id as any)}
+                            className={`px-2 py-0.5 rounded-md text-[10px] transition-all ${
+                              bountyOracleFilter === item.id
+                                ? "bg-[var(--gold)] text-[#181206] font-bold shadow-sm"
+                                : "bg-[var(--surface)] text-[var(--ink3)] border border-[var(--line)]/15 hover:border-[var(--gold)]/40 hover:text-[var(--ink)]"
+                            }`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Location Requirement & Expiry */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[10px] text-[var(--ink3)] block mb-1 font-medium">Location</span>
+                        <div className="flex gap-1">
+                          {[
+                            { id: "all", label: "All" },
+                            { id: "required", label: "GPS / In-Person" },
+                            { id: "none", label: "Remote" },
+                          ].map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => setBountyLocFilter(item.id as any)}
+                              className={`flex-1 px-1.5 py-0.5 rounded-md text-[9.5px] transition-all text-center ${
+                                bountyLocFilter === item.id
+                                  ? "bg-[var(--gold)] text-[#181206] font-bold shadow-sm"
+                                  : "bg-[var(--surface)] text-[var(--ink3)] border border-[var(--line)]/15 hover:border-[var(--gold)]/40 hover:text-[var(--ink)]"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Expiry Window */}
+                      <div>
+                        <span className="text-[10px] text-[var(--ink3)] block mb-1 font-medium">Expiry Range</span>
+                        <div className="flex gap-1">
+                          {[
+                            { id: "all", label: "All" },
+                            { id: "24h", label: "< 24h" },
+                            { id: "3d", label: "< 3 Days" },
+                          ].map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => setBountyExpiryFilter(item.id as any)}
+                              className={`flex-1 px-1.5 py-0.5 rounded-md text-[9.5px] transition-all text-center ${
+                                bountyExpiryFilter === item.id
+                                  ? "bg-[var(--gold)] text-[#181206] font-bold shadow-sm"
+                                  : "bg-[var(--surface)] text-[var(--ink3)] border border-[var(--line)]/15 hover:border-[var(--gold)]/40 hover:text-[var(--ink)]"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reward Size */}
+                    <div>
+                      <span className="text-[10px] text-[var(--ink3)] block mb-1 font-medium">Reward Bracket</span>
+                      <div className="flex gap-1">
+                        {[
+                          { id: "all", label: "Any Reward" },
+                          { id: "10", label: "< 50 NIM" },
+                          { id: "50", label: "50 - 200 NIM" },
+                          { id: "100", label: "> 200 NIM" },
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => setBountyRewardFilter(item.id as any)}
+                            className={`flex-1 px-1.5 py-0.5 rounded-md text-[9.5px] transition-all text-center ${
+                              bountyRewardFilter === item.id
+                                ? "bg-[var(--gold)] text-[#181206] font-bold shadow-sm"
+                                : "bg-[var(--surface)] text-[var(--ink3)] border border-[var(--line)]/15 hover:border-[var(--gold)]/40 hover:text-[var(--ink)]"
+                            }`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
-                {/* Subtle pulsing/bouncy/growing-shrinking button that skips step 1 and opens bounty creation */}
+                {/* Subtle pulsing button with delicate small ping */}
                 <button
                   onClick={() => {
                     setCreateKind('bounty');
                     setShowCreateListing(true);
                   }}
-                  className="w-full mb-4 py-3 px-4 rounded-xl border border-[var(--gold)]/40 bg-[var(--gold)]/10 hover:bg-[var(--gold)]/20 text-[var(--gold)] flex items-center justify-center gap-3 transition-all group btn-press animate-breathe-gold shadow-[0_2px_12px_rgba(212,175,55,0.15)] overflow-visible"
+                  className="w-full mb-4 py-3 px-4 rounded-xl border border-[var(--gold)]/40 bg-[var(--gold)]/10 hover:bg-[var(--gold)]/20 text-[var(--gold)] flex items-center justify-center gap-3 transition-all group btn-press shadow-[0_2px_12px_rgba(212,175,55,0.12)] overflow-visible"
                 >
                   <div className="relative flex items-center justify-center overflow-visible">
-                    <span className="radar-scan-ping absolute inline-flex h-6 w-6 rounded-full bg-[var(--gold)] opacity-60" />
-                    <span className="radar-scan-sweep absolute -inset-1 rounded-full border-t-2 border-[var(--gold)] opacity-85 pointer-events-none" />
-                    <div className="relative w-6 h-6 rounded-full bg-[var(--gold)]/25 border border-[var(--gold)]/40 flex items-center justify-center group-hover:scale-110 group-hover:rotate-90 transition-transform duration-300">
-                      <PlusIcon size={13} className="radar-scan-glow text-[var(--gold)] stroke-[3]" />
+                    <span className="radar-scan-ping absolute inline-flex h-5 w-5 rounded-full bg-[var(--gold)] pointer-events-none" />
+                    <div className="relative w-5 h-5 rounded-full bg-[var(--gold)]/20 border border-[var(--gold)]/35 flex items-center justify-center group-hover:scale-105 group-hover:rotate-90 transition-transform duration-300">
+                      <PlusIcon size={12} className="text-[var(--gold)] stroke-[2.5]" />
                     </div>
                   </div>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ink)]">Deploy Protocol Bounty</span>
                 </button>
 
-                {showMap && <div className="pb-4 mb-2"><MapRadar listings={listings.filter(l => isLiveListing(l) && l.kind.startsWith("bounty"))} /></div>}
+                {showMap && <div className="pb-4 mb-2"><MapRadar listings={filteredBounties} /></div>}
                 {!showMap && (
                   loading ? (
                     <div className="space-y-3 pr-1">
                       {Array.from({ length: 2 }).map((_, i) => <SkeletonCard key={i} />)}
                     </div>
-                  ) : listings.filter(l => isLiveListing(l) && l.kind.startsWith("bounty")).length === 0 ? (
+                  ) : allLiveBounties.length === 0 ? (
                     <div className="py-2">
                       <EmptyState title="No Bounties" subtitle="No bounties available. Create one!" icon={<ZapIcon size={32} />} />
                     </div>
+                  ) : filteredBounties.length === 0 ? (
+                    <div className="py-6 text-center space-y-2.5 rounded-xl border border-dashed border-[var(--gold)]/30 bg-[var(--gold)]/5 p-4 my-2">
+                      <p className="text-xs text-[var(--ink3)]">No bounties match your active filter criteria ({bountyFilterCount} active).</p>
+                      <button
+                        onClick={resetBountyFilters}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-full border border-[var(--gold)]/40 bg-[var(--gold)]/15 text-[var(--gold)] hover:bg-[var(--gold)]/25 transition-colors"
+                      >
+                        Reset Bounty Filters
+                      </button>
+                    </div>
                   ) : (
                     <div className="max-h-[440px] overflow-y-auto custom-parchment-scrollbar pr-1 space-y-3">
-                      {listings.filter(l => isLiveListing(l) && l.kind.startsWith("bounty")).map(l => (
+                      {filteredBounties.map(l => (
                       <div key={l.id} className="group relative rounded-2xl border border-[var(--gold)]/35 bg-gradient-to-b from-[var(--surface)] via-[var(--surface)] to-[color-mix(in_srgb,var(--surface)_90%,var(--gold2)_10%)] p-4 shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:border-[var(--gold)]/60 hover:shadow-[0_6px_20px_rgba(212,175,55,0.12)] transition-all overflow-hidden">
                         {/* Background Watermark Fleuron */}
                         <div className="absolute -bottom-5 -right-4 text-6xl font-serif text-[var(--gold)]/5 pointer-events-none select-none" aria-hidden="true">
@@ -837,31 +1107,165 @@ export default function Home() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--sky)] flex items-center gap-2">
-                      <MapPinIcon size={15} className="text-[var(--sky)]" /> Available Nearby (Borrow)
+                      <MapPinIcon size={15} className="text-[var(--sky)]" /> Available Nearby (Lend / Borrow)
                     </h3>
                     <InfoTooltip
-                      title="How Borrowing Works"
-                      content="Borrowers lock the item's collateral value into the Nimiq smart escrow. The lender hands over the item for the agreed duration. Upon return inspection, scanning the generated QR covenant automatically unlocks and refunds your collateral back to your wallet."
+                      title="How Lending & Borrowing Works"
+                      content="Borrowers lock refundable collateral into Nimiq smart escrow. Lenders hand over equipment for the agreed duration. Upon return inspection, scanning the QR covenant automatically unlocks and returns collateral."
                     />
                   </div>
+                  <button
+                    onClick={() => setShowBorrowFilters(!showBorrowFilters)}
+                    aria-label="Filter equipment"
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs transition-colors ${
+                      borrowFilterCount > 0 || showBorrowFilters
+                        ? "border-[var(--sky)]/40 bg-[var(--sky)]/15 text-[var(--sky)]"
+                        : "border-[var(--line)]/10 bg-[var(--surface)] text-[var(--ink3)] hover:text-[var(--ink)]"
+                    }`}
+                  >
+                    <SlidersHorizontal size={11} />
+                    <span className="font-medium text-[11px]">Filter</span>
+                    {borrowFilterCount > 0 && (
+                      <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--sky)] px-1 text-[9px] font-extrabold text-[#0c1a24]">
+                        {borrowFilterCount}
+                      </span>
+                    )}
+                  </button>
                 </div>
                 <p className="text-xs text-[var(--ink3)] leading-relaxed mb-3">
-                  Borrow tools, physical goods, and community hardware securely backed by 100% refundable on-chain NIM collateral.
+                  Lend out idle gear or borrow community hardware securely backed by 100% refundable on-chain NIM collateral.
                 </p>
+
+                {/* Segmented View Toggle: All / Lends / Borrows */}
+                <div className="mb-3 flex items-center gap-1.5 p-1 rounded-xl bg-[var(--surface)] border border-[var(--line)]/15">
+                  {[
+                    { id: "all", label: "All", count: allLiveBorrows.length },
+                    { id: "lend", label: "Lends", count: totalLendsCount },
+                    { id: "rent", label: "Borrows", count: totalRentsCount },
+                  ].map((tabItem) => (
+                    <button
+                      key={tabItem.id}
+                      onClick={() => setBorrowModeTab(tabItem.id as any)}
+                      className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                        borrowModeTab === tabItem.id
+                          ? "bg-[var(--sky)]/20 text-[var(--sky)] border border-[var(--sky)]/30 shadow-sm"
+                          : "text-[var(--ink3)] hover:text-[var(--ink)] border border-transparent"
+                      }`}
+                    >
+                      <span>{tabItem.label}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                        borrowModeTab === tabItem.id ? "bg-[var(--sky)] text-[#0c1a24] font-extrabold" : "bg-[var(--line)]/20 text-[var(--ink3)]"
+                      }`}>
+                        {tabItem.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Collapsible Equipment Filters */}
+                {showBorrowFilters && (
+                  <div className="mb-3 rounded-xl border border-[var(--sky)]/25 bg-[color-mix(in_srgb,var(--surface)_94%,var(--sky)_6%)] p-3 space-y-2.5 text-xs animate-fade-in">
+                    <div className="flex items-center justify-between pb-1 border-b border-[var(--sky)]/15">
+                      <span className="caps text-[9px] font-extrabold tracking-wider text-[var(--sky)]">Filter Equipment</span>
+                      {borrowFilterCount > 0 && (
+                        <button
+                          onClick={resetBorrowFilters}
+                          className="flex items-center gap-1 text-[10px] text-[var(--ink3)] hover:text-[var(--sky)] transition-colors"
+                        >
+                          <XClose size={11} /> Reset filters
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Location Requirement & Expiry */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[10px] text-[var(--ink3)] block mb-1 font-medium">Location / Handover</span>
+                        <div className="flex gap-1">
+                          {[
+                            { id: "all", label: "All" },
+                            { id: "required", label: "In-Person" },
+                            { id: "none", label: "Any / Remote" },
+                          ].map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => setBorrowLocFilter(item.id as any)}
+                              className={`flex-1 px-1.5 py-0.5 rounded-md text-[9.5px] transition-all text-center ${
+                                borrowLocFilter === item.id
+                                  ? "bg-[var(--sky)] text-[#0c1a24] font-bold shadow-sm"
+                                  : "bg-[var(--surface)] text-[var(--ink3)] border border-[var(--line)]/15 hover:border-[var(--sky)]/40 hover:text-[var(--ink)]"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Expiry Window */}
+                      <div>
+                        <span className="text-[10px] text-[var(--ink3)] block mb-1 font-medium">Duration / Expiry</span>
+                        <div className="flex gap-1">
+                          {[
+                            { id: "all", label: "All" },
+                            { id: "24h", label: "< 24h" },
+                            { id: "7d", label: "< 7 Days" },
+                          ].map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => setBorrowExpiryFilter(item.id as any)}
+                              className={`flex-1 px-1.5 py-0.5 rounded-md text-[9.5px] transition-all text-center ${
+                                borrowExpiryFilter === item.id
+                                  ? "bg-[var(--sky)] text-[#0c1a24] font-bold shadow-sm"
+                                  : "bg-[var(--surface)] text-[var(--ink3)] border border-[var(--line)]/15 hover:border-[var(--sky)]/40 hover:text-[var(--ink)]"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Collateral Bracket */}
+                    <div>
+                      <span className="text-[10px] text-[var(--ink3)] block mb-1 font-medium">Collateral Bracket</span>
+                      <div className="flex gap-1">
+                        {[
+                          { id: "all", label: "Any Collateral" },
+                          { id: "50", label: "< 50 NIM" },
+                          { id: "200", label: "50 - 200 NIM" },
+                          { id: "200plus", label: "> 200 NIM" },
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => setBorrowCollateralFilter(item.id as any)}
+                            className={`flex-1 px-1.5 py-0.5 rounded-md text-[9.5px] transition-all text-center ${
+                              borrowCollateralFilter === item.id
+                                ? "bg-[var(--sky)] text-[#0c1a24] font-bold shadow-sm"
+                                : "bg-[var(--surface)] text-[var(--ink3)] border border-[var(--line)]/15 hover:border-[var(--sky)]/40 hover:text-[var(--ink)]"
+                            }`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
-                {/* Subtle pulsing/bouncy/growing-shrinking button that skips step 1 and opens borrow creation */}
+                {/* Subtle pulsing button with delicate small ping */}
                 <button
                   onClick={() => {
                     setCreateKind('borrow');
                     setShowCreateListing(true);
                   }}
-                  className="w-full mb-4 py-3 px-4 rounded-xl border border-[var(--sky)]/40 bg-[var(--sky)]/10 hover:bg-[var(--sky)]/20 text-[var(--sky)] flex items-center justify-center gap-3 transition-all group btn-press animate-breathe-sky shadow-[0_2px_12px_rgba(56,189,248,0.15)] overflow-visible"
+                  className="w-full mb-4 py-3 px-4 rounded-xl border border-[var(--sky)]/40 bg-[var(--sky)]/10 hover:bg-[var(--sky)]/20 text-[var(--sky)] flex items-center justify-center gap-3 transition-all group btn-press shadow-[0_2px_12px_rgba(56,189,248,0.12)] overflow-visible"
                 >
                   <div className="relative flex items-center justify-center overflow-visible">
-                    <span className="radar-scan-ping absolute inline-flex h-6 w-6 rounded-full bg-[var(--sky)] opacity-60" />
-                    <span className="radar-scan-sweep absolute -inset-1 rounded-full border-t-2 border-[var(--sky)] opacity-85 pointer-events-none" />
-                    <div className="relative w-6 h-6 rounded-full bg-[var(--sky)]/25 border border-[var(--sky)]/40 flex items-center justify-center group-hover:scale-110 group-hover:rotate-90 transition-transform duration-300">
-                      <PlusIcon size={13} className="radar-scan-glow text-[var(--sky)] stroke-[3]" />
+                    <span className="radar-scan-ping absolute inline-flex h-5 w-5 rounded-full bg-[var(--sky)] pointer-events-none" />
+                    <div className="relative w-5 h-5 rounded-full bg-[var(--sky)]/20 border border-[var(--sky)]/35 flex items-center justify-center group-hover:scale-105 group-hover:rotate-90 transition-transform duration-300">
+                      <PlusIcon size={12} className="text-[var(--sky)] stroke-[2.5]" />
                     </div>
                   </div>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ink)]">List or Request Equipment</span>
@@ -871,13 +1275,26 @@ export default function Home() {
                   <div className="space-y-3 pr-1">
                     {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
                   </div>
-                ) : listings.filter(l => isLiveListing(l) && l.kind === "borrow").length === 0 ? (
+                ) : allLiveBorrows.length === 0 ? (
                   <div className="py-2">
                     <EmptyState title="No Items" subtitle="No items available to borrow or rent." icon={<MapPinIcon size={32} />} />
                   </div>
+                ) : filteredBorrows.length === 0 ? (
+                  <div className="py-6 text-center space-y-2.5 rounded-xl border border-dashed border-[var(--sky)]/30 bg-[var(--sky)]/5 p-4 my-2">
+                    <p className="text-xs text-[var(--ink3)]">No equipment matches your active filter criteria ({borrowFilterCount + (borrowModeTab !== "all" ? 1 : 0)} active).</p>
+                    <button
+                      onClick={() => {
+                        resetBorrowFilters();
+                        setBorrowModeTab("all");
+                      }}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-full border border-[var(--sky)]/40 bg-[var(--sky)]/15 text-[var(--sky)] hover:bg-[var(--sky)]/25 transition-colors"
+                    >
+                      Reset Equipment Filters
+                    </button>
+                  </div>
                 ) : (
                   <div className="max-h-[440px] overflow-y-auto custom-parchment-scrollbar pr-1 space-y-3">
-                    {listings.filter(l => isLiveListing(l) && l.kind === "borrow").map((l) => {
+                    {filteredBorrows.map((l) => {
                       const isRentRequest = l.borrowMode === "rent";
                       const isOwner = l.owner === accounts[0];
                       const myActiveBorrow = escrows.find(e => e.listingId === l.id && e.borrower === accounts[0] && (e.state === "locked" || (e as any).state === "settling"));

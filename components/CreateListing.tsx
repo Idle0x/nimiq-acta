@@ -114,9 +114,11 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
           )}
           <h2 className="text-lg font-semibold text-[var(--ink)]">
             {kind === 'borrow'
-              ? borrowMode === 'lend'
-                ? 'List Asset as Available to Lend'
-                : 'Request to Rent an Item'
+              ? step === 1.2
+                ? 'Lend / Borrow Equipment'
+                : borrowMode === 'lend'
+                ? 'Lend (Provide Equipment)'
+                : 'Borrow (Seek Equipment)'
               : kind?.startsWith('bounty')
               ? 'Deploy Protocol Bounty'
               : 'Create Listing'}
@@ -163,7 +165,7 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-base font-bold text-[var(--ink)] mb-1">Physical Equipment (Borrow & Lend)</h4>
+                  <h4 className="text-base font-bold text-[var(--ink)] mb-1">Physical Equipment (Lend & Borrow)</h4>
                   <span className="text-[10px] uppercase font-bold text-[var(--sky)] bg-[var(--sky)]/10 px-2 py-0.5 rounded-full">
                     Escrow Covenant
                   </span>
@@ -227,7 +229,10 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
               </div>
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between flex-wrap gap-1">
-                  <h4 className="text-base font-bold text-[var(--ink)]">List Item as Available</h4>
+                  <h4 className="text-base font-bold text-[var(--ink)] flex items-center gap-1.5">
+                    <span>Lend</span>
+                    <span className="text-xs font-normal text-[var(--ink3)]">(List Item as Available)</span>
+                  </h4>
                   <span className="text-[9.5px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[var(--verdigris)]/15 text-[var(--verdigris)] border border-[var(--verdigris)]/30">
                     0 NIM Upfront · No Broadcast
                   </span>
@@ -260,7 +265,10 @@ const CreateListing: React.FC<CreateListingProps> = ({ onClose, onSubmit, initia
               </div>
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between flex-wrap gap-1">
-                  <h4 className="text-base font-bold text-[var(--ink)]">Request to Rent an Item</h4>
+                  <h4 className="text-base font-bold text-[var(--ink)] flex items-center gap-1.5">
+                    <span>Borrow</span>
+                    <span className="text-xs font-normal text-[var(--ink3)]">(Request to Rent an Item)</span>
+                  </h4>
                   <span className="text-[9.5px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[var(--gold)]/15 text-[var(--gold)] border border-[var(--gold)]/30">
                     Broadcasts Transaction
                   </span>

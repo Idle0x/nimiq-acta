@@ -73,15 +73,12 @@ export function AppHeader({
 
         <button
           onClick={onCreate}
-          className="press relative group flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs overflow-visible"
+          className="press relative group flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs overflow-visible"
           title="Create New Listing or Bounty"
         >
-          <span className="relative flex h-4 w-4 items-center justify-center">
-            {/* Concentric radar scanner ping */}
-            <span className="radar-scan-ping absolute inline-flex h-full w-full rounded-full bg-[var(--gold)] opacity-75" />
-            {/* Radar scanner sweep reticle */}
-            <span className="radar-scan-sweep absolute -inset-1 rounded-full border-t border-[var(--gold)] opacity-85" />
-            <Plus size={13} strokeWidth={2.8} className="radar-scan-glow relative text-[#1c1508] group-hover:rotate-90 transition-transform duration-300" />
+          <span className="relative flex h-3.5 w-3.5 items-center justify-center">
+            <span className="radar-scan-ping absolute inline-flex h-full w-full rounded-full bg-[var(--gold)]" />
+            <Plus size={13} strokeWidth={2.5} className="relative text-[#1c1508] group-hover:rotate-90 transition-transform duration-300" />
           </span>
           <span className="font-semibold tracking-wide">New</span>
         </button>
