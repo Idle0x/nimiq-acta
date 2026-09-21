@@ -662,10 +662,14 @@ export default function Home() {
                     setCreateKind('bounty');
                     setShowCreateListing(true);
                   }}
-                  className="w-full mb-4 py-3 px-4 rounded-xl border border-[var(--gold)]/40 bg-[var(--gold)]/10 hover:bg-[var(--gold)]/20 text-[var(--gold)] flex items-center justify-center gap-2.5 transition-all group btn-press animate-breathe-gold shadow-[0_2px_12px_rgba(212,175,55,0.15)]"
+                  className="w-full mb-4 py-3 px-4 rounded-xl border border-[var(--gold)]/40 bg-[var(--gold)]/10 hover:bg-[var(--gold)]/20 text-[var(--gold)] flex items-center justify-center gap-3 transition-all group btn-press animate-breathe-gold shadow-[0_2px_12px_rgba(212,175,55,0.15)] overflow-visible"
                 >
-                  <div className="w-5 h-5 rounded-full bg-[var(--gold)]/20 flex items-center justify-center group-hover:scale-125 group-hover:rotate-90 transition-transform">
-                     <PlusIcon size={13} className="text-[var(--gold)] stroke-[3]" />
+                  <div className="relative flex items-center justify-center overflow-visible">
+                    <span className="radar-scan-ping absolute inline-flex h-6 w-6 rounded-full bg-[var(--gold)] opacity-60" />
+                    <span className="radar-scan-sweep absolute -inset-1 rounded-full border-t-2 border-[var(--gold)] opacity-85 pointer-events-none" />
+                    <div className="relative w-6 h-6 rounded-full bg-[var(--gold)]/25 border border-[var(--gold)]/40 flex items-center justify-center group-hover:scale-110 group-hover:rotate-90 transition-transform duration-300">
+                      <PlusIcon size={13} className="radar-scan-glow text-[var(--gold)] stroke-[3]" />
+                    </div>
                   </div>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ink)]">Deploy Protocol Bounty</span>
                 </button>
@@ -851,10 +855,14 @@ export default function Home() {
                     setCreateKind('borrow');
                     setShowCreateListing(true);
                   }}
-                  className="w-full mb-4 py-3 px-4 rounded-xl border border-[var(--sky)]/40 bg-[var(--sky)]/10 hover:bg-[var(--sky)]/20 text-[var(--sky)] flex items-center justify-center gap-2.5 transition-all group btn-press animate-breathe-sky shadow-[0_2px_12px_rgba(56,189,248,0.15)]"
+                  className="w-full mb-4 py-3 px-4 rounded-xl border border-[var(--sky)]/40 bg-[var(--sky)]/10 hover:bg-[var(--sky)]/20 text-[var(--sky)] flex items-center justify-center gap-3 transition-all group btn-press animate-breathe-sky shadow-[0_2px_12px_rgba(56,189,248,0.15)] overflow-visible"
                 >
-                  <div className="w-5 h-5 rounded-full bg-[var(--sky)]/20 flex items-center justify-center group-hover:scale-125 group-hover:rotate-90 transition-transform">
-                     <PlusIcon size={13} className="text-[var(--sky)] stroke-[3]" />
+                  <div className="relative flex items-center justify-center overflow-visible">
+                    <span className="radar-scan-ping absolute inline-flex h-6 w-6 rounded-full bg-[var(--sky)] opacity-60" />
+                    <span className="radar-scan-sweep absolute -inset-1 rounded-full border-t-2 border-[var(--sky)] opacity-85 pointer-events-none" />
+                    <div className="relative w-6 h-6 rounded-full bg-[var(--sky)]/25 border border-[var(--sky)]/40 flex items-center justify-center group-hover:scale-110 group-hover:rotate-90 transition-transform duration-300">
+                      <PlusIcon size={13} className="radar-scan-glow text-[var(--sky)] stroke-[3]" />
+                    </div>
                   </div>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ink)]">List or Request Equipment</span>
                 </button>
