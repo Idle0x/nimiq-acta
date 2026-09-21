@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   BookOpen,
   Cpu,
@@ -11,7 +11,6 @@ import {
   Sliders,
   Search,
   ExternalLink,
-  ChevronRight,
   ArrowUpRight,
   Menu,
   CheckCircle,
@@ -38,6 +37,7 @@ import TrustCalculator from "@/components/docs/TrustCalculator";
 import StateMachineFlow from "@/components/docs/StateMachineFlow";
 import OracleSimulator from "@/components/docs/OracleSimulator";
 import CodeTabs from "@/components/docs/CodeTabs";
+import SourceLink, { GitHubIcon } from "@/components/docs/SourceLink";
 import { Seal } from "@/components/Paper";
 
 const TOC_HEADINGS: TocItem[] = [
@@ -103,12 +103,12 @@ export default function DocsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#12100c] text-[var(--ink)]">
+    <div className="min-h-screen flex flex-col bg-[#12100c] text-[var(--ink)] antialiased overflow-x-hidden">
       {/* Search Modal */}
       <DocsSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* Top Navbar */}
-      <header className="sticky top-0 z-40 w-full h-16 border-b border-[var(--line)] bg-[#12100c]/90 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between">
+      <header className="sticky top-0 z-40 w-full h-16 border-b border-[var(--line)] bg-[#12100c]/90 backdrop-blur-md px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileMenuOpen(true)}
@@ -145,6 +145,17 @@ export default function DocsPage() {
           </span>
 
           <a
+            href="https://github.com/Idle0x/nimiq-acta"
+            target="_blank"
+            rel="noreferrer"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/40 border border-[var(--line)] text-xs text-[var(--ink2)] hover:text-[var(--gold)] hover:border-[var(--gold)]/40 transition-colors"
+            title="Browse Acta GitHub Repository"
+          >
+            <GitHubIcon size={14} />
+            <span className="font-mono text-[11px]">GitHub</span>
+          </a>
+
+          <a
             href="/app"
             className="press px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1"
           >
@@ -153,9 +164,9 @@ export default function DocsPage() {
         </div>
       </header>
 
-      {/* Main Container */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto px-4 sm:px-6">
-        {/* Left Navigation Sidebar */}
+      {/* Main Balanced Three-Column Layout */}
+      <div className="flex-1 flex w-full max-w-[90rem] mx-auto min-w-0">
+        {/* Left Sticky Sidebar */}
         <DocsSidebar
           activeAnchor={activeAnchor}
           onOpenSearch={() => setSearchOpen(true)}
@@ -164,11 +175,11 @@ export default function DocsPage() {
         />
 
         {/* Center Main Documentation Article */}
-        <main className="flex-1 min-w-0 lg:pl-72 xl:pr-10 py-10">
-          <div className="max-w-3xl space-y-16">
+        <main className="flex-1 min-w-0 max-w-4xl px-4 sm:px-8 lg:px-12 py-10">
+          <div className="space-y-16 w-full max-w-full min-w-0">
             {/* Title / Hero Banner */}
             <div>
-              <div className="flex items-center gap-2 text-xs font-mono text-[var(--gold)] mb-3">
+              <div className="flex items-center gap-2 text-xs font-mono text-[var(--gold)] mb-3 flex-wrap">
                 <span>PROTOCOL SPECIFICATION</span>
                 <span>·</span>
                 <span>VERSION 1.0</span>
@@ -181,33 +192,40 @@ export default function DocsPage() {
               <p className="marginalia text-base mt-4 leading-relaxed text-[var(--ink2)]">
                 A formal architectural reference for decentralized smart covenants, sub-second escrow settlements, mathematical custody, and sceptical AI oracles on the Nimiq blockchain.
               </p>
-              <div className="flex flex-wrap gap-2 mt-6 pt-6 border-t border-[var(--line)] text-xs text-[var(--ink3)]">
+              <div className="flex flex-wrap items-center gap-3 mt-6 pt-6 border-t border-[var(--line)] text-xs text-[var(--ink3)]">
                 <span>Vault: <code className="font-mono text-[var(--gold)]">NQ86 845N NUJ3 88U4 2V9E DEDF XV8Y CFES 8RKT</code></span>
                 <span>·</span>
                 <span>Fee: <code className="font-mono text-[var(--ink)]">0.0011 NIM</code></span>
                 <span>·</span>
                 <span>Inference: <code className="font-mono text-[var(--sky)]">Qwen 3.6 (Hetzner)</code></span>
+                <SourceLink path="lib/vault.ts" label="lib/vault.ts" compact />
               </div>
             </div>
 
             {/* =========================================================================
                 SECTION 1: PROTOCOL FOUNDATIONS
             ========================================================================= */}
-            <section className="space-y-8 pt-6 border-t border-[var(--line)]">
-              <div className="space-y-2">
-                <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 1</span>
-                <h2 id="doctrine" className="font-display text-3xl font-bold text-[var(--ink)]">
-                  § 1. Protocol Doctrine & Foundations
-                </h2>
+            <section className="space-y-8 pt-6 border-t border-[var(--line)] min-w-0">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="space-y-2">
+                  <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 1</span>
+                  <h2 id="doctrine" className="font-display text-3xl font-bold text-[var(--ink)]">
+                    § 1. Protocol Doctrine & Foundations
+                  </h2>
+                </div>
+                <SourceLink path="lib/escrow.ts" label="lib/escrow.ts" compact />
               </div>
 
               {/* 1.1 Doctrine */}
-              <div className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--gold)]">
-                  § 1.1 The Doctrine of Proof-of-Action
-                </h3>
+              <div className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--gold)]">
+                    § 1.1 The Doctrine of Proof-of-Action
+                  </h3>
+                  <SourceLink path="lib/contract.ts" label="lib/contract.ts" compact />
+                </div>
                 <blockquote className="p-4 rounded-2xl bg-black/30 border-l-4 border-[var(--gold)] text-sm italic text-[var(--ink)] leading-relaxed">
-                  "Traditional distributed ledgers excel at recording the transfer of digital abstractions within their closed state machines. Acta connects blockchain consensus directly with reality: money moves when physical deeds or verified digital deliverables occur."
+                  &quot;Traditional distributed ledgers excel at recording the transfer of digital abstractions within their closed state machines. Acta connects blockchain consensus directly with reality: money moves when physical deeds or verified digital deliverables occur.&quot;
                 </blockquote>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
                   On traditional blockchains, escrows are hampered by high transaction gas ($2–$15 per state update on EVM chains), slow block times (12–15 seconds), and opaque dispute systems. Acta leverages the <strong>Nimiq Proof-of-Stake (Albatross)</strong> consensus engine to achieve <strong>sub-second micro-blocks</strong> and deterministic finality with micro-fees of <strong>0.0001 NIM</strong>.
@@ -218,7 +236,7 @@ export default function DocsPage() {
               </div>
 
               {/* 1.2 Traditional Failure */}
-              <div id="traditional-failure" className="space-y-4">
+              <div id="traditional-failure" className="space-y-4 min-w-0">
                 <h3 className="font-display text-xl font-bold text-[var(--ink)]">
                   § 1.2 Traditional Escrow Failure Modes vs. Acta
                 </h3>
@@ -245,7 +263,7 @@ export default function DocsPage() {
               </div>
 
               {/* 1.3 Local vs Global Remote */}
-              <div id="local-vs-global" className="space-y-4">
+              <div id="local-vs-global" className="space-y-4 min-w-0">
                 <h3 className="font-display text-xl font-bold text-[var(--ink)]">
                   § 1.3 Local Proximity vs. Global Remote Deeds
                 </h3>
@@ -273,7 +291,7 @@ export default function DocsPage() {
               </div>
 
               {/* 1.4 Tradeoffs */}
-              <div id="tradeoffs" className="space-y-4">
+              <div id="tradeoffs" className="space-y-4 min-w-0">
                 <h3 className="font-display text-xl font-bold text-[var(--ink)]">
                   § 1.4 Guarantees, Tradeoffs & Constraints
                 </h3>
@@ -289,7 +307,7 @@ export default function DocsPage() {
                     <strong className="text-[var(--sky)] block mb-1">Sequential Nonce Serialization</strong>
                     Nimiq accounts utilize sequential transaction nonces. Concurrent payouts are serialized through a strict FIFO execution queue (`lib/backend-nimiq.ts`) to prevent nonce collision.
                   </div>
-                  <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--line)]">
+                  <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--verdigris)] block mb-1">
                     <strong className="text-[var(--verdigris)] block mb-1">GPS Accuracy Bounds</strong>
                     Geofenced covenants enforce a 50-metre radius and an accuracy bound (&le; 50 metres) via HTML5 Geolocation to prevent location spoofing.
                   </div>
@@ -297,256 +315,318 @@ export default function DocsPage() {
               </div>
 
               {/* 1.5 Fees */}
-              <div id="fees" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 1.5 Network Economy & Fee Schedule
-                </h3>
-                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--line)] space-y-2 text-xs font-mono">
-                  <div className="flex justify-between py-1 border-b border-[var(--line)]/50">
-                    <span className="text-[var(--ink3)]">Protocol Vault Retention Fee:</span>
-                    <span className="text-[var(--gold)] font-bold">0.001 NIM</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-[var(--line)]/50">
-                    <span className="text-[var(--ink3)]">Nimiq Network Broadcast Gas Fee:</span>
-                    <span className="text-[var(--ink)] font-bold">0.0001 NIM</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-[var(--line)]/50">
-                    <span className="text-[var(--ink3)]">Total Settle Fee (Deducted from gross):</span>
-                    <span className="text-[var(--verdigris)] font-bold">0.0011 NIM</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-[var(--line)]/50">
-                    <span className="text-[var(--ink3)]">Dust Minimum Collateral Guard:</span>
-                    <span className="text-[var(--ink)] font-bold">0.01 NIM</span>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <span className="text-[var(--ink3)]">Unclaimed Listing Cancellation Penalty:</span>
-                    <span className="text-[var(--verdigris)] font-bold">0.0000 NIM (100% Refund)</span>
-                  </div>
+              <div id="fees" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 1.5 Network Economy & Fee Schedule
+                  </h3>
+                  <SourceLink path="lib/escrow-math.ts" label="lib/escrow-math.ts" compact />
                 </div>
-                <p className="text-[12.5px] text-[var(--ink3)]">
-                  Protocol fees retained by the vault are not extracted as private profits; they accumulate in the autonomous Treasury reserve to fund career milestones, daily check-in streaks, and instant 10 NIM referral rewards.
-                </p>
+                <div className="overflow-x-auto w-full max-w-full">
+                  <table className="w-full text-xs text-left border border-[var(--line)] rounded-xl overflow-hidden">
+                    <thead className="bg-black/40 text-[var(--gold)] uppercase font-mono text-[10px]">
+                      <tr>
+                        <th className="p-3">Operation</th>
+                        <th className="p-3">Protocol Fee</th>
+                        <th className="p-3">Nimiq Gas</th>
+                        <th className="p-3">Recipient</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--line)]/50 text-[var(--ink2)]">
+                      <tr>
+                        <td className="p-3 font-medium text-[var(--ink)]">Available Listing Creation</td>
+                        <td className="p-3 font-mono text-[var(--verdigris)]">0.0000 NIM</td>
+                        <td className="p-3 font-mono">0.0000 NIM</td>
+                        <td className="p-3">Off-chain Radar listing</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-medium text-[var(--ink)]">Bounty / Rent Creation</td>
+                        <td className="p-3 font-mono">0.0000 NIM</td>
+                        <td className="p-3 font-mono">0.0001 NIM</td>
+                        <td className="p-3">Nimiq Validators</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-medium text-[var(--ink)]">Covenant Acceptance (Lock)</td>
+                        <td className="p-3 font-mono">0.0000 NIM</td>
+                        <td className="p-3 font-mono">0.0001 NIM</td>
+                        <td className="p-3">Nimiq Validators</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-medium text-[var(--ink)]">Vault Payout Settlement</td>
+                        <td className="p-3 font-mono text-[var(--gold)]">0.0010 NIM</td>
+                        <td className="p-3 font-mono">0.0001 NIM</td>
+                        <td className="p-3">Community Treasury & Validators</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-medium text-[var(--ink)]">Cancellation / Refund</td>
+                        <td className="p-3 font-mono text-[var(--verdigris)]">0.0000 NIM</td>
+                        <td className="p-3 font-mono">0.0001 NIM</td>
+                        <td className="p-3">Full Principal Returned</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </section>
 
             {/* =========================================================================
-                SECTION 2: BLOCKCHAIN ARCHITECTURE
+                SECTION 2: NIMIQ LEDGER & CONSENSUS
             ========================================================================= */}
-            <section className="space-y-8 pt-10 border-t border-[var(--line)]">
-              <div className="space-y-2">
-                <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 2</span>
-                <h2 id="albatross" className="font-display text-3xl font-bold text-[var(--ink)]">
-                  § 2. Blockchain Architecture & Consensus
-                </h2>
+            <section className="space-y-8 pt-10 border-t border-[var(--line)] min-w-0">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="space-y-2">
+                  <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 2</span>
+                  <h2 id="albatross" className="font-display text-3xl font-bold text-[var(--ink)]">
+                    § 2. The Nimiq Ledger & Micro-Consensus
+                  </h2>
+                </div>
+                <SourceLink path="lib/backend-nimiq.ts" label="lib/backend-nimiq.ts" compact />
               </div>
 
-              <div className="space-y-4">
+              {/* 2.1 Albatross */}
+              <div className="space-y-4 min-w-0">
                 <h3 className="font-display text-xl font-bold text-[var(--gold)]">
                   § 2.1 The Nimiq PoS Albatross Engine
                 </h3>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
-                  Nimiq operates on the <strong>Albatross consensus protocol</strong>, a state-of-the-art Proof-of-Stake algorithm capable of generating micro-blocks in under one second. When an oracle verdict or return QR is submitted to Acta, settlement on Nimiq reaches finality virtually instantly.
+                  Acta runs atop Nimiq&apos;s second-generation consensus mechanism: <strong>Albatross</strong>. Albatross is a state-of-the-art, optimistic Proof-of-Stake algorithm capable of achieving thousands of transactions per second with <strong>sub-second micro-blocks</strong>.
                 </p>
+                <div className="grid sm:grid-cols-3 gap-3 font-mono text-xs">
+                  <div className="p-3 rounded-xl bg-black/30 border border-[var(--line)]">
+                    <span className="text-[10px] text-[var(--ink3)] block">FINALITY TIME</span>
+                    <strong className="text-base text-[var(--gold)]">&lt; 1 Second</strong>
+                    <span className="text-[11px] text-[var(--ink3)] block mt-1">Instant micro-blocks</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-black/30 border border-[var(--line)]">
+                    <span className="text-[10px] text-[var(--ink3)] block">BASE NETWORK FEE</span>
+                    <strong className="text-base text-[var(--verdigris)]">0.0001 NIM</strong>
+                    <span className="text-[11px] text-[var(--ink3)] block mt-1">Micro-penny economics</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-black/30 border border-[var(--line)]">
+                    <span className="text-[10px] text-[var(--ink3)] block">NATIVE CRYPTOGRAPHY</span>
+                    <strong className="text-base text-[var(--sky)]">Ed25519 & BLS</strong>
+                    <span className="text-[11px] text-[var(--ink3)] block mt-1">Single-use signed QR tokens</span>
+                  </div>
+                </div>
               </div>
 
               {/* 2.2 Mini-App */}
-              <div id="miniapp" className="space-y-4">
+              <div id="miniapp" className="space-y-4 min-w-0">
                 <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 2.2 The Nimiq Pay Mini-App Runtime
+                  § 2.2 Embedded Nimiq Pay Mini-App Sandbox
                 </h3>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
-                  Acta does not force users to install browser extensions or configure custom RPC nodes. It operates as an embedded Mini-App within Nimiq Pay:
+                  Acta detects when executed inside the official <strong>Nimiq Pay</strong> mobile application via the injected global bridge (<code className="font-mono text-[var(--gold)]">window.nimiq</code>).
                 </p>
-                <ul className="space-y-2 text-xs text-[var(--ink2)] list-disc list-inside">
-                  <li><strong>Native Wallet Invocations</strong>: Direct execution of <code className="font-mono text-[var(--gold)]">window.nimiq.sendBasicTransaction()</code> locks funds seamlessly straight from the user's wallet.</li>
-                  <li><strong>Standalone Fallback</strong>: In standard browsers, Acta launches the Nimiq Keyguard cryptographic popup for signing challenges and transactions.</li>
-                  <li><strong>Iframe Bearer Authentication</strong>: In mobile environments where third-party cookies are blocked, authenticated session tokens are stored in <code className="font-mono text-[var(--ink)]">localStorage</code> and attached as <code className="font-mono text-[var(--ink)]">Authorization: Bearer &lt;token&gt;</code> on every API request.</li>
-                </ul>
+                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--line)] text-xs text-[var(--ink2)] space-y-2">
+                  <div className="flex items-center gap-2 text-[var(--gold)] font-mono text-xs font-semibold">
+                    <Lock size={13} /> Zero-Redirect Native Keyguard
+                  </div>
+                  <p className="leading-relaxed">
+                    Inside Nimiq Pay, transactions are signed natively inside the secure hardware enclave of the phone without redirecting to an external browser tab. If loaded in Chrome, Safari, or desktop browsers, Acta smoothly falls back to the standard Nimiq Hub pop-up and local key storage.
+                  </p>
+                </div>
               </div>
 
               {/* 2.3 Vault */}
-              <div id="vault" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 2.3 Autonomous Vault (`NQ86 845N NUJ3 88U4 2V9E DEDF XV8Y CFES 8RKT`)
-                </h3>
+              <div id="vault" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 2.3 Autonomous Vault & Hot Reserve
+                  </h3>
+                  <SourceLink path="lib/vault.ts" label="lib/vault.ts" compact />
+                </div>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
-                  The protocol vault is an autonomous reserve address derived from a BIP44 master seed phrase (<code className="font-mono text-[var(--gold)]">m/44'/242'/0'/0'</code>). Payouts are signed and broadcasted by the backend settlement daemon (<code className="font-mono text-[var(--ink)]">lib/backend-nimiq.ts</code>) with user-friendly UTF-8 transaction payloads (e.g. <em>"Acta Protocol: Settlement Release"</em>).
+                  All covenant collateral and bounty funds are held by the autonomous protocol address:
+                </p>
+                <div className="p-3.5 rounded-xl bg-black/50 border border-[var(--gold)]/30 font-mono text-xs text-[var(--gold)] flex items-center justify-between overflow-x-auto">
+                  <span>NQ86 845N NUJ3 88U4 2V9E DEDF XV8Y CFES 8RKT</span>
+                  <span className="caps text-[9px] px-2 py-0.5 rounded bg-[var(--gold)]/20 font-bold shrink-0 ml-2">HOT VAULT</span>
+                </div>
+                <p className="text-[13px] text-[var(--ink2)] leading-relaxed">
+                  The vault operates non-custodially: funds can only be disbursed when cryptographic proof (signed QR, geofence coordinate, AI verdict, or sponsor signature) is verified by the backend engine.
                 </p>
               </div>
 
               {/* 2.4 Zero-Cron */}
-              <div id="zero-cron" className="space-y-4">
+              <div id="zero-cron" className="space-y-4 min-w-0">
                 <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 2.4 Zero-Cron Architecture & Lazy Evaluation
+                  § 2.4 Zero-Cron Settlement Architecture
                 </h3>
-                <div className="p-4 rounded-2xl bg-black/20 border border-[var(--line)] space-y-2 text-xs text-[var(--ink2)]">
-                  <div className="flex items-center gap-2 text-[var(--gold)] font-semibold">
-                    <Info size={14} /> Edge Serverless Optimization
-                  </div>
+                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--line)] text-xs text-[var(--ink2)] space-y-2">
                   <p className="leading-relaxed">
-                    Background cron jobs that run once a day or sleep in memory are unreliable on edge platforms (Vercel, Cloudflare, Serverless). Acta eliminates scheduled crons entirely:
-                  </p>
-                  <p className="font-mono text-[11px] text-[var(--gold2)] bg-black/40 p-2.5 rounded-xl border border-[var(--line)]/50">
-                    WHERE is_active = TRUE AND (expires_at IS NULL OR expires_at &gt; $(Date.now()))
+                    Most Web3 apps rely on background crons (e.g. cron-job.org or daily server crons) to detect timeouts. <strong>Acta is 100% zero-cron.</strong>
                   </p>
                   <p className="leading-relaxed">
-                    Listing expiration is evaluated lazily in real-time during queries. Expired covenants disappear from Radar immediately when their countdown hits zero without waiting for any server daemon.
+                    State transitions occur lazily: when a user loads Radar (<code className="font-mono text-[var(--gold)]">GET /api/listings</code>), any expired task (<code className="font-mono text-[var(--gold)]">expires_at &lt; NOW()</code>) is dynamically marked inactive in the query, instantly vanishing from the active radar container with zero background scheduler dependency.
                   </p>
                 </div>
               </div>
             </section>
 
             {/* =========================================================================
-                SECTION 3: THE 6 COVENANT ARCHETYPES
+                SECTION 3: COVENANT ARCHETYPES
             ========================================================================= */}
-            <section className="space-y-8 pt-10 border-t border-[var(--line)]">
-              <div className="space-y-2">
-                <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 3</span>
-                <h2 id="cov-borrow" className="font-display text-3xl font-bold text-[var(--ink)]">
-                  § 3. The 6 Covenant Archetypes (Deep Dive)
-                </h2>
+            <section className="space-y-8 pt-10 border-t border-[var(--line)] min-w-0">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="space-y-2">
+                  <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 3</span>
+                  <h2 id="cov-borrow" className="font-display text-3xl font-bold text-[var(--ink)]">
+                    § 3. The 6 Smart Covenant Archetypes
+                  </h2>
+                </div>
+                <SourceLink path="components/ListingDetailSheet.tsx" label="components/ListingDetailSheet.tsx" compact />
               </div>
 
-              {/* 3.1 Borrow / Lend */}
-              <div className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--gold)] flex items-center gap-2">
-                  <Lock size={18} /> § 3.1 Equipment Custody & Rental (`borrow`)
-                </h3>
+              {/* 3.1 Equipment Loan */}
+              <div className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--gold)]">
+                    § 3.1 Equipment Loan / Borrowing Covenants
+                  </h3>
+                  <SourceLink path="app/api/listings/route.ts" label="app/api/listings/route.ts" compact />
+                </div>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
-                  For physical tool lending, electronics, and transport equipment. Operates under a dual-mode mechanism:
+                  Borrow high-value physical hardware (camera gear, power tools, drones, measurement instruments) with zero centralized paperwork. Collateral is locked securely into the autonomous vault and returned instantly upon scanning the owner&apos;s cryptographic return QR code.
                 </p>
 
-                <div id="borrow-modes" className="grid sm:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-black/30 border border-[var(--gold)]/30 space-y-2 text-xs">
-                    <span className="caps text-[9px] text-[var(--gold)] font-bold block">Mode A: List as Available (Lender)</span>
-                    <p className="text-[var(--ink2)]">
-                      Lender lists equipment with <strong>0 NIM deducted upfront</strong>. When a borrower accepts on Radar, the <em>borrower</em> locks collateral into the Vault.
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-black/30 border border-[var(--sky)]/30 space-y-2 text-xs">
-                    <span className="caps text-[9px] text-[var(--sky)] font-bold block">Mode B: Request to Rent (Borrower)</span>
-                    <p className="text-[var(--ink2)]">
-                      Requester seeks an item and <strong>locks collateral upfront into the Vault</strong> upon creation. When a lender accepts and fulfills custody, collateral unlocks on return.
-                    </p>
+                {/* 3.1.1 Available vs Rent */}
+                <div id="borrow-modes" className="p-4 rounded-2xl bg-black/30 border border-[var(--gold)]/30 space-y-3">
+                  <span className="caps text-[9px] font-bold text-[var(--gold)] block">
+                    § 3.1.1 Fundamental Distinction: &quot;Available&quot; vs. &quot;Rent&quot; Modes
+                  </span>
+                  <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-white/5 border border-[var(--line)]/50 space-y-1">
+                      <strong className="text-[var(--gold)] block">Mode A: &quot;List as Available&quot; (Lender)</strong>
+                      <p className="text-[var(--ink2)] leading-relaxed">
+                        The sponsor owns the item and offers it to the community. <strong>No transaction is broadcast upon listing</strong>; no funds are deducted from the sponsor. Only when a borrower accepts is collateral locked into the vault.
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white/5 border border-[var(--line)]/50 space-y-1">
+                      <strong className="text-[var(--sky)] block">Mode B: &quot;Rent an Item&quot; (Borrower)</strong>
+                      <p className="text-[var(--ink2)] leading-relaxed">
+                        The sponsor is seeking to borrow equipment and puts up rental reward/collateral. <strong>An on-chain transaction is broadcast upon listing</strong> to lock the reward into the vault escrow upfront.
+                      </p>
+                    </div>
                   </div>
                 </div>
+              </div>
 
+              {/* 3.2 Vision */}
+              <div id="cov-vision" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 3.2 Vision Oracle Verification (Qwen 3.6 on Hetzner)
+                  </h3>
+                  <SourceLink path="lib/vision.ts" label="lib/vision.ts" compact />
+                </div>
+                <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
+                  Photo bounties are judged by an autonomous multi-modal AI vision model: <strong>Qwen 3.6 35B FP8 running on dedicated Hetzner cloud inference</strong> (<code className="font-mono text-xs text-[var(--gold)]">https://inference.hetzner.com/api/v1</code>).
+                </p>
                 <div className="p-4 rounded-2xl bg-black/20 border border-[var(--line)] text-xs text-[var(--ink2)] space-y-2">
-                  <span className="caps text-[9px] text-[var(--verdigris)] font-bold block">Return Handshake Mechanics</span>
+                  <strong className="text-[var(--ink)] block">Sceptical Truth Policy</strong>
                   <p className="leading-relaxed">
-                    When custody ends, the lender generates a single-use 10-minute Return QR signed with their local key. When scanned by the borrower (or presented by borrower to lender), the vault unlocks collateral back to the borrower minus the 0.0011 NIM settle fee.
-                  </p>
-                </div>
-              </div>
-
-              {/* 3.2 Vision Oracle */}
-              <div id="cov-vision" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--sky)] flex items-center gap-2">
-                  <Eye size={18} /> § 3.2 Vision Oracle Photo Quests (`bounty`)
-                </h3>
-                <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
-                  Real-world and digital deeds verified by machine vision. The sponsor locks the bounty upfront in the Vault. The challenger submits high-resolution photo evidence.
-                </p>
-                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--line)] text-xs space-y-3">
-                  <div className="flex justify-between items-center text-[var(--gold)] font-mono">
-                    <span>Model: Qwen/Qwen3.6-35B-A3B-FP8</span>
-                    <span>Endpoint: inference.hetzner.com</span>
-                  </div>
-                  <p className="text-[var(--ink2)] leading-relaxed">
-                    The vision oracle runs on Hetzner inference experiments via OpenAI-compatible endpoints with client-side rate budgeting (10 req/min). It is strictly instructed to reject screenshots, stock photos, and recycled images. Doubt defaults to refusal.
+                    The vision oracle prompt instructs the model: <em>&quot;You are a sceptical verification oracle for an escrow payment system. If you are in doubt, pass must be false.&quot;</em> It checks scene lighting, required components, absence of screen mockups, and adherence to sponsor criteria.
                   </p>
                 </div>
               </div>
 
               {/* 3.3 ScanQuest */}
-              <div id="cov-scanquest" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--verdigris)] flex items-center gap-2">
-                  <QrCode size={18} /> § 3.3 ScanQuest Proximity Handshake (`bounty_qr`)
-                </h3>
-                <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
-                  Physical discovery quests, scavenger hunts, secret events, and conference checkpoints. The sponsor hides a cryptographically signed QR token in the physical world:
-                </p>
-                <div className="p-4 rounded-2xl bg-black/20 border border-[var(--line)] font-mono text-xs text-[var(--ink)] space-y-1">
-                  <p className="text-[var(--gold2)]">// Ed25519 single-use signed payload (lib/qr.ts)</p>
-                  <p>Payload: base64url(JSON {'{'} escrowId, lender, amount, chain, nonce, exp {'}'}) + "." + base64url(sig)</p>
-                  <p className="text-[var(--ink3)]">// Nonce consumed permanently upon verify (zero replay attack possible)</p>
+              <div id="cov-scanquest" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 3.3 ScanQuest Cryptographic Handshake (Ed25519 QR)
+                  </h3>
+                  <SourceLink path="lib/qr.ts" label="lib/qr.ts" compact />
                 </div>
+                <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
+                  Physical proximity transfers and return receipts rely on ephemeral Ed25519-signed payloads.
+                </p>
+                <ul className="space-y-1.5 text-xs text-[var(--ink2)] list-disc list-inside">
+                  <li>Single-use cryptographic nonce burned in database upon redemption to guarantee zero replay attacks.</li>
+                  <li>10-minute expiry window (<code className="font-mono text-[var(--gold)]">exp = Date.now() + 600000</code>).</li>
+                  <li>Full WebRTC camera scanner with automatic fallback to native file upload.</li>
+                </ul>
               </div>
 
               {/* 3.4 Geofence */}
-              <div id="cov-geo" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--ink)] flex items-center gap-2">
-                  <MapPin size={18} /> § 3.4 Geolocation Geofence Attestation (`bounty_geo`)
-                </h3>
-                <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
-                  Physical presence verification at specific GPS coordinates. The challenger device samples its coordinates via HTML5 Geolocation. The server computes the spherical Haversine great-circle distance:
-                </p>
-                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--line)] text-xs text-[var(--ink2)] font-mono">
-                  distanceMetres &le; targetRadius AND deviceAccuracy &le; 50 metres
+              <div id="cov-geo" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 3.4 Geolocation Geofence Attestation (GPS)
+                  </h3>
+                  <SourceLink path="app/api/bounty/geo/route.ts" label="app/api/bounty/geo/route.ts" compact />
                 </div>
-                <p className="text-[12.5px] text-[var(--ink3)]">
-                  Can be combined with an accompanying photo requirement (<code className="font-mono text-[var(--gold)]">ai.presenceCheck: true</code>) to ensure the challenger is physically there and not spoofing coordinates.
-                </p>
-              </div>
-
-              {/* 3.5 In-Person Attest */}
-              <div id="cov-manual" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--gold)] flex items-center gap-2">
-                  <Users size={18} /> § 3.5 In-Person Human Attestation (`bounty_manual`)
-                </h3>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
-                  Human-arbitrated covenants for specialized craftsmanship, bespoke commissions, or subjective tasks. Submissions appear in the sponsor's Inbox. The sponsor approves with one cryptographic signature to disburse the vaulted funds.
+                  For regional bounties (street cleanups, physical checkpoints, event attendance), Acta verifies physical presence using the <strong>Haversine Great-Circle formula</strong>:
                 </p>
-                <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--line)] text-xs text-[var(--ink2)]">
-                  <strong className="text-[var(--sky)] block mb-1">AI Pre-Screening Assistant</strong>
-                  When enabled, Qwen 3.6 pre-evaluates the challenger's text submission and outputs an advisory recommendation (<code className="text-[var(--verdigris)]">approve</code>, <code className="text-[var(--wax)]">reject</code>, <code className="text-[var(--ink3)]">unsure</code>) with a confidence percentage (0–100) to help the sponsor decide quickly.
+                <div className="p-3.5 rounded-xl bg-black/40 border border-[var(--line)] font-mono text-xs text-[var(--gold2)] overflow-x-auto whitespace-pre">
+                  distance &le; 50m AND gpsAccuracy &le; 50m
                 </div>
               </div>
 
-              {/* 3.6 Online Venture */}
-              <div id="cov-venture" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--sky)] flex items-center gap-2">
-                  <Globe size={18} /> § 3.6 Online Ventures & Global Remote Bounties (`bounty_venture`)
-                </h3>
+              {/* 3.5 In-Person */}
+              <div id="cov-manual" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 3.5 In-Person / Creator Attestation
+                  </h3>
+                  <SourceLink path="app/api/bounty/manual_approve/route.ts" label="app/api/bounty/manual_approve/route.ts" compact />
+                </div>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
-                  <strong>100% boundaryless worldwide participation.</strong> Enables sponsors to fund remote engineering tasks, pull requests, logo design, bug bounties, article translations, or decentralized project deliverables.
+                  Custom commissions where an algorithmic or AI oracle cannot evaluate subjective nuance. The challenger submits proof in Inbox, and the sponsor clicks <strong>&quot;Approve &amp; Release Vault Funds&quot;</strong>, broadcasting the release transaction sub-second.
                 </p>
-                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--sky)]/30 text-xs text-[var(--ink2)] space-y-2">
-                  <span className="caps text-[9px] text-[var(--sky)] font-bold block">Worldwide Execution Lifecycle</span>
+              </div>
+
+              {/* 3.6 Online Ventures */}
+              <div id="cov-venture" className="space-y-4 min-w-0">
+                <h3 className="font-display text-xl font-bold text-[var(--gold)]">
+                  § 3.6 Online Ventures &amp; Digital Bounties (100% Global)
+                </h3>
+                <div className="p-4 rounded-2xl bg-white/5 border border-[var(--line)] text-xs text-[var(--ink2)] space-y-2">
                   <p className="leading-relaxed">
-                    A sponsor in Berlin locks 500 NIM in the vault for an open-source bug fix. A developer in Tokyo submits a GitHub PR URL. The sponsor reviews the code deliverable from their Inbox and signs the release. The 500 NIM transfers to the developer's wallet in less than one second.
+                    Acta is global-first. A sponsor in Tokyo can deploy a 500 NIM bounty for resolving a GitHub issue, auditing a smart contract, designing a 3D icon, or writing technical documentation.
+                  </p>
+                  <p className="leading-relaxed">
+                    A developer in Buenos Aires or Berlin can accept the covenant, submit deliverables (PR URL, design link, or SHA256 checksum), and trigger autonomous payout upon sponsor signature or AI prescreen verdict.
                   </p>
                 </div>
               </div>
             </section>
 
             {/* =========================================================================
-                SECTION 4: CONTRACT LIFECYCLE & STATE MACHINES
+                SECTION 4: STATE MACHINE & LIFECYCLE
             ========================================================================= */}
-            <section className="space-y-8 pt-10 border-t border-[var(--line)]">
-              <div className="space-y-2">
-                <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 4</span>
-                <h2 id="toggles" className="font-display text-3xl font-bold text-[var(--ink)]">
-                  § 4. Contract Lifecycle & State Machines
-                </h2>
+            <section className="space-y-8 pt-10 border-t border-[var(--line)] min-w-0">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="space-y-2">
+                  <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 4</span>
+                  <h2 id="toggles" className="font-display text-3xl font-bold text-[var(--ink)]">
+                    § 4. Contract Lifecycle &amp; State Machine
+                  </h2>
+                </div>
+                <SourceLink path="components/ContractToggles.tsx" label="components/ContractToggles.tsx" compact />
               </div>
 
-              {/* 4.1 Toggles */}
-              <div className="space-y-4">
+              {/* 4.1 The 4 Toggles */}
+              <div className="space-y-4 min-w-0">
                 <h3 className="font-display text-xl font-bold text-[var(--gold)]">
-                  § 4.1 The 4 Contract Toggles Explained
+                  § 4.1 The 4 Contract Toggles
                 </h3>
+                <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
+                  In the active dashboard, covenants are partitioned into 4 distinct views:
+                </p>
                 <div className="grid sm:grid-cols-2 gap-3 text-xs">
                   <div className="p-4 rounded-2xl bg-black/20 border border-[var(--gold)]/30">
                     <strong className="text-[var(--gold)] block text-sm mb-1">1. In Progress</strong>
-                    Active escrows currently under custody, in execution, or awaiting return scan. Displays countdown timers and requirement dossiers.
-                  </div>
-                  <div className="p-4 rounded-2xl bg-black/20 border border-[var(--sky)]/30">
-                    <strong className="text-[var(--sky)] block text-sm mb-1">2. Awaiting Me</strong>
-                    Action-required queue filtered specifically for the logged-in user: lenders waiting to scan a return, challengers waiting to submit, or sponsors reviewing deliverables.
+                    Active covenants where funds are locked in the vault and custody or task deadlines are ticking down.
                   </div>
                   <div className="p-4 rounded-2xl bg-black/20 border border-[var(--verdigris)]/30">
-                    <strong className="text-[var(--verdigris)] block text-sm mb-1">3. Settled</strong>
+                    <strong className="text-[var(--verdigris)] block text-sm mb-1">2. Awaiting Me</strong>
+                    Covenants that require immediate action from the current user (generate QR, submit proof, or approve deliverable).
+                  </div>
+                  <div className="p-4 rounded-2xl bg-black/20 border border-[var(--sky)]/30">
+                    <strong className="text-[var(--sky)] block text-sm mb-1">3. Settled</strong>
                     Immutable register of completed covenants. Displays on-chain transaction hash (<code className="font-mono text-[10px]">txHashOut</code>), verified oracle stamp, and Nimiq explorer links.
                   </div>
                   <div className="p-4 rounded-2xl bg-black/20 border border-[var(--wax)]/30">
@@ -557,27 +637,40 @@ export default function DocsPage() {
               </div>
 
               {/* 4.2 Badges */}
-              <div id="badges" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 4.2 Dynamic Attention Badges & Auto-Dismissal
-                </h3>
+              <div id="badges" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 4.2 Dynamic Attention Badges &amp; Auto-Dismissal
+                  </h3>
+                  <SourceLink path="app/app/page.tsx" label="app/app/page.tsx" compact />
+                </div>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
                   To eliminate notification noise, every toggle displays a dynamic numerical badge (<code className="font-mono text-[var(--gold)]">1</code>, <code className="font-mono text-[var(--gold)]">2</code>) indicating how many items require user attention. <strong>The badge automatically dismisses as soon as the user opens that tab</strong>, tracking view state locally in memory.
                 </p>
               </div>
 
-              {/* 4.3 State Machine Interactive */}
-              <div id="state-machine" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 4.3 Covenant State Machine Navigator
-                </h3>
-                <StateMachineFlow />
+              {/* 4.3 State Machine Interactive Callout */}
+              <div id="state-machine" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 4.3 Covenant State Machine Transitions
+                  </h3>
+                  <a
+                    href="#tool-flow"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono text-[var(--gold)] bg-[var(--gold)]/10 border border-[var(--gold)]/20 hover:bg-[var(--gold)]/20 transition-colors"
+                  >
+                    <span>Inspect Interactive Diagram in § 7.2 ↓</span>
+                  </a>
+                </div>
+                <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
+                  Every covenant transitions deterministically through 6 formal stages: <code className="font-mono text-[var(--verdigris)]">open</code> &rarr; <code className="font-mono text-[var(--gold)]">locked</code> &rarr; <code className="font-mono text-[var(--sky)]">settling</code> &rarr; <code className="font-mono text-[var(--verdigris)]">released</code> (or <code className="font-mono text-[var(--wax)]">disputed</code> / <code className="font-mono text-[var(--ink3)]">refunded</code>).
+                </p>
               </div>
 
               {/* 4.4 Disputes & Grace */}
-              <div id="disputes" className="space-y-4">
+              <div id="disputes" className="space-y-4 min-w-0">
                 <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 4.4 Unreturned Item Claims & 48-Hour Grace Period
+                  § 4.4 Unreturned Item Claims &amp; 48-Hour Grace Period
                 </h3>
                 <div className="p-4 rounded-2xl bg-black/30 border border-[var(--wax)]/40 text-xs text-[var(--ink2)] space-y-2">
                   <div className="flex items-center gap-2 text-[var(--wax)] font-semibold">
@@ -587,7 +680,7 @@ export default function DocsPage() {
                     If an equipment loan deadline elapses without return, the covenant enters a dispute window. The borrower is granted a <strong>48-hour grace window</strong> (<code className="font-mono text-[var(--gold)]">LENDER_CLAIM_GRACE_MS</code>) to return the item.
                   </p>
                   <p className="leading-relaxed">
-                    If the borrower still fails to return the item after the 48-hour grace period, the lender's <strong>"Claim Collateral"</strong> button unlocks. Invoking <code className="font-mono text-[var(--ink)]">POST /api/claim</code> seizes 100% of the vaulted collateral and transfers it directly to the lender's wallet.
+                    If the borrower still fails to return the item after the 48-hour grace period, the lender&apos;s <strong>&quot;Claim Collateral&quot;</strong> button unlocks. Invoking <code className="font-mono text-[var(--ink)]">POST /api/claim</code> seizes 100% of the vaulted collateral and transfers it directly to the lender&apos;s wallet.
                   </p>
                 </div>
               </div>
@@ -596,24 +689,30 @@ export default function DocsPage() {
             {/* =========================================================================
                 SECTION 5: REPUTATION & PRIVILEGES
             ========================================================================= */}
-            <section className="space-y-8 pt-10 border-t border-[var(--line)]">
-              <div className="space-y-2">
-                <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 5</span>
-                <h2 id="trust-score" className="font-display text-3xl font-bold text-[var(--ink)]">
-                  § 5. Reputation & Sovereign Privileges
-                </h2>
+            <section className="space-y-8 pt-10 border-t border-[var(--line)] min-w-0">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="space-y-2">
+                  <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 5</span>
+                  <h2 id="trust-score" className="font-display text-3xl font-bold text-[var(--ink)]">
+                    § 5. Reputation &amp; Sovereign Privileges
+                  </h2>
+                </div>
+                <SourceLink path="lib/escrow-math.ts" label="lib/escrow-math.ts" compact />
               </div>
 
               {/* 5.1 Trust Score */}
-              <div className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--gold)]">
-                  § 5.1 The Algorithmic Trust Score Formula (0–100)
-                </h3>
+              <div className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--gold)]">
+                    § 5.1 The Algorithmic Trust Score Formula (0–100)
+                  </h3>
+                  <SourceLink path="lib/auth.ts" label="lib/auth.ts" compact />
+                </div>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
                   Acta does not rely on subjective star ratings or easily gamed reviews. Trust is derived algorithmically from mathematical facts etched in the acts ledger:
                 </p>
 
-                <div className="p-4 rounded-2xl bg-black/40 border border-[var(--line)] font-mono text-xs text-[var(--gold2)] space-y-1.5 overflow-x-auto">
+                <div className="p-4 rounded-2xl bg-black/40 border border-[var(--line)] font-mono text-xs text-[var(--gold2)] space-y-1.5 overflow-x-auto whitespace-pre max-w-full">
                   <p>Trust Score = min(100, round(</p>
                   <p className="pl-4">  (settledActs / totalActs) * 35         // Completion Rate (35 pts)</p>
                   <p className="pl-4">+ min(25, (log10(volumeNIM + 1)/5) * 25) // Volume Weight (25 pts)</p>
@@ -625,37 +724,42 @@ export default function DocsPage() {
               </div>
 
               {/* 5.2 Buying Power */}
-              <div id="discount-formula" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 5.2 Reputation as Buying Power (Collateral Discount)
-                </h3>
+              <div id="discount-formula" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 5.2 Reputation as Buying Power (Collateral Discount)
+                  </h3>
+                  <a
+                    href="#tool-calc"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono text-[var(--gold)] bg-[var(--gold)]/10 border border-[var(--gold)]/20 hover:bg-[var(--gold)]/20 transition-colors"
+                  >
+                    <span>Simulate Discount Calculator in § 7.1 ↓</span>
+                  </a>
+                </div>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
                   Trust score directly lowers required collateral locks for equipment borrowing:
                 </p>
-                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--gold)]/30 font-mono text-xs text-[var(--gold)]">
+                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--gold)]/30 font-mono text-xs text-[var(--gold)] overflow-x-auto whitespace-pre">
                   discountRate = min(0.30, trustScore * 0.003) // Up to 30% discount at Trust 100
                 </div>
-
-                {/* Interactive Calculator */}
-                <TrustCalculator />
               </div>
 
               {/* 5.3 Rites */}
-              <div id="rites" className="space-y-4">
+              <div id="rites" className="space-y-4 min-w-0">
                 <h3 className="font-display text-xl font-bold text-[var(--ink)]">
                   § 5.3 The 5 Sovereign Privileges / Rites
                 </h3>
                 <div className="space-y-3 text-xs">
                   <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--line)]">
-                    <strong className="text-[var(--gold)] block mb-0.5">Rite I: Daily Vigil & Continuous Streaks</strong>
+                    <strong className="text-[var(--gold)] block mb-0.5">Rite I: Daily Vigil &amp; Continuous Streaks</strong>
                     Daily attendance attestation. Maintains continuous presence on the calendar and unlocks periodic treasury honorariums.
                   </div>
                   <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--verdigris)]">
                     <strong className="text-[var(--verdigris)] block mb-0.5">Rite II: Sovereign Proof Stamps</strong>
-                    Cryptographic badges permanently minted onto the user's Acta Passport for every verified action.
+                    Cryptographic badges permanently minted onto the user&apos;s Acta Passport for every verified action.
                   </div>
                   <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--sky)]">
-                    <strong className="text-[var(--sky)] block mb-0.5">Rite III: Herald's Call & Peer Covenants</strong>
+                    <strong className="text-[var(--sky)] block mb-0.5">Rite III: Herald&apos;s Call &amp; Peer Covenants</strong>
                     Mutual dual-reward onboarding covenants disbursed immediately from the protocol treasury.
                   </div>
                   <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--gold2)]">
@@ -670,10 +774,13 @@ export default function DocsPage() {
               </div>
 
               {/* 5.4 Referrals */}
-              <div id="referrals" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--verdigris)]">
-                  § 5.4 Instant Dual-Reward Referral System (10 NIM Each)
-                </h3>
+              <div id="referrals" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--verdigris)]">
+                    § 5.4 Instant Dual-Reward Referral System (10 NIM Each)
+                  </h3>
+                  <SourceLink path="lib/referral.ts" label="lib/referral.ts" compact />
+                </div>
                 <div className="p-4 rounded-2xl bg-black/30 border border-[var(--verdigris)]/40 text-xs text-[var(--ink2)] space-y-2">
                   <p className="leading-relaxed">
                     Unlike traditional web apps that delay referral incentives for weeks, Acta rewards <strong>both the Referrer AND the Referee with 10 NIM immediately</strong> from the treasury when the referral is claimed or upon joining.
@@ -687,9 +794,9 @@ export default function DocsPage() {
               </div>
 
               {/* 5.5 Milestones */}
-              <div id="milestones" className="space-y-4">
+              <div id="milestones" className="space-y-4 min-w-0">
                 <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 5.5 Career Milestones & Recurring Drips
+                  § 5.5 Career Milestones &amp; Recurring Drips
                 </h3>
                 <div className="p-4 rounded-2xl bg-black/20 border border-[var(--line)] text-xs space-y-2">
                   <p className="text-[var(--ink2)]">
@@ -716,25 +823,29 @@ export default function DocsPage() {
             {/* =========================================================================
                 SECTION 6: DEVELOPER REST API REFERENCE
             ========================================================================= */}
-            <section className="space-y-8 pt-10 border-t border-[var(--line)]">
+            <section className="space-y-8 pt-10 border-t border-[var(--line)] min-w-0">
               <div className="space-y-2">
                 <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 6</span>
                 <h2 id="api-auth" className="font-display text-3xl font-bold text-[var(--ink)]">
-                  § 6. Developer Reference & REST API
+                  § 6. Developer Reference &amp; REST API
                 </h2>
               </div>
 
               {/* 6.1 Auth */}
-              <div className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--gold)]">
-                  § 6.1 Cryptographic Authentication & Bearer Tokens
-                </h3>
+              <div className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--gold)]">
+                    § 6.1 Cryptographic Authentication &amp; Bearer Tokens
+                  </h3>
+                  <SourceLink path="app/api/auth/verify/route.ts" label="app/api/auth/verify/route.ts" compact />
+                </div>
                 <p className="text-[14.5px] leading-relaxed text-[var(--ink2)]">
                   Clients authenticate by signing a single-use nonce challenge with their Nimiq Ed25519 keypair.
                 </p>
 
                 <CodeTabs
-                  title="Authentication Flow (TypeScript)"
+                  title="Authentication Flow (TypeScript & cURL)"
+                  sourceFile="lib/auth.ts"
                   snippets={[
                     {
                       label: "TypeScript",
@@ -771,12 +882,15 @@ curl -X POST https://acta.app/api/auth/verify \\
               </div>
 
               {/* 6.2 Listings API */}
-              <div id="api-listings" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 6.2 Listings API Endpoints
-                </h3>
+              <div id="api-listings" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 6.2 Listings API Endpoints
+                  </h3>
+                  <SourceLink path="app/api/listings/route.ts" label="app/api/listings/route.ts" compact />
+                </div>
                 <div className="space-y-4">
-                  <div className="p-4 rounded-2xl bg-black/30 border border-[var(--line)]">
+                  <div className="p-4 rounded-2xl bg-black/30 border border-[var(--line)] min-w-0">
                     <div className="flex items-center gap-2 mb-2 font-mono text-xs">
                       <span className="px-2 py-0.5 rounded bg-[var(--gold)]/20 text-[var(--gold)] font-bold">POST</span>
                       <span className="text-[var(--ink)] font-bold">/api/listings</span>
@@ -786,6 +900,7 @@ curl -X POST https://acta.app/api/auth/verify \\
                     </p>
                     <CodeTabs
                       title="POST /api/listings Payload"
+                      sourceFile="app/api/listings/route.ts"
                       snippets={[
                         {
                           label: "JSON Body",
@@ -824,11 +939,14 @@ curl -X POST https://acta.app/api/auth/verify \\
               </div>
 
               {/* 6.3 Escrows API */}
-              <div id="api-escrows" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 6.3 Escrows & Custody API
-                </h3>
-                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--line)]">
+              <div id="api-escrows" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 6.3 Escrows &amp; Custody API
+                  </h3>
+                  <SourceLink path="app/api/escrows/route.ts" label="app/api/escrows/route.ts" compact />
+                </div>
+                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--line)] min-w-0">
                   <div className="flex items-center gap-2 mb-2 font-mono text-xs">
                     <span className="px-2 py-0.5 rounded bg-[var(--gold)]/20 text-[var(--gold)] font-bold">POST</span>
                     <span className="text-[var(--ink)] font-bold">/api/escrows</span>
@@ -838,6 +956,7 @@ curl -X POST https://acta.app/api/auth/verify \\
                   </p>
                   <CodeTabs
                     title="POST /api/escrows Payload"
+                    sourceFile="app/api/escrows/route.ts"
                     snippets={[
                       {
                         label: "JSON Body",
@@ -855,41 +974,60 @@ curl -X POST https://acta.app/api/auth/verify \\
               </div>
 
               {/* 6.4 Verification */}
-              <div id="api-verification" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 6.4 Oracle Verification Endpoints
-                </h3>
+              <div id="api-verification" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 6.4 Oracle Verification Endpoints
+                  </h3>
+                  <SourceLink path="lib/vision.ts" label="lib/vision.ts" compact />
+                </div>
                 <div className="grid sm:grid-cols-2 gap-3 text-xs">
                   <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--line)]">
-                    <div className="font-mono font-bold text-[var(--gold)] mb-1">POST /api/bounty/verify</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-mono font-bold text-[var(--gold)]">POST /api/bounty/verify</div>
+                      <SourceLink path="app/api/bounty/verify/route.ts" label="route.ts" compact />
+                    </div>
                     <p className="text-[var(--ink2)]">Streams base64 image buffer to Qwen 3.6 on Hetzner inference. On pass, triggers sub-second vault payout.</p>
                   </div>
                   <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--line)]">
-                    <div className="font-mono font-bold text-[var(--verdigris)] mb-1">POST /api/bounty/scanquest</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-mono font-bold text-[var(--verdigris)]">POST /api/bounty/scanquest</div>
+                      <SourceLink path="app/api/bounty/scanquest/route.ts" label="route.ts" compact />
+                    </div>
                     <p className="text-[var(--ink2)]">Verifies Ed25519 signature over single-use 10-minute token and consumes nonce to prevent replay.</p>
                   </div>
                   <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--line)]">
-                    <div className="font-mono font-bold text-[var(--sky)] mb-1">POST /api/bounty/geo</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-mono font-bold text-[var(--sky)]">POST /api/bounty/geo</div>
+                      <SourceLink path="app/api/bounty/geo/route.ts" label="route.ts" compact />
+                    </div>
                     <p className="text-[var(--ink2)]">Verifies Haversine distance (&le;50m) and GPS accuracy radius for location check-ins.</p>
                   </div>
                   <div className="p-3.5 rounded-xl bg-black/20 border border-[var(--line)]">
-                    <div className="font-mono font-bold text-[var(--ink)] mb-1">POST /api/bounty/manual_approve</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-mono font-bold text-[var(--ink)]">POST /api/bounty/manual_approve</div>
+                      <SourceLink path="app/api/bounty/manual_approve/route.ts" label="route.ts" compact />
+                    </div>
                     <p className="text-[var(--ink2)]">Sponsor signs approval in Inbox to disburse vaulted reward for custom commissions.</p>
                   </div>
                 </div>
               </div>
 
               {/* 6.5 Referral Claim */}
-              <div id="api-referral-claim" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--verdigris)]">
-                  § 6.5 Referral Claim API (`POST /api/referral/claim`)
-                </h3>
-                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--verdigris)]/30">
+              <div id="api-referral-claim" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--verdigris)]">
+                    § 6.5 Referral Claim API (<code className="font-mono text-sm">POST /api/referral/claim</code>)
+                  </h3>
+                  <SourceLink path="app/api/referral/claim/route.ts" label="app/api/referral/claim/route.ts" compact />
+                </div>
+                <div className="p-4 rounded-2xl bg-black/30 border border-[var(--verdigris)]/30 min-w-0">
                   <p className="text-xs text-[var(--ink2)] mb-3">
                     Claims a peer referral code and immediately disburses 10 NIM to the referrer and 10 NIM to the referee directly from the treasury.
                   </p>
                   <CodeTabs
                     title="POST /api/referral/claim"
+                    sourceFile="app/api/referral/claim/route.ts"
                     snippets={[
                       {
                         label: "Request & Response",
@@ -915,17 +1053,28 @@ curl -X POST https://acta.app/api/auth/verify \\
               </div>
 
               {/* 6.6 Types */}
-              <div id="api-types" className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                  § 6.6 Core TypeScript Interfaces & Schemas
-                </h3>
+              <div id="api-types" className="space-y-4 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                    § 6.6 Core TypeScript Interfaces &amp; Schemas
+                  </h3>
+                  <SourceLink path="lib/contract.ts" label="lib/contract.ts" compact />
+                </div>
                 <CodeTabs
                   title="lib/escrow.ts & lib/contract.ts"
+                  sourceFile="lib/escrow.ts"
                   snippets={[
                     {
                       label: "TypeScript",
                       language: "typescript",
-                      code: `export type ListingKind = "borrow" | "bounty" | "bounty_venture" | "bounty_qr" | "bounty_manual" | "bounty_geo";
+                      code: `export type ListingKind = 
+  | "borrow" 
+  | "bounty" 
+  | "bounty_venture" 
+  | "bounty_qr" 
+  | "bounty_manual" 
+  | "bounty_geo";
+
 export type OracleType = "qr_sig" | "vision" | "geo" | "creator" | "system";
 export type EscrowState = "locked" | "settling" | "released" | "cancelled" | "disputed" | "expired";
 
@@ -948,24 +1097,54 @@ export interface ListingContract {
             </section>
 
             {/* =========================================================================
-                SECTION 7: INTERACTIVE SANDBOXES
+                SECTION 7: INTERACTIVE SANDBOXES & TOOLING
             ========================================================================= */}
-            <section className="space-y-8 pt-10 border-t border-[var(--line)]">
+            <section className="space-y-12 pt-10 border-t border-[var(--line)] min-w-0">
               <div className="space-y-2">
                 <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold">Section 7</span>
-                <h2 id="tool-oracle" className="font-display text-3xl font-bold text-[var(--ink)]">
-                  § 7. Interactive Sandboxes & Tooling
+                <h2 className="font-display text-3xl font-bold text-[var(--ink)]">
+                  § 7. Interactive Sandboxes &amp; Tooling
                 </h2>
+                <p className="marginalia text-sm text-[var(--ink2)] max-w-2xl">
+                  Inspect the live algorithmic and state models of Acta. Use these interactive testbeds to simulate collateral savings, audit state transitions, and test vision verdicts.
+                </p>
               </div>
 
-              <div className="space-y-4">
-                <h3 className="font-display text-xl font-bold text-[var(--gold)]">
-                  § 7.3 Autonomous Oracle Test Playground
-                </h3>
+              {/* 7.1 Calculator */}
+              <div id="tool-calc" className="space-y-4 min-w-0 pt-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--gold)]">
+                    § 7.1 Reputation &amp; Collateral Discount Calculator
+                  </h3>
+                  <SourceLink path="lib/escrow-math.ts" label="lib/escrow-math.ts" compact />
+                </div>
+                <TrustCalculator />
+              </div>
+
+              {/* 7.2 State Machine Flow */}
+              <div id="tool-flow" className="space-y-4 min-w-0 pt-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--gold)]">
+                    § 7.2 Covenant State Machine Flow Navigator
+                  </h3>
+                  <SourceLink path="lib/escrow.ts" label="lib/escrow.ts" compact />
+                </div>
+                <StateMachineFlow />
+              </div>
+
+              {/* 7.3 Oracle Simulator */}
+              <div id="tool-oracle" className="space-y-4 min-w-0 pt-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-xl font-bold text-[var(--gold)]">
+                    § 7.3 Autonomous Oracle Test Playground
+                  </h3>
+                  <SourceLink path="lib/vision.ts" label="lib/vision.ts" compact />
+                </div>
                 <OracleSimulator />
               </div>
 
-              <div className="pt-6 border-t border-[var(--line)] flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Bottom CTA */}
+              <div className="pt-8 border-t border-[var(--line)] flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
                   <h4 className="font-display text-lg font-bold text-[var(--ink)]">
                     Ready to participate in the Proof-of-Action protocol?

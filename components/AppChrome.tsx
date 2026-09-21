@@ -1,5 +1,5 @@
 "use client";
-import { Radio, Shield, Fingerprint, Bell, Plus, BookOpen } from "lucide-react";
+import { Radio, Shield, Fingerprint, Bell, Plus } from "lucide-react";
 import { Seal } from "./Paper";
 
 export type Tab = "radar" | "active" | "passport";
@@ -27,23 +27,25 @@ export function AppHeader({
   return (
     <header className="app-ink shrink-0 flex items-center justify-between border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_86%,transparent)] px-4 py-2.5 backdrop-blur-md">
       <div className="flex items-center gap-2.5">
-        <Seal size={32} className="!text-[11px]">A</Seal>
+        <a href="/" title="Return to Landing Page">
+          <Seal size={32} className="!text-[11px]">A</Seal>
+        </a>
         <div>
-          <h1 className="caps text-[13px] font-semibold tracking-[0.28em] text-[var(--ink)]">Acta</h1>
+          <div className="flex items-center gap-1.5">
+            <h1 className="caps text-[13px] font-semibold tracking-[0.28em] text-[var(--ink)]">Acta</h1>
+            <a
+              href="/docs"
+              className="text-[9px] font-mono tracking-normal px-1.5 py-0.5 rounded bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/20 hover:bg-[var(--gold)]/20 hover:border-[var(--gold)]/40 transition-colors"
+              title="Acta Protocol Documentation & Specification"
+            >
+              Docs
+            </a>
+          </div>
           <p className="caps mt-0.5 text-[7.5px] tracking-[0.26em] text-[var(--ink3)]">Action Economy</p>
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <a
-          href="/docs"
-          aria-label="Protocol Documentation"
-          title="Protocol Documentation"
-          className="ghost relative rounded-full p-2 text-[var(--ink2)] hover:text-[var(--gold)] transition-colors"
-        >
-          <BookOpen size={15} />
-        </a>
-
         <button
           onClick={onOpenInbox}
           aria-label="Inbox"

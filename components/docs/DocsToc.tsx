@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, ExternalLink, ArrowUp } from "lucide-react";
+import { Copy, Check, ArrowUp } from "lucide-react";
+import { GitHubIcon } from "./SourceLink";
 
 export interface TocItem {
   id: string;
@@ -31,7 +32,7 @@ export default function DocsToc({
   }
 
   return (
-    <aside className="hidden xl:block w-64 flex-none sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pl-6 border-l border-[var(--line)]/50 text-[12.5px] space-y-5 scrollbar-thin">
+    <aside className="hidden xl:block w-64 shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto pl-6 py-8 border-l border-[var(--line)]/50 text-[12.5px] space-y-5 scrollbar-thin">
       <div>
         <h5 className="caps text-[9px] font-bold text-[var(--gold)] tracking-widest uppercase mb-3">
           On This Page
@@ -57,10 +58,10 @@ export default function DocsToc({
         </ul>
       </div>
 
-      <div className="pt-4 border-t border-[var(--line)]/50 space-y-2 text-[11.5px]">
+      <div className="pt-4 border-t border-[var(--line)]/50 space-y-2.5 text-[11.5px]">
         <button
           onClick={handleCopyLink}
-          className="flex items-center gap-1.5 text-[var(--ink3)] hover:text-[var(--ink)] transition-colors w-full text-left"
+          className="flex items-center gap-2 text-[var(--ink3)] hover:text-[var(--ink)] transition-colors w-full text-left"
         >
           {copied ? <Check size={13} className="text-[var(--verdigris)]" /> : <Copy size={13} />}
           <span>{copied ? "Link Copied" : "Copy Page URL"}</span>
@@ -70,15 +71,15 @@ export default function DocsToc({
           href="https://github.com/Idle0x/nimiq-acta"
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-1.5 text-[var(--ink3)] hover:text-[var(--ink)] transition-colors"
+          className="flex items-center gap-2 text-[var(--ink3)] hover:text-[var(--gold)] transition-colors"
         >
-          <ExternalLink size={13} />
-          <span>Inspect Source on GitHub</span>
+          <GitHubIcon size={13} className="text-[var(--gold)]" />
+          <span>Browse GitHub Repository</span>
         </a>
 
         <button
           onClick={scrollToTop}
-          className="flex items-center gap-1.5 text-[var(--ink3)] hover:text-[var(--gold)] transition-colors pt-1"
+          className="flex items-center gap-2 text-[var(--ink3)] hover:text-[var(--gold)] transition-colors pt-1"
         >
           <ArrowUp size={13} />
           <span>Return to Top</span>

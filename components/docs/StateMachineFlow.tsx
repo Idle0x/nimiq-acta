@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, Clock, Lock, RefreshCw, AlertTriangle, XCircle, ArrowRight } from "lucide-react";
+import SourceLink from "./SourceLink";
 
 interface StateStep {
   id: string;
@@ -25,7 +26,7 @@ const STATES: StateStep[] = [
     sponsorView: "Listed on Radar with real-time expiration countdown. Cancel button active (instant full refund).",
     challengerView: "Visible on Radar. Displays requirements, criteria, duration, and collateral requirements.",
     dbChange: "listings table: state = 'open', is_active = TRUE",
-    transitionTo: "Counterparty accepts $\\rightarrow$ transitions to 'locked'",
+    transitionTo: "Counterparty accepts → transitions to 'locked'",
   },
   {
     id: "locked",
@@ -36,7 +37,7 @@ const STATES: StateStep[] = [
     sponsorView: "Shows in 'In Progress' toggle. Lender keys primed. For Borrow: Return QR ready for generation.",
     challengerView: "Shows in 'In Progress' toggle. Active custody countdown or bounty challenge window begins.",
     dbChange: "escrows table: state = 'locked', progress = 'awaiting_proof', deadline_at = now + duration",
-    transitionTo: "Proof submitted (QR / Vision / GPS / Deliverable) $\\rightarrow$ transitions to 'settling'",
+    transitionTo: "Proof submitted (QR / Vision / GPS / Deliverable) → transitions to 'settling'",
   },
   {
     id: "settling",
@@ -47,7 +48,7 @@ const STATES: StateStep[] = [
     sponsorView: "Attention badge on 'Awaiting Me' if manual verification is required; otherwise automated.",
     challengerView: "Displays live oracle evaluation status (Qwen vision inspection / Ed25519 signature verification).",
     dbChange: "escrows table: state = 'settling'",
-    transitionTo: "Oracle Pass $\\rightarrow$ 'released' | Oracle Reject $\\rightarrow$ retry 'awaiting_proof'",
+    transitionTo: "Oracle Pass → 'released' | Oracle Reject → retry 'awaiting_proof'",
   },
   {
     id: "released",
@@ -69,7 +70,7 @@ const STATES: StateStep[] = [
     sponsorView: "If unreturned after 48h grace, 'Claim Collateral' button activates to seize vaulted collateral.",
     challengerView: "Warning notification. Trust score degradation occurs if custody is abandoned.",
     dbChange: "escrows table: state = 'disputed'",
-    transitionTo: "Claim invoked $\\rightarrow$ funds paid to Lender OR mutual return agreed",
+    transitionTo: "Claim invoked → funds paid to Lender OR mutual return agreed",
   },
   {
     id: "refunded",
@@ -90,7 +91,7 @@ export default function StateMachineFlow() {
   const cur = STATES.find((s) => s.id === activeState) || STATES[1];
 
   return (
-    <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8 my-6 shadow-xl">
+    <div className="w-full max-w-full min-w-0 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7 my-6 shadow-xl overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-6 border-b border-[var(--line)]">
         <div>
           <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold block mb-1">
@@ -103,6 +104,7 @@ export default function StateMachineFlow() {
             Select any lifecycle state below to inspect the deterministic cryptographic, database, and vault actions.
           </p>
         </div>
+        <SourceLink path="lib/escrow.ts" label="lib/escrow.ts" compact />
       </div>
 
       {/* State Selection Bar */}
@@ -119,68 +121,59 @@ export default function StateMachineFlow() {
                   : "bg-black/20 border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-white/5"
               }`}
             >
-              <div className="flex items-center gap-1.5 mb-1">
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: st.color }}
-                />
-                <span className="text-[10px] font-mono text-[var(--ink3)] uppercase">
-                  {st.badge}
-                </span>
-              </div>
-              <h4 className="text-xs font-bold text-[var(--ink)] truncate">
-                {st.title}
-              </h4>
+              <span className="text-[10px] font-mono block text-[var(--ink3)]">
+                {st.badge}
+              </span>
+              <span className="text-xs font-bold font-display block text-[var(--ink)] mt-0.5">
+                {st.title.split(". ")[1]}
+              </span>
             </button>
           );
         })}
       </div>
 
-      {/* Detailed State Card */}
-      <div className="mt-6 p-6 rounded-2xl bg-black/30 border border-[var(--line)] space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-[var(--line)]/50">
-          <div>
-            <h4 className="font-display text-xl font-bold text-[var(--ink)] flex items-center gap-2">
-              <span style={{ color: cur.color }}>●</span> {cur.title}
+      {/* State Detail Pane */}
+      <div className="mt-6 p-5 sm:p-6 rounded-2xl bg-black/40 border border-[var(--line)] space-y-5 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--line)]/60 pb-4">
+          <div className="flex items-center gap-3">
+            <span
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{ background: cur.color }}
+            />
+            <h4 className="font-display text-lg font-bold text-[var(--ink)]">
+              {cur.title}
             </h4>
-            <span className="text-xs font-mono text-[var(--gold)] mt-0.5 block">
-              Next: {cur.transitionTo}
-            </span>
           </div>
-          <span className="caps text-[9px] px-3 py-1 rounded-full font-bold border border-[var(--line)] text-[var(--ink2)] bg-white/5">
-            {cur.badge}
-          </span>
+          <div className="flex items-center gap-2 text-xs font-mono text-[var(--ink3)]">
+            <span>Next:</span>
+            <span className="text-[var(--gold)] font-medium">{cur.transitionTo}</span>
+          </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4 text-[12.5px]">
-          <div className="space-y-3">
-            <div>
-              <span className="caps text-[8.5px] text-[var(--gold)] block mb-0.5">Vault & Collateral State</span>
-              <p className="text-[var(--ink2)] leading-relaxed bg-black/30 p-2.5 rounded-xl border border-[var(--line)]/40 font-mono text-[11.5px]">
-                {cur.vaultStatus}
-              </p>
-            </div>
-            <div>
-              <span className="caps text-[8.5px] text-[var(--sky)] block mb-0.5">Sponsor / Lender Experience</span>
-              <p className="text-[var(--ink2)] leading-relaxed bg-black/30 p-2.5 rounded-xl border border-[var(--line)]/40 text-[12px]">
-                {cur.sponsorView}
-              </p>
-            </div>
+        <div className="grid sm:grid-cols-2 gap-4 text-xs">
+          <div className="p-3.5 rounded-xl bg-white/5 border border-[var(--line)]/50 space-y-1">
+            <strong className="text-[var(--gold)] block font-mono text-[11px] uppercase">
+              Sponsor / Lender View
+            </strong>
+            <p className="text-[var(--ink2)] leading-relaxed">{cur.sponsorView}</p>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <span className="caps text-[8.5px] text-[var(--verdigris)] block mb-0.5">Database & State Machine Changes</span>
-              <p className="text-[var(--ink2)] leading-relaxed bg-black/30 p-2.5 rounded-xl border border-[var(--line)]/40 font-mono text-[11.5px]">
-                {cur.dbChange}
-              </p>
-            </div>
-            <div>
-              <span className="caps text-[8.5px] text-[var(--ink3)] block mb-0.5">Challenger / Borrower Experience</span>
-              <p className="text-[var(--ink2)] leading-relaxed bg-black/30 p-2.5 rounded-xl border border-[var(--line)]/40 text-[12px]">
-                {cur.challengerView}
-              </p>
-            </div>
+          <div className="p-3.5 rounded-xl bg-white/5 border border-[var(--line)]/50 space-y-1">
+            <strong className="text-[var(--verdigris)] block font-mono text-[11px] uppercase">
+              Challenger / Borrower View
+            </strong>
+            <p className="text-[var(--ink2)] leading-relaxed">{cur.challengerView}</p>
+          </div>
+        </div>
+
+        <div className="pt-2 grid sm:grid-cols-2 gap-4 text-xs font-mono">
+          <div className="p-3 rounded-xl bg-black/50 border border-[var(--line)]/40 overflow-hidden">
+            <span className="text-[10px] text-[var(--ink3)] block mb-1">VAULT HOT RESERVE BEHAVIOR</span>
+            <span className="text-[var(--gold2)] text-[11.5px] block break-words">{cur.vaultStatus}</span>
+          </div>
+          <div className="p-3 rounded-xl bg-black/50 border border-[var(--line)]/40 overflow-hidden">
+            <span className="text-[10px] text-[var(--ink3)] block mb-1">POSTGRES DATABASE MUTATION</span>
+            <span className="text-[var(--verdigris)] text-[11.5px] block break-words">{cur.dbChange}</span>
           </div>
         </div>
       </div>

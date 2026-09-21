@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, QrCode, MapPin, CheckCircle, XCircle, Sparkles, Send } from "lucide-react";
+import { Eye, QrCode, MapPin, CheckCircle, XCircle, Send } from "lucide-react";
+import SourceLink from "./SourceLink";
 
 export default function OracleSimulator() {
   const [oracleType, setOracleType] = useState<"vision" | "qr" | "geo">("vision");
@@ -16,8 +17,8 @@ export default function OracleSimulator() {
   const [evaluating, setEvaluating] = useState(false);
 
   // Geo state
-  const [targetLat, setTargetLat] = useState(48.8584);
-  const [targetLng, setTargetLng] = useState(2.2945);
+  const [targetLat] = useState(48.8584);
+  const [targetLng] = useState(2.2945);
   const [userLat, setUserLat] = useState(48.8585);
   const [userLng, setUserLng] = useState(2.2946);
   const [accuracy, setAccuracy] = useState(15);
@@ -69,7 +70,7 @@ export default function OracleSimulator() {
   }
 
   return (
-    <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8 my-6 shadow-xl">
+    <div className="w-full max-w-full min-w-0 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7 my-6 shadow-xl overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-6 border-b border-[var(--line)]">
         <div>
           <span className="caps text-[9px] text-[var(--gold)] tracking-widest font-bold block mb-1">
@@ -85,10 +86,10 @@ export default function OracleSimulator() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mt-6">
+      <div className="flex flex-wrap gap-2 mt-6">
         <button
           onClick={() => setOracleType("vision")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
             oracleType === "vision"
               ? "bg-[var(--gold)] text-[#1c1508]"
               : "bg-black/20 text-[var(--ink2)] hover:text-[var(--ink)]"
@@ -98,7 +99,7 @@ export default function OracleSimulator() {
         </button>
         <button
           onClick={() => setOracleType("qr")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
             oracleType === "qr"
               ? "bg-[var(--gold)] text-[#1c1508]"
               : "bg-black/20 text-[var(--ink2)] hover:text-[var(--ink)]"
@@ -108,7 +109,7 @@ export default function OracleSimulator() {
         </button>
         <button
           onClick={() => setOracleType("geo")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
             oracleType === "geo"
               ? "bg-[var(--gold)] text-[#1c1508]"
               : "bg-black/20 text-[var(--ink2)] hover:text-[var(--ink)]"
@@ -120,19 +121,20 @@ export default function OracleSimulator() {
 
       {/* Vision Oracle Simulator */}
       {oracleType === "vision" && (
-        <div className="mt-6 grid lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-7 space-y-4">
-            <div>
-              <label className="text-xs font-semibold text-[var(--gold)] block mb-1">
-                Sponsor Criteria Prompt (Input to Qwen 3.6 System)
+        <div className="mt-6 grid lg:grid-cols-12 gap-6 min-w-0">
+          <div className="lg:col-span-7 space-y-4 min-w-0">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-[var(--gold)] block">
+                Sponsor Criteria Prompt (Input to Qwen 3.6)
               </label>
-              <textarea
-                rows={2}
-                value={criteria}
-                onChange={(e) => setCriteria(e.target.value)}
-                className="w-full rounded-xl bg-black/30 border border-[var(--line)] p-3 text-xs text-[var(--ink)] outline-none focus:border-[var(--gold)] font-mono"
-              />
+              <SourceLink path="lib/vision.ts" label="lib/vision.ts" compact />
             </div>
+            <textarea
+              rows={2}
+              value={criteria}
+              onChange={(e) => setCriteria(e.target.value)}
+              className="w-full rounded-xl bg-black/30 border border-[var(--line)] p-3 text-xs text-[var(--ink)] outline-none focus:border-[var(--gold)] font-mono"
+            />
             <div>
               <label className="text-xs font-semibold text-[var(--sky)] block mb-1">
                 Challenger Submitted Proof Scene Description
@@ -153,12 +155,12 @@ export default function OracleSimulator() {
             </button>
           </div>
 
-          <div className="lg:col-span-5 flex flex-col justify-between p-5 rounded-2xl bg-black/40 border border-[var(--line)]">
-            <div>
+          <div className="lg:col-span-5 flex flex-col justify-between p-5 rounded-2xl bg-black/40 border border-[var(--line)] min-w-0">
+            <div className="min-w-0">
               <span className="caps text-[9px] text-[var(--ink3)] block mb-2">Oracle Verdict Payload (JSON)</span>
               {visionVerdict ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-3 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {visionVerdict.pass ? (
                       <span className="caps text-[9px] px-2.5 py-1 rounded-full font-bold bg-[var(--verdigris)]/15 border border-[var(--verdigris)] text-[var(--verdigris)] flex items-center gap-1">
                         <CheckCircle size={12} /> VERDICT: PASS (SETTLED)
@@ -169,11 +171,11 @@ export default function OracleSimulator() {
                       </span>
                     )}
                   </div>
-                  <pre className="font-mono text-[11px] p-3 rounded-xl bg-black/50 border border-[var(--line)] text-[var(--ink)] overflow-x-auto">
+                  <pre className="font-mono text-[11px] p-3 rounded-xl bg-black/50 border border-[var(--line)] text-[var(--ink)] overflow-x-auto max-w-full whitespace-pre">
                     {JSON.stringify(visionVerdict, null, 2)}
                   </pre>
                   <p className="text-[11px] text-[var(--ink3)] leading-relaxed">
-                    Sceptical AI instruction: "When in doubt, pass=false". Rejects stock photos, screenshots, and ambiguous angles.
+                    Sceptical AI instruction: &quot;When in doubt, pass=false&quot;. Rejects stock photos, screenshots, and ambiguous angles.
                   </p>
                 </div>
               ) : (
@@ -186,9 +188,12 @@ export default function OracleSimulator() {
 
       {/* QR Oracle Simulator */}
       {oracleType === "qr" && (
-        <div className="mt-6 p-5 rounded-2xl bg-black/30 border border-[var(--line)] space-y-4">
-          <span className="caps text-[9px] text-[var(--gold)] block">Ed25519 Proximity Handshake Token Format</span>
-          <pre className="font-mono text-[11px] p-3.5 rounded-xl bg-black/50 border border-[var(--line)] text-[var(--gold2)] overflow-x-auto">
+        <div className="mt-6 p-5 rounded-2xl bg-black/30 border border-[var(--line)] space-y-4 min-w-0">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="caps text-[9px] text-[var(--gold)] block">Ed25519 Proximity Handshake Token Format</span>
+            <SourceLink path="lib/qr.ts" label="lib/qr.ts" compact />
+          </div>
+          <pre className="font-mono text-[11px] p-3.5 rounded-xl bg-black/50 border border-[var(--line)] text-[var(--gold2)] overflow-x-auto max-w-full whitespace-pre">
 {`// Cryptographic return payload structure (lib/qr.ts)
 {
   "escrowId": "esc_94f8a12e...",
@@ -215,7 +220,11 @@ export default function OracleSimulator() {
 
       {/* Geofence Simulator */}
       {oracleType === "geo" && (
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 space-y-4 min-w-0">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="caps text-[9px] text-[var(--gold)] block">Haversine Distance Geofence Verification</span>
+            <SourceLink path="app/api/bounty/geo/route.ts" label="app/api/bounty/geo/route.ts" compact />
+          </div>
           <div className="grid sm:grid-cols-3 gap-3">
             <div>
               <label className="text-[11px] text-[var(--ink3)] block mb-1">Target Coordinates (Pinned)</label>

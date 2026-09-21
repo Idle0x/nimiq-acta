@@ -204,7 +204,7 @@ export default function Landing() {
 
           <Reveal delay={700} className="mt-10 flex flex-wrap items-center gap-4">
             <PressLink href="/app">Open the App</PressLink>
-            <GhostLink href="#doctrine">Read the Doctrine</GhostLink>
+            <GhostLink href="/docs">Protocol Docs</GhostLink>
             <Marginalia className="w-full md:w-auto md:ml-2">
               No installation. Lives inside Nimiq Pay.
             </Marginalia>
@@ -270,6 +270,28 @@ export default function Landing() {
               </Reveal>
             ))}
           </div>
+
+          <Reveal delay={450} className="mt-10">
+            <div className="p-6 sm:p-7 rounded-2xl bg-[color-mix(in_srgb,var(--surface)_50%,transparent)] border border-[var(--line)] flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <div className="space-y-1 max-w-xl">
+                <span className="caps text-[9px] text-[var(--gold)] font-bold tracking-widest block">
+                  Protocol Specification
+                </span>
+                <h3 className="h-display text-2xl text-[var(--ink)]">
+                  Explore the Complete Proof-of-Action Architecture
+                </h3>
+                <p className="text-xs text-[var(--ink2)] leading-relaxed">
+                  Deep-dive into the formal protocol specification: Nimiq PoS Albatross sub-second finality, 0.0001 NIM fees, Qwen 3.6 vision oracles, algorithmic trust formulas, and interactive escrow calculators.
+                </p>
+              </div>
+              <a
+                href="/docs"
+                className="press self-start sm:self-auto px-5 py-3 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 shrink-0"
+              >
+                Read Protocol Docs <ArrowUpRight size={13} />
+              </a>
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -392,6 +414,7 @@ export default function Landing() {
             </Marginalia>
             <div className="mt-5 flex justify-center gap-3 flex-wrap">
               <PressLink href="/app" className="!px-6 !py-2.5 sm:!px-8 sm:!py-3 !text-xs sm:!text-sm font-semibold">Enter the Protocol</PressLink>
+              <GhostLink href="/docs" className="!px-6 !py-2.5 sm:!px-8 sm:!py-3 !text-xs sm:!text-sm font-semibold">Protocol Docs</GhostLink>
               <GhostLink href="https://github.com/Idle0x/nimiq-acta" className="!px-6 !py-2.5 sm:!px-8 sm:!py-3 !text-xs sm:!text-sm font-semibold">Read the Code</GhostLink>
             </div>
           </Reveal>
