@@ -1,5 +1,5 @@
 "use client";
-import { Radio, Shield, Fingerprint, Bell, Plus } from "lucide-react";
+import { Radio, Shield, Fingerprint, Bell, Plus, BookOpen } from "lucide-react";
 import { Seal } from "./Paper";
 
 export type Tab = "radar" | "active" | "passport";
@@ -35,6 +35,15 @@ export function AppHeader({
       </div>
 
       <div className="flex items-center gap-2">
+        <a
+          href="/docs"
+          aria-label="Protocol Documentation"
+          title="Protocol Documentation"
+          className="ghost relative rounded-full p-2 text-[var(--ink2)] hover:text-[var(--gold)] transition-colors"
+        >
+          <BookOpen size={15} />
+        </a>
+
         <button
           onClick={onOpenInbox}
           aria-label="Inbox"

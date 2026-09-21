@@ -160,6 +160,7 @@ export default function Landing() {
             <a href="#oracles" className="hover:text-[var(--gold)] transition-colors">Oracles</a>
             <a href="#ledger" className="hover:text-[var(--gold)] transition-colors">Ledger</a>
             <a href="#privileges" className="hover:text-[var(--gold)] transition-colors">Privileges</a>
+            <a href="/docs" className="hover:text-[var(--gold)] transition-colors text-[var(--gold)] font-bold">Docs</a>
           </nav>
           <PressLink href="/app" className="!px-5 !py-2.5 !text-xs">
             Enter the Protocol
@@ -622,6 +623,7 @@ export default function Landing() {
                 <h4 className="caps text-[9px] mb-4 text-[#BEB0D8]">Acta Project</h4>
                 <ul className="space-y-3 text-[13px]">
                   <li><a href="/app" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Launch the App</a></li>
+                  <li><a href="/docs" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Protocol Documentation</a></li>
                   <li><a href="/app?tab=passport" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors flex items-center gap-1">Check Trust Score <ArrowUpRight size={12}/></a></li>
                   <li><a href="https://github.com/Idle0x/nimiq-acta" target="_blank" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">GitHub Repository</a></li>
                   <li><a href="#" className="text-[var(--ink2)] hover:text-[var(--gold)] transition-colors">Hackathon Submission</a></li>
