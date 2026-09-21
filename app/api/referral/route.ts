@@ -77,12 +77,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  let address = await getSessionAddress();
-  try {
-    const body = await req.json().catch(() => ({}));
-    if (!address && body.address) address = String(body.address);
-  } catch {}
-
+  const address = await getSessionAddress();
   if (!address) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const sql = getSql();
 

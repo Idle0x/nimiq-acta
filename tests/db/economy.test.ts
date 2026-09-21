@@ -41,20 +41,32 @@ dbSuite("treasury economics", () => {
     expect(rows.length).toBe(0);
   });
 
+  async function waitForMilestones(actor: string, minCount: number) {
+    const { getSql } = await import("@/lib/db");
+    const sql = getSql()!;
+    for (let i = 0; i < 30; i++) {
+      const rows = (await sql`
+        SELECT proof_json->>'milestone_id' AS m FROM acts
+        WHERE actor_address = ${actor} AND type = 'milestone'
+      `) as unknown as Record<string, unknown>[];
+      if (rows.length >= minCount) return rows;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return (await sql`
+      SELECT proof_json->>'milestone_id' AS m FROM acts
+      WHERE actor_address = ${actor} AND type = 'milestone'
+    `) as unknown as Record<string, unknown>[];
+  }
+
   it("first settlement awards FIRST_CONNECTION + FIRST_SETTLED once", async () => {
     const { getSql } = await import("@/lib/db");
     await settleFor(A, "s1");
-    // fire-and-forget milestone imports need a tick to land
-    await new Promise((r) => setTimeout(r, 500));
-    const rows = (await getSql()!`
-      SELECT proof_json->>'milestone_id' AS m FROM acts
-      WHERE actor_address = ${A} AND type = 'milestone'
-    `) as unknown as Record<string, unknown>[];
+    const rows = await waitForMilestones(A, 2);
     const ids = rows.map((r) => String(r.m));
     expect(ids).toContain("ms_first_conn");
     expect(ids).toContain("ms_first_settle");
     await settleFor(A, "s2");
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 800));
     const again = await getSql()!`SELECT id FROM acts WHERE actor_address = ${A} AND type = 'milestone'`;
     expect(again.length).toBe(ids.length);
   });
@@ -62,7 +74,7 @@ dbSuite("treasury economics", () => {
   it("concurrent first-settlements award once (claimOnce guard)", async () => {
     const { getSql } = await import("@/lib/db");
     await Promise.all([settleFor(A, "c1"), settleFor(A, "c2")]);
-    await new Promise((r) => setTimeout(r, 500));
+    await waitForMilestones(A, 2);
     const rows = await getSql()!`
       SELECT proof_json->>'milestone_id' AS m FROM acts
       WHERE actor_address = ${A} AND type = 'milestone' AND proof_json->>'milestone_id' = 'ms_first_settle'
