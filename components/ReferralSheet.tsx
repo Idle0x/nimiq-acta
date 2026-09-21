@@ -3,26 +3,62 @@ import { useEffect, useState } from "react";
 import { X, Share2, Copy, Users } from "lucide-react";
 import { useToast } from "./Feedback";
 
-export default function ReferralSheet({ open, onClose, address }: { open: boolean; onClose: () => void; address?: string | null }) {
-  const toast = useToast();
+export default function ReferralSheet({
+  open,
+  onClose,
+  address,
+}: {
+  open: boolean;
+  onClose: () => void;
+  address?: string | null;
+}) {
+  const toastContext = useToast();
   const [link, setLink] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [claimCode, setClaimCode] = useState("");
+  const [claiming, setClaiming] = useState(false);
+  const [claimed, setClaimed] = useState(false);
+
+  const showToast = (t: { type: "success" | "error" | "info"; title: string; body?: string }) => {
+    try {
+      if (typeof toastContext === "function") {
+        toastContext(t);
+      } else if (toastContext && typeof (toastContext as any).push === "function") {
+        (toastContext as any).push(t);
+      } else if (toastContext && typeof (toastContext as any).toast === "function") {
+        (toastContext as any).toast(t.title, t.type);
+      }
+    } catch {
+      // safe fallback
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
     setFailed(false);
     setLink(null);
-    fetch("/api/referral", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address: address || undefined }),
-    })
+
+    const fallbackCode = (address || "NIMIQ").replace(/[^A-Za-z0-9]/g, "").slice(2, 8).toUpperCase();
+    const fallbackLink = typeof window !== "undefined" ? `${window.location.origin}/?ref=${fallbackCode}` : null;
+
+    const q = address ? `?address=${encodeURIComponent(address)}` : "";
+    fetch(`/api/referral${q}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.link) setLink(d.link);
-        else setFailed(true);
+        if (d?.link) {
+          setLink(d.link);
+        } else if (d?.code && typeof window !== "undefined") {
+          setLink(`${window.location.origin}/?ref=${d.code}`);
+        } else if (fallbackLink) {
+          setLink(fallbackLink);
+        } else {
+          setFailed(true);
+        }
       })
-      .catch(() => setFailed(true));
+      .catch(() => {
+        if (fallbackLink) setLink(fallbackLink);
+        else setFailed(true);
+      });
   }, [open, address]);
 
   if (!open) return null;
@@ -32,9 +68,11 @@ export default function ReferralSheet({ open, onClose, address }: { open: boolea
     const text = "Reality pays on Acta — borrow, quest and earn NIM. Join with my link:";
     if (typeof navigator !== "undefined" && "share" in navigator) {
       try {
-        await (navigator as any).share({ title: "Acta", text, url: link });
+        await (navigator as any).share({ title: "Acta Protocol", text, url: link });
         return;
-      } catch { /* user cancelled — fall through to copy */ }
+      } catch {
+        /* user cancelled — fall through to copy */
+      }
     }
     await copy();
   }
@@ -42,16 +80,21 @@ export default function ReferralSheet({ open, onClose, address }: { open: boolea
   async function copy() {
     if (!link) return;
     try {
-      await navigator.clipboard.writeText(link);
-      toast({ type: "success", title: "Link copied", body: "Send it anywhere — rewards settle on-chain." });
+      if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+      } else if (typeof document !== "undefined") {
+        const ta = document.createElement("textarea");
+        ta.value = link;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      showToast({ type: "success", title: "Link copied!", body: "Share with peers — both wallets earn 10 NIM." });
     } catch {
-      toast({ type: "error", title: "Copy failed", body: link });
+      showToast({ type: "error", title: "Copy failed", body: link });
     }
   }
-
-  const [claimCode, setClaimCode] = useState("");
-  const [claiming, setClaiming] = useState(false);
-  const [claimed, setClaimed] = useState(false);
 
   async function handleClaim() {
     if (!claimCode.trim()) return;
@@ -62,28 +105,48 @@ export default function ReferralSheet({ open, onClose, address }: { open: boolea
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: claimCode.trim(), address }),
       });
-      const d = await res.json();
+      const d = await res.json().catch(() => ({}));
       if (res.ok) {
         setClaimed(true);
-        toast({ type: "success", title: "10 NIM Claimed!", body: "Referral reward sent immediately from the treasury." });
+        showToast({
+          type: "success",
+          title: "🎉 10 NIM Claimed!",
+          body: "Referral reward sent immediately from the protocol treasury.",
+        });
       } else {
-        toast({ type: "error", title: "Claim failed", body: d?.error || "Could not claim code" });
+        showToast({
+          type: "error",
+          title: "Claim failed",
+          body: d?.error || "Could not claim code",
+        });
       }
     } catch {
-      toast({ type: "error", title: "Network error", body: "Failed to connect to referral treasury." });
+      showToast({
+        type: "error",
+        title: "Network error",
+        body: "Failed to connect to referral treasury.",
+      });
     } finally {
       setClaiming(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 backdrop-blur-sm animate-fade-in sm:items-center" onClick={onClose}>
-      <div className="plate w-full max-w-[480px] rounded-t-3xl p-6 pb-8 animate-slide-up sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 backdrop-blur-sm animate-fade-in sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="plate w-full max-w-[480px] rounded-t-3xl p-6 pb-8 animate-slide-up sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-center justify-between">
           <p className="caps flex items-center gap-2 text-[9px] text-[var(--ink2)]">
             <Users size={12} className="text-[var(--verdigris)]" /> Bring a friend
           </p>
-          <button onClick={onClose} className="ghost rounded-full p-1.5"><X size={13} /></button>
+          <button onClick={onClose} className="ghost rounded-full p-1.5" aria-label="Close">
+            <X size={13} />
+          </button>
         </div>
 
         <h3 className="font-display text-xl font-semibold text-[var(--ink)]">You both earn 10 NIM.</h3>
@@ -92,16 +155,24 @@ export default function ReferralSheet({ open, onClose, address }: { open: boolea
         </p>
 
         <div className="mt-4 rounded-xl border border-[var(--line2)] bg-black/30 p-3">
-          <p className="truncate font-mono text-[11px] text-[var(--ink2)]">{
-            link ?? (failed ? "Sign in and connect the database to mint your link." : "Preparing your link…")
-          }</p>
+          <p className="truncate font-mono text-[11px] text-[var(--gold2)] select-all">
+            {link ?? (failed ? "Connect your wallet to mint your permanent referral code." : "Preparing your link…")}
+          </p>
         </div>
 
         <div className="mt-3 flex gap-2">
-          <button onClick={share} disabled={!link} className="press flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[13px] font-bold">
+          <button
+            onClick={share}
+            disabled={!link}
+            className="press flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[13px] font-bold disabled:opacity-50"
+          >
             <Share2 size={14} /> Share
           </button>
-          <button onClick={copy} disabled={!link} className="ghost flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[13px]">
+          <button
+            onClick={copy}
+            disabled={!link}
+            className="ghost flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[13px] disabled:opacity-50"
+          >
             <Copy size={14} /> Copy link
           </button>
         </div>
@@ -125,7 +196,7 @@ export default function ReferralSheet({ open, onClose, address }: { open: boolea
               <button
                 onClick={handleClaim}
                 disabled={claiming || !claimCode.trim()}
-                className="press rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap"
+                className="press rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap disabled:opacity-50"
               >
                 {claiming ? "Claiming…" : "Claim 10 NIM"}
               </button>

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Info, HelpCircle } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Info } from "lucide-react";
 
 interface TooltipProps {
   content: React.ReactNode;
@@ -19,34 +20,70 @@ export function Tooltip({
   className = "",
 }: TooltipProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; position: "top" | "bottom" } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(e: Event) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) return;
+
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const tooltipWidth = Math.min(280, window.innerWidth - 24);
+
+      // Center horizontally on trigger button, clamp strictly within viewport boundaries
+      let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+      left = Math.max(12, Math.min(window.innerWidth - tooltipWidth - 12, left));
+
+      // Check vertical space: flip if not enough room on requested side
+      const preferTop = position === "top";
+      let actualPos: "top" | "bottom" = preferTop ? "top" : "bottom";
+      if (preferTop && rect.top < 130) {
+        actualPos = "bottom";
+      } else if (!preferTop && window.innerHeight - rect.bottom < 130) {
+        actualPos = "top";
+      }
+
+      const top = actualPos === "top" ? rect.top - 8 : rect.bottom + 8;
+      setCoords({ top, left, position: actualPos });
+    };
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+
+    function handlePointerDown(e: Event) {
+      const target = e.target as Node;
+      if (
+        triggerRef.current &&
+        !triggerRef.current.contains(target) &&
+        tooltipRef.current &&
+        !tooltipRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     }
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("touchstart", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [isOpen]);
 
-  const posClasses = {
-    top: "bottom-full left-1/2 -translate-x-1/2 mb-2",
-    bottom: "top-full left-1/2 -translate-x-1/2 mt-2",
-    left: "right-full top-1/2 -translate-y-1/2 mr-2",
-    right: "left-full top-1/2 -translate-y-1/2 ml-2",
-  }[position];
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [isOpen, position]);
 
   return (
     <div
-      ref={containerRef}
+      ref={triggerRef}
       className={`relative inline-flex items-center ${className}`}
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
@@ -73,10 +110,19 @@ export function Tooltip({
         )}
       </div>
 
-      {isOpen && (
+      {mounted && isOpen && coords && typeof document !== "undefined" && createPortal(
         <div
+          ref={tooltipRef}
           role="tooltip"
-          className={`absolute z-50 w-64 max-w-[85vw] p-3 rounded-xl border border-[var(--gold)]/35 bg-[#181208]/95 backdrop-blur-md shadow-[0_8px_28px_rgba(0,0,0,0.45)] text-[11px] leading-relaxed text-[var(--ink2)] animate-fade-in pointer-events-auto ${posClasses}`}
+          style={{
+            position: "fixed",
+            top: `${coords.top}px`,
+            left: `${coords.left}px`,
+            width: "min(280px, calc(100vw - 24px))",
+            transform: coords.position === "top" ? "translateY(-100%)" : "none",
+            zIndex: 999999,
+          }}
+          className="p-3 rounded-xl border border-[var(--gold)]/40 bg-[#181208]/98 backdrop-blur-md shadow-[0_10px_32px_rgba(0,0,0,0.6)] text-[11px] leading-relaxed text-[var(--ink2)] animate-fade-in pointer-events-auto"
         >
           {title && (
             <div className="font-bold text-[var(--gold)] uppercase tracking-wider text-[9px] mb-1 flex items-center gap-1.5">
@@ -85,7 +131,8 @@ export function Tooltip({
             </div>
           )}
           <div>{content}</div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

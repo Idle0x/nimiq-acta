@@ -32,9 +32,14 @@ class ErrorBoundary extends Component<Props, State> {
             <AlertTriangleIcon size={32} className="text-[var(--wax)]" />
           </div>
           <h1 className="text-2xl font-bold text-[var(--ink)] mb-3">Something went wrong</h1>
-          <p className="text-[var(--ink3)] mb-8 max-w-sm">
+          <p className="text-[var(--ink3)] mb-4 max-w-sm">
             We encountered an unexpected error while rendering this view.
           </p>
+          {this.state.error?.message && (
+            <p className="text-[11px] font-mono text-[var(--wax)] mb-6 max-w-md bg-black/40 p-2.5 rounded-lg border border-[var(--wax)]/30 select-all break-all">
+              {this.state.error.message}
+            </p>
+          )}
           <button
             onClick={() => this.setState({ hasError: false, error: undefined })}
             className="flex items-center gap-2 px-6 py-3 bg-[var(--surface2)] hover:bg-[var(--surface2)] text-[var(--ink)] rounded-xl transition-colors border border-[var(--line)]/5"

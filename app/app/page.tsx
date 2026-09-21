@@ -1493,8 +1493,8 @@ export default function Home() {
                 <p className="mt-4 text-sm text-[var(--ink3)] leading-relaxed">
                   Every contract successfully returned builds your on-chain reputation. Higher trust tiers unlock massive collateral discounts.
                 </p>
-                <div className="mt-4 flex gap-2.5 overflow-x-auto no-scrollbar snap-x snap-mandatory pt-2 pb-1">
-                  <div className="flex-1 min-w-[100px] shrink-0 snap-center rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
+                <div className="mt-4 grid grid-cols-3 gap-2.5 pt-2 pb-1 relative z-20">
+                  <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <p className="tnum text-xl font-black text-[var(--ink)]">
                         {escrows.filter(e => e.borrower === borrower || (e as any).owner === borrower || (e as any).completer === borrower).length}
@@ -1508,7 +1508,7 @@ export default function Home() {
                     <p className="text-[9px] uppercase tracking-widest text-[var(--ink3)] mt-1">Contracts</p>
                   </div>
 
-                  <div className="flex-1 min-w-[100px] shrink-0 snap-center rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
+                  <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <p className="tnum text-xl font-black text-[var(--verdigris)]">
                         {escrows.filter((e) => (e.borrower === borrower || (e as any).owner === borrower || (e as any).completer === borrower) && e.state === "released").length}
@@ -1522,7 +1522,7 @@ export default function Home() {
                     <p className="text-[9px] uppercase tracking-widest text-[var(--ink3)] mt-1">Settled</p>
                   </div>
 
-                  <div className="flex-1 min-w-[100px] shrink-0 snap-center rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
+                  <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <p className="tnum text-xl font-black text-[var(--gold)]">{activeCount}</p>
                       <InfoTooltip
