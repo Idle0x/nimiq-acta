@@ -1,16 +1,24 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { getMemStore } from "@/lib/db";
 import { rewardReferralPair } from "@/lib/settle";
 
 describe("Referral System & Rewards", () => {
   const REFERRER = "NQ01 1111 1111 1111 1111 1111 1111 1111 1111";
   const REFEREE = "NQ02 2222 2222 2222 2222 2222 2222 2222 2222";
+  const savedDbUrl = process.env.DATABASE_URL;
 
   beforeEach(() => {
+    delete process.env.DATABASE_URL;
     const { memActs, memReferrals, memReferralSettlements } = getMemStore();
     memActs.length = 0;
     memReferrals.clear();
     memReferralSettlements.clear();
+  });
+
+  afterAll(() => {
+    if (savedDbUrl) {
+      process.env.DATABASE_URL = savedDbUrl;
+    }
   });
 
   it("immediately rewards both referrer and referee with 10 NIM upon referral", async () => {

@@ -16,6 +16,19 @@ describe("Nimiq Authentication & Key Formats", () => {
     saveSessionToken(null);
   });
 
+  // The verify route enforces single-use nonces against Postgres when
+  // DATABASE_URL is set (CI sets DATABASE_URL_TEST → DATABASE_URL via
+  // tests/setup.ts). These unit tests use fixed nonces for deterministic
+  // signatures, so seed each nonce first. No-op in mem mode (no DB).
+  async function seedNonce(nonce: string) {
+    const { getSql, ensureDbSchema } = await import("@/lib/db");
+    await ensureDbSchema();
+    const sql = getSql();
+    if (sql) {
+      await sql`INSERT INTO auth_nonces (nonce, created_at) VALUES (${nonce}, ${Date.now()}) ON CONFLICT (nonce) DO NOTHING`;
+    }
+  }
+
   it("normalizes Nimiq addresses regardless of whitespace and casing", () => {
     const raw = "NQ07 0000 0000 0000 0000 0000 0000 0000";
     const noSpace = "NQ070000000000000000000000000000";
@@ -55,6 +68,7 @@ describe("Nimiq Authentication & Key Formats", () => {
     const sig = kp.sign(hashed);
     const sigBytes = sig.serialize();
 
+    await seedNonce(nonce);
     const { POST: verifyRoute } = await import("@/app/api/auth/verify/route");
     const req = new Request("http://localhost/api/auth/verify", {
       method: "POST",
@@ -81,6 +95,7 @@ describe("Nimiq Authentication & Key Formats", () => {
     const sig = kp.sign(rawBytes);
     const sigBytes = sig.serialize();
 
+    await seedNonce(nonce);
     const { POST: verifyRoute } = await import("@/app/api/auth/verify/route");
     const req = new Request("http://localhost/api/auth/verify", {
       method: "POST",
@@ -110,6 +125,7 @@ describe("Nimiq Authentication & Key Formats", () => {
     const sigB64 = Buffer.from(sig.serialize()).toString("base64");
     const pkB64 = Buffer.from(pkBytes).toString("base64");
 
+    await seedNonce(nonce);
     const { POST: verifyRoute } = await import("@/app/api/auth/verify/route");
     const req = new Request("http://localhost/api/auth/verify", {
       method: "POST",
@@ -129,6 +145,7 @@ describe("Nimiq Authentication & Key Formats", () => {
 
   it("rejects invalid signature and malformed key material", async () => {
     const nonce = "9988776655443322";
+    await seedNonce(nonce);
     const { POST: verifyRoute } = await import("@/app/api/auth/verify/route");
 
     // Invalid signature (wrong message signed)
