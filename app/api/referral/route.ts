@@ -45,12 +45,23 @@ export async function GET(req: Request) {
       referredUsers.sort((a, b) => b.settledAt - a.settledAt);
     }
     const alreadyClaimed = memReferralSettlements.has(address);
+    let claimedReferrerCode: string | null = null;
+    const mySettlement = memReferralSettlements.get(address);
+    if (mySettlement) {
+      for (const r of memReferrals.values()) {
+        if (r.id === mySettlement.referralId) {
+          claimedReferrerCode = r.code;
+          break;
+        }
+      }
+    }
     return NextResponse.json({
       code,
       link: buildLink(req, code),
       count,
       earnedNIM: count * 10,
       alreadyClaimed,
+      claimedReferrerCode,
       referredUsers,
     });
   }
@@ -147,12 +158,24 @@ export async function POST(req: Request) {
       }
     }
     referredUsers.sort((a, b) => b.settledAt - a.settledAt);
+    const alreadyClaimed = memReferralSettlements.has(address);
+    let claimedReferrerCode: string | null = null;
+    const mySettlement = memReferralSettlements.get(address);
+    if (mySettlement) {
+      for (const r of memReferrals.values()) {
+        if (r.id === mySettlement.referralId) {
+          claimedReferrerCode = r.code;
+          break;
+        }
+      }
+    }
     return NextResponse.json({
       code: existing.code,
       link: buildLink(req, existing.code),
       count,
       earnedNIM: count * 10,
-      alreadyClaimed: memReferralSettlements.has(address),
+      alreadyClaimed,
+      claimedReferrerCode,
       referredUsers,
     });
   }

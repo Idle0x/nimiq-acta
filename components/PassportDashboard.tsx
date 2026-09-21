@@ -315,6 +315,9 @@ function ReferralPanel({
           body: "Referral reward was disbursed directly to your wallet from the treasury.",
         });
       } else {
+        if (d?.error && d.error.includes("already claimed")) {
+          setAlreadyClaimed(true);
+        }
         toast({
           type: "error",
           title: "Claim failed",
@@ -448,28 +451,33 @@ function ReferralPanel({
 
       {/* Redeem friend's referral code */}
       <div className="pt-3 border-t border-[var(--line)] space-y-2">
-        <span className="caps text-[9px] text-[var(--gold)] block">Redeem a Referral Code</span>
         {alreadyClaimed ? (
-          <div className="rounded-xl bg-[color-mix(in_srgb,var(--verdigris)_15%,transparent)] border border-[var(--verdigris)]/40 p-2.5 text-center text-xs text-[var(--verdigris)] font-semibold flex items-center justify-center gap-1.5">
-            <Check size={13} /> 10 NIM Referral Bonus Claimed {claimedReferrerCode ? `(Code: ${claimedReferrerCode})` : ""}
+          <div className="rounded-xl bg-[color-mix(in_srgb,var(--verdigris)_15%,transparent)] border border-[var(--verdigris)]/40 p-3 text-center text-xs text-[var(--verdigris)] font-semibold flex items-center justify-center gap-2 animate-fade-in">
+            <Check size={14} />
+            <span>
+              You have redeemed {claimedReferrerCode ? `code "${claimedReferrerCode}"` : "a referral code"} (+10 NIM received)
+            </span>
           </div>
         ) : (
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={claimInput}
-              onChange={(e) => setClaimInput(e.target.value.toUpperCase())}
-              placeholder="Enter Friend's Code (e.g. 7A1F2C)"
-              className="flex-1 rounded-xl bg-black/30 border border-[var(--line)] px-3 py-2 text-xs font-mono tracking-wider uppercase text-[var(--ink)] placeholder:text-[var(--ink3)]/50 focus:border-[var(--gold)] outline-none"
-            />
-            <button
-              onClick={handleClaim}
-              disabled={claiming || !claimInput.trim()}
-              className="press rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap"
-            >
-              {claiming ? "Claiming…" : "Claim 10 NIM"}
-            </button>
-          </div>
+          <>
+            <span className="caps text-[9px] text-[var(--gold)] block font-bold">Redeem a Referral Code</span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={claimInput}
+                onChange={(e) => setClaimInput(e.target.value.toUpperCase())}
+                placeholder="Enter Friend's Code (e.g. 7A1F2C)"
+                className="flex-1 rounded-xl bg-black/30 border border-[var(--line)] px-3 py-2 text-xs font-mono tracking-wider uppercase text-[var(--ink)] placeholder:text-[var(--ink3)]/50 focus:border-[var(--gold)] outline-none"
+              />
+              <button
+                onClick={handleClaim}
+                disabled={claiming || !claimInput.trim()}
+                className="press rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap disabled:opacity-50"
+              >
+                {claiming ? "Claiming…" : "Claim 10 NIM"}
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, Share2, Copy, Users } from "lucide-react";
+import { createPortal } from "react-dom";
+import { X, Share2, Copy, Users, Check } from "lucide-react";
 import { useToast } from "./Feedback";
 
 export default function ReferralSheet({
@@ -13,11 +14,18 @@ export default function ReferralSheet({
   address?: string | null;
 }) {
   const toastContext = useToast();
+  const [mounted, setMounted] = useState(false);
   const [link, setLink] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [claimCode, setClaimCode] = useState("");
   const [claiming, setClaiming] = useState(false);
-  const [claimed, setClaimed] = useState(false);
+  const [alreadyClaimed, setAlreadyClaimed] = useState(false);
+  const [claimedReferrerCode, setClaimedReferrerCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const showToast = (t: { type: "success" | "error" | "info"; title: string; body?: string }) => {
     try {
@@ -45,6 +53,9 @@ export default function ReferralSheet({
     fetch(`/api/referral${q}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
+        if (d?.code) {
+          setCode(d.code);
+        }
         if (d?.link) {
           setLink(d.link);
         } else if (d?.code && typeof window !== "undefined") {
@@ -54,14 +65,19 @@ export default function ReferralSheet({
         } else {
           setFailed(true);
         }
+
+        if (typeof d?.alreadyClaimed === "boolean") {
+          setAlreadyClaimed(d.alreadyClaimed);
+        }
+        if (d?.claimedReferrerCode) {
+          setClaimedReferrerCode(d.claimedReferrerCode);
+        }
       })
       .catch(() => {
         if (fallbackLink) setLink(fallbackLink);
         else setFailed(true);
       });
   }, [open, address]);
-
-  if (!open) return null;
 
   async function share() {
     if (!link) return;
@@ -97,23 +113,28 @@ export default function ReferralSheet({
   }
 
   async function handleClaim() {
-    if (!claimCode.trim()) return;
+    const trimmed = claimCode.trim().toUpperCase();
+    if (!trimmed) return;
     setClaiming(true);
     try {
       const res = await fetch("/api/referral/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: claimCode.trim(), address }),
+        body: JSON.stringify({ code: trimmed, address }),
       });
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
-        setClaimed(true);
+        setAlreadyClaimed(true);
+        setClaimedReferrerCode(trimmed);
         showToast({
           type: "success",
           title: "🎉 10 NIM Claimed!",
           body: "Referral reward sent immediately from the protocol treasury.",
         });
       } else {
+        if (d?.error && d.error.includes("already claimed")) {
+          setAlreadyClaimed(true);
+        }
         showToast({
           type: "error",
           title: "Claim failed",
@@ -131,17 +152,19 @@ export default function ReferralSheet({
     }
   }
 
-  return (
+  if (!open || !mounted || typeof document === "undefined") return null;
+
+  const content = (
     <div
-      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 backdrop-blur-sm animate-fade-in sm:items-center"
+      className="fixed inset-0 z-[99999] flex items-end justify-center bg-black/75 backdrop-blur-sm animate-fade-in sm:items-center"
       onClick={onClose}
     >
       <div
-        className="plate w-full max-w-[480px] rounded-t-3xl p-6 pb-8 animate-slide-up sm:rounded-3xl"
+        className="plate w-full max-w-[480px] rounded-t-3xl p-6 pb-8 animate-slide-up sm:rounded-3xl border border-[var(--line)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <p className="caps flex items-center gap-2 text-[9px] text-[var(--ink2)]">
+          <p className="caps flex items-center gap-2 text-[9px] text-[var(--ink2)] font-semibold">
             <Users size={12} className="text-[var(--verdigris)]" /> Bring a friend
           </p>
           <button onClick={onClose} className="ghost rounded-full p-1.5" aria-label="Close">
@@ -177,33 +200,40 @@ export default function ReferralSheet({
           </button>
         </div>
 
-        {/* Claim friend's code */}
+        {/* Claim friend's code section */}
         <div className="mt-5 pt-4 border-t border-[var(--line)] space-y-2">
-          <p className="caps text-[9px] text-[var(--gold)]">Have a friend's referral code?</p>
-          {claimed ? (
-            <div className="rounded-xl bg-[color-mix(in_srgb,var(--verdigris)_15%,transparent)] border border-[var(--verdigris)]/40 p-2.5 text-center text-xs text-[var(--verdigris)] font-semibold">
-              ✓ 10 NIM Referral Bonus Claimed!
+          {alreadyClaimed ? (
+            <div className="rounded-xl bg-[color-mix(in_srgb,var(--verdigris)_15%,transparent)] border border-[var(--verdigris)]/40 p-3 text-center text-xs text-[var(--verdigris)] font-semibold flex items-center justify-center gap-2 animate-fade-in">
+              <Check size={14} />
+              <span>
+                You have redeemed {claimedReferrerCode ? `code "${claimedReferrerCode}"` : "a referral code"} (+10 NIM received)
+              </span>
             </div>
           ) : (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={claimCode}
-                onChange={(e) => setClaimCode(e.target.value.toUpperCase())}
-                placeholder="Enter Code (e.g. 7A1F2C)"
-                className="flex-1 rounded-xl bg-black/40 border border-[var(--line)] px-3 py-2 text-xs font-mono tracking-wider uppercase text-[var(--ink)] placeholder:text-[var(--ink3)]/50 focus:border-[var(--gold)] outline-none"
-              />
-              <button
-                onClick={handleClaim}
-                disabled={claiming || !claimCode.trim()}
-                className="press rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap disabled:opacity-50"
-              >
-                {claiming ? "Claiming…" : "Claim 10 NIM"}
-              </button>
-            </div>
+            <>
+              <p className="caps text-[9px] text-[var(--gold)] font-bold">Have a friend's referral code?</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={claimCode}
+                  onChange={(e) => setClaimCode(e.target.value.toUpperCase())}
+                  placeholder="Enter Code (e.g. 7A1F2C)"
+                  className="flex-1 rounded-xl bg-black/40 border border-[var(--line)] px-3 py-2 text-xs font-mono tracking-wider uppercase text-[var(--ink)] placeholder:text-[var(--ink3)]/50 focus:border-[var(--gold)] outline-none"
+                />
+                <button
+                  onClick={handleClaim}
+                  disabled={claiming || !claimCode.trim()}
+                  className="press rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap disabled:opacity-50"
+                >
+                  {claiming ? "Claiming…" : "Claim 10 NIM"}
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 }
