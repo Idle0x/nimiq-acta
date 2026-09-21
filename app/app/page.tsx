@@ -34,7 +34,9 @@ import { SkeletonCard, SkeletonEscrow } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { useToast } from "@/components/Toast";
 import { InfoTooltip } from "@/components/Tooltip";
-import { Coins, Sparkles, QrCode, FileText, ChevronRight, ShieldCheck, Settings, UserCheck, Compass } from "lucide-react";
+import { Coins, Sparkles, QrCode, FileText, ChevronRight, ShieldCheck, Settings, UserCheck, Compass, BookOpen, ExternalLink } from "lucide-react";
+import { Seal } from "@/components/Paper";
+import { GitHubIcon } from "@/components/docs/SourceLink";
 import { formatDistanceToNow } from "date-fns";
 import HubApi from "@nimiq/hub-api";
 import {
@@ -1016,6 +1018,76 @@ export default function Home() {
                   </div>
                   <div className="w-[88vw] max-w-[440px] shrink-0 snap-center">
                     <Leaderboard data={dashboard?.leaderboard ?? []} onView={setProfileAddr} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Radar Protocol Colophon */}
+              <div className="mt-10 pt-8 pb-14 px-4 border-t border-[var(--line)]/50 text-center space-y-3.5">
+                <div className="flex items-center justify-center gap-2">
+                  <a href="/" title="Acta Protocol Home">
+                    <Seal size={28} className="!text-[10px]">A</Seal>
+                  </a>
+                  <span className="caps font-display text-xs font-bold tracking-[0.2em] text-[var(--ink)]">
+                    Acta Protocol
+                  </span>
+                </div>
+
+                <p className="marginalia text-[11px] text-[var(--ink3)] max-w-sm mx-auto leading-relaxed">
+                  Autonomous Proof-of-Action engine anchored to Nimiq PoS Albatross sub-second micro-blocks.
+                </p>
+
+                {/* Curated High-Signal Links */}
+                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] font-mono text-[var(--ink3)]">
+                  <a
+                    href="/docs"
+                    className="inline-flex items-center gap-1.5 hover:text-[var(--gold)] transition-colors"
+                  >
+                    <BookOpen size={12} className="text-[var(--gold)]" />
+                    <span>Documentation</span>
+                  </a>
+
+                  <span className="text-[var(--line-strong)] opacity-60">·</span>
+
+                  <a
+                    href="https://github.com/Idle0x/nimiq-acta"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 hover:text-[var(--gold)] transition-colors"
+                  >
+                    <GitHubIcon size={12} className="text-[var(--gold)]" />
+                    <span>Source Code</span>
+                  </a>
+
+                  <span className="text-[var(--line-strong)] opacity-60">·</span>
+
+                  <a
+                    href="https://nimiq.watch"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 hover:text-[var(--verdigris)] transition-colors"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--verdigris)] animate-pulse" />
+                    <span>Nimiq Network</span>
+                    <ExternalLink size={10} className="opacity-60" />
+                  </a>
+
+                  <span className="text-[var(--line-strong)] opacity-60">·</span>
+
+                  <a
+                    href="/#doctrine"
+                    className="inline-flex items-center gap-1 hover:text-[var(--gold)] transition-colors"
+                  >
+                    <span>Doctrine</span>
+                  </a>
+                </div>
+
+                <div className="pt-1 text-[10px] font-mono text-[var(--ink3)]/80 space-y-0.5">
+                  <div className="truncate max-w-xs mx-auto">
+                    Vault: <span className="text-[var(--gold)] select-all">{ESCROW_VAULT}</span>
+                  </div>
+                  <div>
+                    Protocol fee: 0.001 NIM · Gas: 0.0001 NIM · Zero-Cron
                   </div>
                 </div>
               </div>
