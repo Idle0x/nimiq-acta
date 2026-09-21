@@ -1087,7 +1087,7 @@ export default function Home() {
                     Vault: <span className="text-[var(--gold)] select-all">{ESCROW_VAULT}</span>
                   </div>
                   <div>
-                    Protocol fee: 0.001 NIM · Gas: 0.0001 NIM · Zero-Cron
+                    Protocol fee: 0.001 NIM · Gas: 0.0001 NIM
                   </div>
                 </div>
               </div>

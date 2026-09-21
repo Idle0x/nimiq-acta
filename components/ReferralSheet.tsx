@@ -156,28 +156,32 @@ export default function ReferralSheet({
 
   const content = (
     <div
-      className="fixed inset-0 z-[99999] flex items-end justify-center bg-black/75 backdrop-blur-sm animate-fade-in sm:items-center"
+      className="theme-ink app-ink fixed inset-0 z-[99999] flex items-end justify-center bg-black/80 backdrop-blur-sm animate-fade-in sm:items-center text-[var(--ink)]"
       onClick={onClose}
     >
       <div
-        className="plate w-full max-w-[480px] rounded-t-3xl p-6 pb-8 animate-slide-up sm:rounded-3xl border border-[var(--line)] shadow-2xl"
+        className="plate app-ink w-full max-w-[480px] rounded-t-3xl p-6 pb-8 animate-slide-up sm:rounded-3xl border border-[rgba(236,226,203,0.16)] bg-[#17140f] text-[#ece2cb] shadow-[0_20px_60px_rgba(0,0,0,0.85)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <p className="caps flex items-center gap-2 text-[9px] text-[var(--ink2)] font-semibold">
+          <p className="caps flex items-center gap-2 text-[9px] text-[#b3a68a] font-semibold">
             <Users size={12} className="text-[var(--verdigris)]" /> Bring a friend
           </p>
-          <button onClick={onClose} className="ghost rounded-full p-1.5" aria-label="Close">
+          <button
+            onClick={onClose}
+            className="ghost rounded-full p-1.5 text-[#b3a68a] hover:text-[#ece2cb] transition-colors"
+            aria-label="Close"
+          >
             <X size={13} />
           </button>
         </div>
 
-        <h3 className="font-display text-xl font-semibold text-[var(--ink)]">You both earn 10 NIM.</h3>
-        <p className="marginalia mt-1.5 text-[12.5px]">
+        <h3 className="font-display text-xl font-semibold text-[#ece2cb]">You both earn 10 NIM.</h3>
+        <p className="marginalia mt-1.5 text-[12.5px] text-[#b3a68a]">
           Share your link or code. The treasury immediately drips 10 NIM to each of you upon joining, recorded on the Nimiq ledger.
         </p>
 
-        <div className="mt-4 rounded-xl border border-[var(--line2)] bg-black/30 p-3">
+        <div className="mt-4 rounded-xl border border-[rgba(236,226,203,0.16)] bg-black/50 p-3">
           <p className="truncate font-mono text-[11px] text-[var(--gold2)] select-all">
             {link ?? (failed ? "Connect your wallet to mint your permanent referral code." : "Preparing your link…")}
           </p>
@@ -187,23 +191,23 @@ export default function ReferralSheet({
           <button
             onClick={share}
             disabled={!link}
-            className="press flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[13px] font-bold disabled:opacity-50"
+            className="press flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[13px] font-bold disabled:opacity-50 text-[#1a1408]"
           >
             <Share2 size={14} /> Share
           </button>
           <button
             onClick={copy}
             disabled={!link}
-            className="ghost flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[13px] disabled:opacity-50"
+            className="ghost flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[13px] disabled:opacity-50 text-[#ece2cb] border border-[rgba(236,226,203,0.14)] bg-white/[0.03] hover:bg-white/[0.06]"
           >
             <Copy size={14} /> Copy link
           </button>
         </div>
 
         {/* Claim friend's code section */}
-        <div className="mt-5 pt-4 border-t border-[var(--line)] space-y-2">
+        <div className="mt-5 pt-4 border-t border-[rgba(236,226,203,0.12)] space-y-2">
           {alreadyClaimed ? (
-            <div className="rounded-xl bg-[color-mix(in_srgb,var(--verdigris)_15%,transparent)] border border-[var(--verdigris)]/40 p-3 text-center text-xs text-[var(--verdigris)] font-semibold flex items-center justify-center gap-2 animate-fade-in">
+            <div className="rounded-xl bg-[color-mix(in_srgb,var(--verdigris)_18%,transparent)] border border-[var(--verdigris)]/50 p-3 text-center text-xs text-[var(--verdigris)] font-semibold flex items-center justify-center gap-2 animate-fade-in">
               <Check size={14} />
               <span>
                 You have redeemed {claimedReferrerCode ? `code "${claimedReferrerCode}"` : "a referral code"} (+10 NIM received)
@@ -218,12 +222,12 @@ export default function ReferralSheet({
                   value={claimCode}
                   onChange={(e) => setClaimCode(e.target.value.toUpperCase())}
                   placeholder="Enter Code (e.g. 7A1F2C)"
-                  className="flex-1 rounded-xl bg-black/40 border border-[var(--line)] px-3 py-2 text-xs font-mono tracking-wider uppercase text-[var(--ink)] placeholder:text-[var(--ink3)]/50 focus:border-[var(--gold)] outline-none"
+                  className="flex-1 rounded-xl bg-black/50 border border-[rgba(236,226,203,0.18)] px-3 py-2 text-xs font-mono tracking-wider uppercase text-[#ece2cb] placeholder:text-[#7c715c]/60 focus:border-[var(--gold)] outline-none"
                 />
                 <button
                   onClick={handleClaim}
                   disabled={claiming || !claimCode.trim()}
-                  className="press rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap disabled:opacity-50"
+                  className="press rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap disabled:opacity-50 text-[#1a1408]"
                 >
                   {claiming ? "Claiming…" : "Claim 10 NIM"}
                 </button>
