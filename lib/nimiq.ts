@@ -130,6 +130,23 @@ function truncateUtf8(str: string, maxBytes = 64): string {
   }
 }
 
+function extractTxHash(res: unknown): string {
+  if (typeof res === "string") return res;
+  if (res && typeof res === "object") {
+    const obj = res as Record<string, unknown>;
+    if (typeof obj.hash === "string") return obj.hash;
+    if (typeof obj.transactionHash === "string") return obj.transactionHash;
+    if (typeof obj.id === "string") return obj.id;
+    if (typeof obj.result === "string") return obj.result;
+    if (obj.data && typeof obj.data === "object") {
+      const dataObj = obj.data as Record<string, unknown>;
+      if (typeof dataObj.hash === "string") return dataObj.hash;
+      if (typeof dataObj.transactionHash === "string") return dataObj.transactionHash;
+    }
+  }
+  return "";
+}
+
   const sendLock = useCallback(
     async (args: SendArgs): Promise<string> => {
       if (!provider || status !== "connected") {
@@ -144,8 +161,11 @@ function truncateUtf8(str: string, maxBytes = 64): string {
             fee: args.fee ?? 10,
             data: safeData,
           });
-          if (typeof res === "string") return res;
-          if (res && !(res as ErrorResponse).error) return res as any;
+          const hash = extractTxHash(res);
+          if (hash) return hash;
+          if (res && !(res as ErrorResponse).error) {
+            return typeof res === "string" ? res : JSON.stringify(res);
+          }
           console.warn("sendBasicTransactionWithData returned error response, falling back to basic:", res);
         } catch (dataErr) {
           console.warn("sendBasicTransactionWithData threw, falling back to basic transaction:", dataErr);
@@ -156,6 +176,8 @@ function truncateUtf8(str: string, maxBytes = 64): string {
         value: args.value,
         fee: args.fee ?? 10,
       });
+      const hash = extractTxHash(res);
+      if (hash) return hash;
       if (typeof res === "string") return res;
       throw new Error(
         `Nimiq send failed: ${(res as ErrorResponse)?.error?.message ?? "unknown error"}`
@@ -177,8 +199,11 @@ function truncateUtf8(str: string, maxBytes = 64): string {
           fee: args.fee ?? 10,
           data: safeData,
         });
-        if (typeof res === "string") return res;
-        if (res && !(res as ErrorResponse).error) return res as any;
+        const hash = extractTxHash(res);
+        if (hash) return hash;
+        if (res && !(res as ErrorResponse).error) {
+          return typeof res === "string" ? res : JSON.stringify(res);
+        }
       } catch (e) {
         console.warn("sendWithData failed, falling back to basic:", e);
       }
@@ -187,6 +212,8 @@ function truncateUtf8(str: string, maxBytes = 64): string {
         value: args.value,
         fee: args.fee ?? 10,
       });
+      const hash = extractTxHash(res);
+      if (hash) return hash;
       if (typeof res === "string") return res;
       throw new Error(
         `Nimiq sendWithData failed: ${(res as ErrorResponse)?.error?.message ?? "unknown error"}`

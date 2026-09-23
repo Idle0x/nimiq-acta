@@ -380,6 +380,8 @@ export default function Home() {
           fee: 10,
           data: `Acta: Escrow "${shortTitle}"`,
         });
+        toast("Deposit broadcast to Nimiq! Securing escrow...", "info");
+        await new Promise((r) => setTimeout(r, 1200));
       } else if (isRentRequest && listing.txHash) {
         txHash = listing.txHash;
       }
@@ -401,11 +403,20 @@ export default function Home() {
       };
       
       const idemKey = crypto.randomUUID();
-      const res = await apiFetch("/api/escrows", {
+      let res = await apiFetch("/api/escrows", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": idemKey },
         body: JSON.stringify({ type: "escrow", payload: e, address: borrower }),
       });
+
+      if (!res.ok && !listing.kind.startsWith("bounty") && !isRentRequest) {
+        await new Promise((r) => setTimeout(r, 2500));
+        res = await apiFetch("/api/escrows", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Idempotency-Key": idemKey },
+          body: JSON.stringify({ type: "escrow", payload: e, address: borrower }),
+        });
+      }
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -631,6 +642,11 @@ export default function Home() {
       }
     }
 
+    if (txHash) {
+      toast("Deposit broadcast to Nimiq! Verifying on-chain...", "info");
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+
     const listing: Listing = {
       id: newId("list"),
       title: data.title,
@@ -652,11 +668,19 @@ export default function Home() {
 
     try {
       const listingKey = crypto.randomUUID();
-      const res = await apiFetch("/api/escrows", {
+      let res = await apiFetch("/api/escrows", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": listingKey },
         body: JSON.stringify({ type: "listing", payload: listing, txHash, address: borrower }),
       });
+      if (!res.ok && txHash) {
+        await new Promise((r) => setTimeout(r, 2500));
+        res = await apiFetch("/api/escrows", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Idempotency-Key": listingKey },
+          body: JSON.stringify({ type: "listing", payload: listing, txHash, address: borrower }),
+        });
+      }
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `Failed to save listing (${res.status})`);
@@ -668,7 +692,11 @@ export default function Home() {
     } catch (e) {
       console.error(e);
       const msg = e instanceof Error ? e.message : "Failed to deploy listing";
-      toast(humanize(msg), "error");
+      if (txHash) {
+        toast(`Deposit broadcast (${txHash.slice(0, 8)}...). Listing registration: ${humanize(msg)}`, "error");
+      } else {
+        toast(humanize(msg), "error");
+      }
     }
   }
 

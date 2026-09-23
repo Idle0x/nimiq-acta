@@ -15,8 +15,95 @@ if (hasDb()) {
   ensureDbSchema().catch(console.error);
 }
 
+let lastReconcile = 0;
+async function maybeReconcileListings() {
+  const now = Date.now();
+  if (now - lastReconcile < 15000) return; // at most once every 15s
+  lastReconcile = now;
+  try {
+    const rpc = process.env.NIMIQ_RPC_URL || "https://rpc.nimiqwatch.com";
+    const vault = (process.env.NEXT_PUBLIC_VAULT_ADDRESS || "NQ86 845N NUJ3 88U4 2V9E DEDF XV8Y CFES 8RKT").replace(/\s+/g, "").toUpperCase();
+    const res = await fetch(rpc, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "getTransactionsByAddress",
+        params: [vault, 30, null],
+        id: 999,
+      }),
+      signal: AbortSignal.timeout(3500),
+    }).then((r) => r.json()).catch(() => null);
+
+    const txs = Array.isArray(res?.result?.data) ? res.result.data : [];
+    if (txs.length === 0) return;
+
+    const existingListings = await fetchListings();
+    const existingHashes = new Set(
+      existingListings.map((l) => (l.txHash || "").replace(/^0x/, "").toLowerCase()).filter(Boolean)
+    );
+
+    for (const tx of txs) {
+      if (tx.executionResult === false) continue;
+      const to = String(tx.to || "").replace(/\s+/g, "").toUpperCase();
+      if (to !== vault) continue;
+      const cleanHash = String(tx.hash || "").replace(/^0x/, "").toLowerCase();
+      if (existingHashes.has(cleanHash)) continue;
+
+      const hex = tx.recipientData || "";
+      let memo = "";
+      try {
+        memo = Buffer.from(hex, "hex").toString("utf8");
+      } catch {}
+
+      if (!memo.startsWith("Acta:")) continue;
+
+      const from = String(tx.from || "");
+      const valueNIM = Number(tx.value || 0) / 100_000;
+      if (valueNIM <= 0) continue;
+
+      let kind: import("@/lib/escrow").ListingKind = "bounty";
+      let borrowMode: "rent" | "lend" | undefined = undefined;
+      let title = memo.replace(/^Acta:\s*/, "");
+
+      if (memo.includes("Rent Request")) {
+        kind = "borrow";
+        borrowMode = "rent";
+        const match = memo.match(/"([^"]+)"/);
+        title = match ? match[1] : title;
+      } else if (memo.includes("Bounty")) {
+        kind = "bounty";
+        const match = memo.match(/"([^"]+)"/);
+        title = match ? match[1] : title;
+      }
+
+      const listing: Listing = {
+        id: "list_" + cleanHash.slice(0, 12),
+        title: title || "Funded Community Bounty",
+        owner: from,
+        collateralNIM: valueNIM,
+        yieldNIM: 0,
+        durationDays: 7,
+        kind,
+        category: "other",
+        description: `Funded on-chain via Nimiq transaction ${cleanHash.slice(0, 10)}... Verified in vault escrow.`,
+        createdAt: tx.timestamp || Date.now(),
+        isActive: true,
+        txHash: cleanHash,
+        ...(borrowMode ? { borrowMode } : {}),
+      };
+
+      await insertListing(listing);
+      existingHashes.add(cleanHash);
+    }
+  } catch (err) {
+    console.warn("Reconcile inbound vault listings error (non-blocking):", err);
+  }
+}
+
 export async function GET() {
   await ensureDbSchema();
+  await maybeReconcileListings().catch(() => {});
   const [listings, escrows] = await Promise.all([fetchListings(), fetchEscrows()]);
   return NextResponse.json({ listings, escrows });
 }

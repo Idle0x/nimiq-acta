@@ -172,17 +172,54 @@ export async function verifyInboundLock(args: {
   expectedRecipient: string;
   minAmountLunas: bigint;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const cleanHash = (args.txHash || "").trim().replace(/^0x/, "");
+  let rawHash = args.txHash;
+  if (typeof rawHash === "object" && rawHash !== null) {
+    rawHash = (rawHash as any).hash || (rawHash as any).transactionHash || (rawHash as any).id || "";
+  }
+  const cleanHash = String(rawHash || "").trim().replace(/^0x/, "");
   if (!cleanHash) return { ok: false, error: "Missing lock transaction hash" };
-  let tx: unknown;
-  try {
-    tx = await rpcCall("getTransactionByHash", [cleanHash]);
-  } catch (e) {
-    return { ok: false, error: `Lock transaction not found on-chain: ${(e as Error)?.message ?? e}` };
+
+  let tx: unknown = null;
+  const maxAttempts = 6;
+  const delays = [800, 1200, 1500, 2000, 2500, 3000];
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      tx = await rpcCall("getTransactionByHash", [cleanHash]);
+      if (tx && typeof tx === "object") break;
+    } catch {
+      // fresh transaction still propagating in mempool / block forging
+    }
+
+    // Fallback: check recent vault transactions via getTransactionsByAddress
+    if (args.expectedRecipient) {
+      try {
+        const cleanVault = args.expectedRecipient.replace(/\s+/g, "").toUpperCase();
+        const recentTxs = await rpcCall("getTransactionsByAddress", [cleanVault, 25, null]);
+        if (Array.isArray(recentTxs)) {
+          const match = recentTxs.find((item: any) => {
+            const h = String(item?.hash || item?.transactionHash || "").replace(/^0x/, "").toLowerCase();
+            return h === cleanHash.toLowerCase();
+          });
+          if (match) {
+            tx = match;
+            break;
+          }
+        }
+      } catch {
+        // non-blocking fallback
+      }
+    }
+
+    if (attempt < maxAttempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+    }
   }
+
   if (!tx || typeof tx !== "object") {
-    return { ok: false, error: "Lock transaction not found on-chain" };
+    return { ok: false, error: "Lock transaction not confirmed on-chain yet (propagating)" };
   }
+
   const t = tx as Record<string, unknown>;
   const norm = (a: unknown) => String(a ?? "").replace(/\s+/g, "").toUpperCase();
   // Nimiq RPC shape: { hash, from, to, value (lunas, number), networkId,

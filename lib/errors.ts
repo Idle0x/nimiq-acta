@@ -20,8 +20,11 @@ export function humanize(input: unknown): string {
   if (has("openai_api_key", "vision", "oracle busy", "429", "502", "unparseable oracle")) {
     return "The AI oracle is unavailable or busy — nothing was judged, nothing moved. Wait a minute and retry.";
   }
-  if (has("broadcast", "rpc", "block number", "no transaction hash")) {
-    return "The Nimiq network rejected the broadcast — no funds moved. Retry; persistent failure means node trouble, not your wallet.";
+  if (has("deposit not funded", "lock not funded", "not confirmed", "confirming", "propagating", "transaction not found")) {
+    return "Deposit is confirming on the Nimiq network. Please wait a few seconds and retry — your funds are safe in the vault.";
+  }
+  if (has("broadcast rejected", "transaction rejected", "failed to broadcast", "mempool reject", "insufficient balance")) {
+    return "The Nimiq network rejected the transaction — no funds moved. Check your balance and retry.";
   }
   if (has("invalid signature", "malformed key", "sign")) {
     return "Signature rejected — reconnect Nimiq Pay and sign again.";
