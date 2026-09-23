@@ -11,6 +11,9 @@ import { verifyInboundLock, shouldVerifyInbound } from "@/lib/backend-nimiq";
 import { awardRecurring, checkAndAwardMilestone } from "@/lib/milestones";
 import { claimEscrow, finalizeEscrow, unclaimEscrow, settleAct } from "@/lib/settle";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
 if (hasDb()) {
   ensureDbSchema().catch(console.error);
 }
