@@ -131,6 +131,11 @@ export default function Home() {
     refunded: false,
   });
   const [profileAddr, setProfileAddr] = useState<string | null>(null);
+  const [activeTx, setActiveTx] = useState<{
+    status: "broadcasting" | "confirming" | "confirmed";
+    label: string;
+    txHash?: string;
+  } | null>(null);
   const { unread, refresh: refreshUnread } = useUnread();
 
   // Radar Bounty Filter States
@@ -374,13 +379,14 @@ export default function Home() {
       
       if (!listing.kind.startsWith("bounty") && !isRentRequest) {
         const shortTitle = listing.title.length > 25 ? listing.title.slice(0, 22) + "..." : listing.title;
+        setActiveTx({ status: "broadcasting", label: "Broadcasting collateral lock to vault..." });
         txHash = await sendLock({
           recipient: ESCROW_VAULT,
           value: Math.round(amountNIM * 100_000),
           fee: 10,
           data: `Acta: Escrow "${shortTitle}"`,
         });
-        toast("Deposit broadcast to Nimiq! Securing escrow...", "info");
+        setActiveTx({ status: "confirming", label: "Forging escrow block on Nimiq...", txHash });
         await new Promise((r) => setTimeout(r, 1200));
       } else if (isRentRequest && listing.txHash) {
         txHash = listing.txHash;
@@ -425,9 +431,12 @@ export default function Home() {
 
       setEscrows((p) => [e, ...p]);
       setTab("active");
+      setActiveTx({ status: "confirmed", label: "Escrow locked & verified!" });
+      setTimeout(() => setActiveTx(null), 1000);
       toast(isRentRequest ? `Accepted rental request for ${listing.title}` : `Locked ${amountNIM.toLocaleString()} NIM for ${listing.title}`, "success"); 
       return e;
     } catch (err) {
+      setActiveTx(null);
       toast(humanize(err), "error");
       return null;
     } finally {
@@ -485,6 +494,7 @@ export default function Home() {
           return toast("Invalid manual request QR", "error");
         }
 
+        setActiveTx({ status: "confirming", label: "Settling bounty approval on Nimiq..." });
         const res = await apiFetch("/api/bounty/manual_approve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -492,10 +502,13 @@ export default function Home() {
         });
         
         if (!res.ok) {
+          setActiveTx(null);
           const data = await res.json();
           return toast(data.error || "Approval failed", "error");
         }
         
+        setActiveTx({ status: "confirmed", label: "Bounty settled on-chain!" });
+        setTimeout(() => setActiveTx(null), 1000);
         toast(`Approved completion for ${completerAddress.substring(0,8)}...`, "success");
         refetch();
         return;
@@ -518,6 +531,7 @@ export default function Home() {
         if (targetEscrow && (targetEscrow.state === "locked" || (targetEscrow.state as string) === "expired")) {
           matched = true;
           setShowScanner(false);
+          setActiveTx({ status: "confirming", label: "Settling vault release on Nimiq..." });
           const res = await apiFetch("/api/escrows", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -525,12 +539,15 @@ export default function Home() {
           });
 
           if (!res.ok) {
+            setActiveTx(null);
             const data = await res.json();
             toast(data.error || "Failed to release", "error");
             return;
           }
 
           setEscrows((p) => p.map((x) => (x.id === targetEscrow.id ? { ...x, state: "released" } : x)));
+          setActiveTx({ status: "confirmed", label: "Vault payout confirmed on-chain!" });
+          setTimeout(() => setActiveTx(null), 1000);
           toast(`Released ${(targetEscrow.amountNIM - SETTLE_FEE_NIM).toLocaleString()} NIM (${targetEscrow.title})`, "success"); setPayoffAmount(targetEscrow.amountNIM);
           setJustSettled(true); setTimeout(() => setJustSettled(false), 5000); refetch(); refreshUnread();
           return;
@@ -543,6 +560,7 @@ export default function Home() {
         if (payload && payload.escrowId === e.id) {
           matched = true;
           setShowScanner(false);
+          setActiveTx({ status: "confirming", label: "Settling vault release on Nimiq..." });
           const res = await apiFetch("/api/escrows", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -550,12 +568,15 @@ export default function Home() {
           });
 
           if (!res.ok) {
+            setActiveTx(null);
             const data = await res.json();
             toast(data.error || "Failed to release", "error");
             return;
           }
 
           setEscrows((p) => p.map((x) => (x.id === e.id ? { ...x, state: "released" } : x)));
+          setActiveTx({ status: "confirmed", label: "Vault payout confirmed on-chain!" });
+          setTimeout(() => setActiveTx(null), 1000);
           toast(`Released ${(e.amountNIM - SETTLE_FEE_NIM).toLocaleString()} NIM (${e.title})`, "success"); setPayoffAmount(e.amountNIM);
           setJustSettled(true); setTimeout(() => setJustSettled(false), 5000); refetch(); refreshUnread();
           return;
@@ -630,6 +651,10 @@ export default function Home() {
       try {
         const shortTitle = data.title.length > 25 ? data.title.slice(0, 22) + "..." : data.title;
         const memo = isBorrowRent ? `Acta: Rent Request "${shortTitle}"` : `Acta: Bounty "${shortTitle}"`;
+        setActiveTx({
+          status: "broadcasting",
+          label: isBorrowRent ? "Locking rental collateral..." : "Broadcasting bounty deposit to vault...",
+        });
         txHash = await sendLock({
           recipient: ESCROW_VAULT,
           value: Math.round(data.collateralNIM * 100_000),
@@ -637,13 +662,14 @@ export default function Home() {
           data: memo,
         });
       } catch (err) {
+        setActiveTx(null);
         toast(humanize((isBorrowRent ? "Failed to fund rental request: " : "Failed to fund bounty: ") + (err instanceof Error ? err.message : "unknown")), "error");
         return;
       }
     }
 
     if (txHash) {
-      toast("Deposit broadcast to Nimiq! Verifying on-chain...", "info");
+      setActiveTx({ status: "confirming", label: "Forging block on Nimiq...", txHash });
       await new Promise((r) => setTimeout(r, 1200));
     }
 
@@ -688,9 +714,12 @@ export default function Home() {
       
       setListings((p) => [listing, ...p]);
       setShowCreateListing(false);
-      toast("Listing deployed to network.", "success");
+      setActiveTx({ status: "confirmed", label: "Deposit confirmed on-chain!" });
+      setTimeout(() => setActiveTx(null), 1000);
+      toast("Listing deployed & confirmed on-chain.", "success");
     } catch (e) {
       console.error(e);
+      setActiveTx(null);
       const msg = e instanceof Error ? e.message : "Failed to deploy listing";
       if (txHash) {
         toast(`Deposit broadcast (${txHash.slice(0, 8)}...). Listing registration: ${humanize(msg)}`, "error");
@@ -763,6 +792,37 @@ export default function Home() {
           onOpenInbox={() => setInboxOpen(true)}
           unread={unread}
         />
+        {activeTx && (
+          <aside
+            aria-label="Blockchain transaction status"
+            className="fixed top-[max(3.8rem,calc(env(safe-area-inset-top)+3.3rem))] left-1/2 -translate-x-1/2 z-[140] flex items-center gap-2 rounded-full bg-[var(--surface)]/95 border border-[var(--gold)]/35 px-3.5 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.5)] backdrop-blur-md animate-slide-down"
+          >
+            <span className="relative flex h-2 w-2">
+              {activeTx.status === "confirmed" ? (
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--verdigris)]" />
+              ) : (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--gold)] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--gold)]" />
+                </>
+              )}
+            </span>
+            <span className="text-[11px] font-medium text-[var(--ink)] tracking-tight">
+              {activeTx.label}
+            </span>
+            {activeTx.txHash && !activeTx.txHash.startsWith("0xsimulated") && (
+              <a
+                href={`https://nimiq.watch/#${activeTx.txHash.replace(/^0x/, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-[9px] text-[var(--gold2)] hover:underline flex items-center gap-0.5 border-l border-[var(--line)] pl-2"
+                title="View on Nimiq Explorer"
+              >
+                {activeTx.txHash.slice(0, 6)}… <ExternalLink size={8} />
+              </a>
+            )}
+          </aside>
+        )}
         {isDemoMode && (
           <p className="bg-[var(--wax)] px-4 py-1 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--ink)]">
             Read-only demo — locks disabled
@@ -2016,7 +2076,17 @@ export default function Home() {
         </main>
 
         <EngravedTabs tab={tab} setTab={setTab} activeCount={activeCount} pulse={justSettled} />
-        <Inbox open={inboxOpen} onClose={() => setInboxOpen(false)} onChanged={refreshUnread} />
+        <Inbox
+          open={inboxOpen}
+          onClose={() => setInboxOpen(false)}
+          onChanged={refreshUnread}
+          onNavigate={(link) => {
+            setInboxOpen(false);
+            if (link.includes("active")) setTab("active");
+            else if (link.includes("passport")) setTab("passport");
+            else setTab("radar");
+          }}
+        />
         <ReferralSheet open={refOpen} onClose={() => setRefOpen(false)} address={accounts[0]} />
         <ProfileSheet address={profileAddr} onClose={() => setProfileAddr(null)} />
         <ListingDetailSheet

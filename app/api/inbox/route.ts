@@ -28,10 +28,32 @@ export async function GET() {
   return NextResponse.json({ notifications, unread: notifications.filter((n) => !n.read).length });
 }
 
-export async function PATCH() {
+export async function PATCH(req: Request) {
   const address = await getSessionAddress();
   if (!address) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const sql = getSql();
-  if (sql) await sql`UPDATE notifications SET read = TRUE WHERE address = ${address}`;
+  const body = await req.json().catch(() => ({}));
+  if (sql) {
+    if (body.id) {
+      await sql`UPDATE notifications SET read = TRUE WHERE address = ${address} AND id = ${body.id}`;
+    } else {
+      await sql`UPDATE notifications SET read = TRUE WHERE address = ${address}`;
+    }
+  }
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(req: Request) {
+  const address = await getSessionAddress();
+  if (!address) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const sql = getSql();
+  const body = await req.json().catch(() => ({}));
+  if (sql) {
+    if (body.id) {
+      await sql`DELETE FROM notifications WHERE address = ${address} AND id = ${body.id}`;
+    } else {
+      await sql`DELETE FROM notifications WHERE address = ${address} AND read = TRUE`;
+    }
+  }
   return NextResponse.json({ ok: true });
 }

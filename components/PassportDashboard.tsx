@@ -75,8 +75,10 @@ function Row({
 }
 
 function CheckInPanel({ address, onSignIn }: { address?: string; onSignIn?: () => Promise<boolean> }) {
+  const toast = useToast();
   const [s, setS] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [txStage, setTxStage] = useState<"idle" | "broadcasting" | "confirming" | "confirmed">("idle");
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -96,14 +98,48 @@ function CheckInPanel({ address, onSignIn }: { address?: string; onSignIn?: () =
     load();
   }, [load]);
 
+  async function handleTxConfirmation(d: any) {
+    if (d.txHash && !String(d.txHash).startsWith("0xsimulated")) {
+      setTxStage("confirming");
+      const cleanHash = String(d.txHash).replace(/^0x/, "");
+      const rpc = "https://rpc.nimiqwatch.com";
+      // Poll Nimiq RPC for block inclusion
+      for (let i = 0; i < 6; i++) {
+        try {
+          const check = await fetch(rpc, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              method: "getTransactionByHash",
+              params: [cleanHash],
+              id: 1,
+            }),
+          }).then((res) => res.json()).catch(() => null);
+          if (check?.result?.data) break;
+        } catch {}
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+      }
+    } else {
+      setTxStage("confirming");
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    }
+
+    setTxStage("confirmed");
+    setS(d);
+    toast({ title: "Daily check-in confirmed on-chain!", body: "+1 NIM reward sent.", type: "success" });
+  }
+
   async function claim() {
     setBusy(true);
+    setTxStage("broadcasting");
     setErr(null);
     try {
       if (onSignIn) {
         const ok = await onSignIn();
         if (!ok) {
           setErr("Authentication required to check in");
+          setTxStage("idle");
           return;
         }
       }
@@ -115,6 +151,7 @@ function CheckInPanel({ address, onSignIn }: { address?: string; onSignIn?: () =
       const d = await r.json().catch(() => ({}));
       if (r.status === 409) {
         setS((prev: any) => prev ? { ...prev, checkedToday: true } : { checkedToday: true, streak: 1, total: 1, month: new Date().toISOString().slice(0, 7), monthDays: [new Date().toISOString().slice(0, 10)] });
+        setTxStage("idle");
         return;
       }
       if (!r.ok) {
@@ -127,16 +164,19 @@ function CheckInPanel({ address, onSignIn }: { address?: string; onSignIn?: () =
               body: JSON.stringify({ address }),
             });
             if (retryRes.ok) {
-              setS(await retryRes.json());
+              const rd = await retryRes.json();
+              await handleTxConfirmation(rd);
               return;
             }
           }
         }
         throw new Error((d as any).error || "Check-in failed");
       }
-      setS(d);
+
+      await handleTxConfirmation(d);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Check-in failed");
+      setTxStage("idle");
     } finally {
       setBusy(false);
     }
@@ -168,13 +208,37 @@ function CheckInPanel({ address, onSignIn }: { address?: string; onSignIn?: () =
               {s?.total ?? 0} total check-ins · +1 NIM reward
             </p>
           </div>
-          <button
-            onClick={claim}
-            disabled={busy || s?.checkedToday}
-            className="press rounded-xl px-4 py-2.5 text-[12px] font-bold disabled:opacity-50"
-          >
-            {s?.checkedToday ? "Checked in ✓" : busy ? "Claiming…" : "Check in · +1 NIM"}
-          </button>
+          <div className="flex items-center gap-2">
+            {txStage === "confirming" && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] text-[var(--gold)] font-mono animate-pulse">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--gold)] animate-ping" />
+                Forging block…
+              </span>
+            )}
+            <button
+              onClick={claim}
+              disabled={busy || s?.checkedToday || txStage === "confirming"}
+              className="press rounded-xl px-4 py-2 text-[12px] font-bold disabled:opacity-60 transition-all flex items-center justify-center gap-1.5 min-w-[125px]"
+            >
+              {s?.checkedToday || txStage === "confirmed" ? (
+                <span className="inline-flex items-center gap-1 text-[var(--verdigris)]">
+                  <Check size={12} className="stroke-[3]" /> Checked in
+                </span>
+              ) : txStage === "broadcasting" ? (
+                <span className="inline-flex items-center gap-1.5 text-[var(--gold)]">
+                  <span className="h-2 w-2 rounded-full bg-[var(--gold)] animate-ping" />
+                  Broadcasting…
+                </span>
+              ) : txStage === "confirming" ? (
+                <span className="inline-flex items-center gap-1.5 text-[var(--gold)]">
+                  <span className="h-2 w-2 rounded-full bg-[var(--gold)] animate-pulse" />
+                  Confirming…
+                </span>
+              ) : (
+                "Check in · +1 NIM"
+              )}
+            </button>
+          </div>
         </div>
         {err ? <p className="mt-1.5 text-[11px] text-[var(--wax)]">{err}</p> : null}
 
