@@ -11,8 +11,11 @@ export function humanize(input: unknown): string {
   if (has("vault seed phrase", "seed phrase not configured")) {
     return "Payouts are not configured on this deployment (vault key missing). Contact the operator.";
   }
-  if (has("no db", "db unavailable", "database", "neon", "fetch failed", "networkerror", "failed to fetch")) {
+  if (has("no db", "db unavailable", "database error", "database unreachable", "neon", "postgres")) {
     return "The database is unreachable — your funds on-chain are untouched. Check connection and retry.";
+  }
+  if (has("fetch failed", "networkerror", "failed to fetch", "network request failed")) {
+    return "Network connection issue — check your internet connection and retry.";
   }
   if (has("openai_api_key", "vision", "oracle busy", "429", "502", "unparseable oracle")) {
     return "The AI oracle is unavailable or busy — nothing was judged, nothing moved. Wait a minute and retry.";

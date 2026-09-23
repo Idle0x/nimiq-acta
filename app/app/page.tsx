@@ -408,7 +408,8 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        throw new Error("Server failed to record the lock transaction. Your funds may be locked on chain but unrecorded.");
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Server failed to record the lock transaction.");
       }
 
       setEscrows((p) => [e, ...p]);
@@ -656,14 +657,18 @@ export default function Home() {
         headers: { "Content-Type": "application/json", "Idempotency-Key": listingKey },
         body: JSON.stringify({ type: "listing", payload: listing, txHash, address: borrower }),
       });
-      if (!res.ok) throw new Error("Failed to save listing");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to save listing (${res.status})`);
+      }
       
       setListings((p) => [listing, ...p]);
       setShowCreateListing(false);
       toast("Listing deployed to network.", "success");
     } catch (e) {
       console.error(e);
-      toast(humanize("Failed to deploy listing — database unreachable"), "error");
+      const msg = e instanceof Error ? e.message : "Failed to deploy listing";
+      toast(humanize(msg), "error");
     }
   }
 
